@@ -26,6 +26,8 @@ jobs:
               - 'run/keyword_alert.py'
               - 'utils/**'
               - 'models/PostgreSQLManager.py'
+              - 'pyproject.toml'
+              - 'uv.lock'
 
   build-and-push:
     runs-on: ubuntu-latest
