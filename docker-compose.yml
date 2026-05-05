@@ -9,7 +9,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ~/log:/log
+      - ~/logs:/log
       - ~/sqlite3:/app/db
     environment:
       - APP_ENV=${APP_ENV:-dev}
@@ -37,7 +37,7 @@ services:
     env_file: .env
     volumes:
       - ~/sqlite3:/app/db
-      - ~/log:/log
+      - ~/logs:/log
     environment:
       - APP_ENV=${APP_ENV:-dev}
       - SQLITE_DB_PATH=/app/db/telegram.db

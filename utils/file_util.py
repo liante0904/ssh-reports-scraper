@@ -6,7 +6,7 @@ import datetime
 from loguru import logger
 
 # 로그 파일 경로는 환경 변수로부터 가져옵니다
-LOG_FILE = os.getenv('LOG_FILE', '~/log/logfile.log')
+LOG_FILE = os.getenv('LOG_FILE', '~/logs/logfile.log')
 LOG_FILE = os.path.expanduser(LOG_FILE)  # ~ 를 홈 디렉토리로 확장
 
 # 한글 인코딩 처리 및 wget으로 다운로드
