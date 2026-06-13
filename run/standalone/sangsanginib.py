@@ -1,22 +1,12 @@
 #!/usr/bin/env python3
-"""Sangsangin standalone scraper — GitHub Actions 전용.
-공통 코어 scrapers/sangsangin_core.py 사용."""
-import json
-import os
-import sys
-
+import json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from scrapers.sangsanginib_core import scrape_sangsangin
 
-from scrapers.sangsangin_core import scrape_sangsangin
-
-URLS_ENV_KEY = "SANGSANGINIB_URLS_JSON"
-FIRM_NM = "상상인증권"
-
+K = SANGSANGINIB_URLS_JSON
 if __name__ == "__main__":
-    raw = os.getenv(URLS_ENV_KEY, "")
-    if not raw:
-        print(f"[{FIRM_NM}] FATAL: {URLS_ENV_KEY} not set", file=sys.stderr)
-
-    result = scrape_sangsangin(cfg=json.loads(raw)
-    print(f"[{FIRM_NM}] total {len(result)} articles collected", file=sys.stderr)
+    raw = os.getenv(K, "")
+    if not raw: print(f"["상상인증권"] FATAL: {K} not set", file=sys.stderr), sys.exit(1)
+    result = scrape_sangsangin(cfg=json.loads(raw))
+    print(f"["상상인증권"] total {len(result)} articles collected", file=sys.stderr)
     json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
