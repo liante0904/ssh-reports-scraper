@@ -39,4 +39,5 @@ def scrape_toss(cfg: dict) -> list[dict]:
                 except Exception: continue
             page += 1
             if total_pages and page >= total_pages: break
+    print(f"[toss] {len(result)} articles collected", file=sys.stderr)
     return result

@@ -29,4 +29,5 @@ def scrape_hmsec(cfg: dict) -> list[dict]:
             page += 1
             if total_pages and page > total_pages: break
             time.sleep(0.3)
+    print(f"[hmsec] {len(result)} articles collected", file=sys.stderr)
     return result

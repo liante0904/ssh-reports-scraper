@@ -39,4 +39,5 @@ def scrape_shinyoung(cfg: dict) -> list[dict]:
             })
         except Exception:
             continue
+    print(f"[shinyoung] {len(result)} articles collected", file=sys.stderr)
     return result

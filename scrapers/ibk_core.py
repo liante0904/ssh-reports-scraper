@@ -27,4 +27,5 @@ def scrape_ibk(cfg: dict) -> list[dict]:
                     telegram_url=dl,pdf_url=dl,key=dl,report_unique_key=dl,mkt_tp=mkt,
                     save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
             except Exception: continue
+    print(f"[ibk] {len(result)} articles collected", file=sys.stderr)
     return result

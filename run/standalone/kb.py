@@ -23,7 +23,7 @@ if __name__ == "__main__":
         print(f"[{FIRM_NM}] FATAL: {URLS_ENV_KEY} not set", file=sys.stderr)
 
 
-    result = scrape_kb(cfg=json.loads(raw))
+    result = scrape_kb(cfg=json.loads(raw)
     print(f"[{FIRM_NM}] total {len(result)} articles collected", file=sys.stderr)
 
     # 게시판별 통계 (디버깅용)

@@ -29,4 +29,5 @@ def scrape_nhqv(cfg: dict, target_date: str = None) -> list[dict]:
                 key=u,report_unique_key=u,save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
         if cnt >= cfg["page_size"]: p["rshPprNo"] = _jp(cfg["list_path"])[-1]["rshPprNo"]
         else: break
+    print(f"[nhqv] {len(result)} articles collected", file=sys.stderr)
     return result

@@ -79,4 +79,5 @@ def scrape_imfn(base_url: str) -> list[dict]:
                     continue
             page += 1
 
+    print(f"[imfn] {len(result)} articles collected", file=sys.stderr)
     return result

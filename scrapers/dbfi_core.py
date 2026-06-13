@@ -21,4 +21,5 @@ def scrape_dbfi(cfg: dict) -> list[dict]:
                 reg_dt=row[ik["reg_dt"]][:8],article_url="",telegram_url="",pdf_url="",
                 article_title=row[ik["title"]],writer=row[ik["writer"]],
                 key=key,report_unique_key=key,save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
+    print(f"[dbfi] {len(result)} articles collected", file=sys.stderr)
     return result

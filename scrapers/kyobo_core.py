@@ -37,4 +37,5 @@ def scrape_kyobo(cfg: dict) -> list[dict]:
                         pdf_url=dl,article_title=title,writer=writer,key=dl,report_unique_key=dl,
                         save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception: continue
+    print(f"[kyobo] {len(result)} articles collected", file=sys.stderr)
     return result

@@ -42,4 +42,5 @@ def scrape_yuanta(cfg: dict) -> list[dict]:
                         key=article_url,report_unique_key=article_url,
                         article_title=title,save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception: continue
+    print(f"[yuanta] {len(result)} articles collected", file=sys.stderr)
     return result

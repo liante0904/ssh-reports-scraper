@@ -30,4 +30,5 @@ def scrape_eugene(url: str) -> list[dict]:
             "download_url":article_url,"telegram_url":article_url,
             "writer":writer,"key":article_url,"report_unique_key":article_url,
             "save_time":datetime.now(timezone(timedelta(hours=9))).isoformat()})
+    print(f"[eugene] {len(result)} articles collected", file=sys.stderr)
     return result

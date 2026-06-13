@@ -43,4 +43,5 @@ def scrape_sks(urls: list[str]) -> list[dict]:
                 "save_time": datetime.now(timezone(timedelta(hours=9))).isoformat(),
             })
 
+    print(f"[sks] {len(result)} articles collected", file=sys.stderr)
     return result

@@ -30,4 +30,5 @@ def scrape_kb(cfg: dict, from_date: str = None, to_date: str = None) -> list[dic
                 article_title=title,mkt_tp=mkt,key=dl,report_unique_key=dl,
                 save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
         except Exception: continue
+    print(f"[kb] {len(result)} articles collected", file=sys.stderr)
     return result

@@ -43,4 +43,5 @@ def scrape_hana(cfg: dict) -> list[dict]:
                         telegram_url=dl,pdf_url=dl,article_title=title,writer=writer,
                         key=dl,report_unique_key=dl,mkt_tp=mkt,save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception: continue
+    print(f"[hana] {len(result)} articles collected", file=sys.stderr)
     return result

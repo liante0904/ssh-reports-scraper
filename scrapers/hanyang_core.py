@@ -32,4 +32,5 @@ def scrape_hanyang(cfg: dict) -> list[dict]:
                     article_title=title,article_url=dl,download_url=dl,telegram_url=dl,
                     pdf_url=dl,key=dl,report_unique_key=dl,save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
             except Exception: continue
+    print(f"[hanyang] {len(result)} articles collected", file=sys.stderr)
     return result

@@ -37,4 +37,5 @@ def scrape_leading(cfg: dict) -> list[dict]:
                     article_title=rd.get(cfg["title_header"],"No Title"),
                     save_time=datetime.now(timezone(timedelta(hours=9))).isoformat(),key=dl,report_unique_key=dl))
             except Exception: continue
+    print(f"[leading] {len(result)} articles collected", file=sys.stderr)
     return result

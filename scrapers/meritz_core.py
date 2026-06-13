@@ -45,4 +45,5 @@ def scrape_meritz(cfg: dict) -> list[dict]:
                         download_url=dl,telegram_url=dl,article_title=title,writer=writer,
                         key=dl,report_unique_key=dl,save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception: continue
+    print(f"[meritz] {len(result)} articles collected", file=sys.stderr)
     return result

@@ -24,4 +24,5 @@ def scrape_sangsangin(cfg: dict) -> list[dict]:
                     telegram_url=dl,pdf_url=dl,key=dl,report_unique_key=dl,
                     article_title=item[ik["title"]],save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
             except Exception: continue
+    print(f"[sangsangin] {len(result)} articles collected", file=sys.stderr)
     return result

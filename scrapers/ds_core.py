@@ -31,4 +31,5 @@ def scrape_ds(urls: list[str]) -> list[dict]:
                 "download_url":download_url,"telegram_url":download_url,"pdf_url":download_url,
                 "writer":writer,"key":download_url,"report_unique_key":download_url,
                 "save_time":datetime.now(timezone(timedelta(hours=9))).isoformat()})
+    print(f"[ds] {len(result)} articles collected", file=sys.stderr)
     return result

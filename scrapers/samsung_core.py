@@ -32,4 +32,5 @@ def scrape_samsung(cfg: dict) -> list[dict]:
                     article_title=title,writer=author,key=dl,report_unique_key=dl,
                     save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
             except Exception: continue
+    print(f"[samsung] {len(result)} articles collected", file=sys.stderr)
     return result

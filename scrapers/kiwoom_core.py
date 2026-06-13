@@ -26,4 +26,5 @@ def scrape_kiwoom(cfg: dict) -> list[dict]:
                     writer=item.get(ik["writer"],""),telegram_url=dl,pdf_url=dl,key=dl,report_unique_key=dl,
                     save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
             except Exception: continue
+    print(f"[kiwoom] {len(result)} articles collected", file=sys.stderr)
     return result

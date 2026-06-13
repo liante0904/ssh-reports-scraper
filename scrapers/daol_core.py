@@ -42,4 +42,5 @@ def scrape_daol(cfg: dict) -> list[dict]:
                 firm_nm=cfg["firm_nm"],reg_dt=rd,download_url=dl,telegram_url=dl,
                 article_title=title,writer=writer,key=dl,report_unique_key=dl,
                 save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
+    print(f"[daol] {len(result)} articles collected", file=sys.stderr)
     return result
