@@ -1,0 +1,30 @@
+name: Shinyoung Scraper → SCP
+on:
+  schedule:
+    - cron: '0 * * * 1-5'
+  workflow_dispatch:
+jobs:
+  scrape-and-scp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install uv
+      - run: uv sync --frozen --no-cache
+      - name: Run Shinyoung scraper
+        env:
+          SHINYOUNG_URLS_JSON: ${{ secrets.SHINYOUNG_URLS_JSON }}
+        run: |
+          uv run python run/standalone/shinyoung.py > shinyoung_result.json 2>shinyoung_log.txt
+          echo "=== Scraper Log ==="
+          cat shinyoung_log.txt
+          COUNT=$(python3 -c "import json; print(len(json.load(open('shinyoung_result.json'))))")
+          echo "Articles collected: $COUNT"
+      - name: SCP to server
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+          scp -P ${{ secrets.SERVER_PORT || 22 }} shinyoung_result.json ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:incoming/ga-scrapes/
+          echo "SCP transfer complete"
