@@ -1,3 +1,4 @@
+import sys
 """Hyundai Motor Securities — config 기반."""
 import time, requests
 from datetime import datetime, timezone, timedelta

@@ -1,3 +1,4 @@
+import sys
 """Kiwoom Securities — config 기반."""
 import re, requests
 from datetime import datetime, timezone, timedelta

@@ -1,3 +1,4 @@
+import sys
 """Sangsangin Securities — config 기반."""
 import re, requests, os
 from datetime import datetime, timezone, timedelta

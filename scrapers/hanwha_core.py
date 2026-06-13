@@ -1,3 +1,4 @@
+import sys
 """Hanwha Securities — config 기반 XML 파싱."""
 import re, requests, urllib.parse
 from datetime import datetime, timezone, timedelta

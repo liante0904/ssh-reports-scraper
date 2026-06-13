@@ -1,3 +1,4 @@
+import sys
 """DB Financial Investment — config 기반."""
 import re, requests
 from datetime import datetime, timezone, timedelta

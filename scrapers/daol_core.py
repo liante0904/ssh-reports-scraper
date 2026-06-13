@@ -1,3 +1,4 @@
+import sys
 """DAOL Securities — config 기반 HTML 파싱."""
 import re, requests, urllib.parse as urlparse
 from datetime import datetime, timezone, timedelta

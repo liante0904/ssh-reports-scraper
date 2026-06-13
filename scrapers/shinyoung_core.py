@@ -1,3 +1,4 @@
+import sys
 """Shinyoung Securities — 순수 스크래핑 코어. 모든 scraping detail은 cfg JSON으로 주입."""
 import json, re, requests
 from datetime import datetime, timezone, timedelta

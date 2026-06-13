@@ -1,3 +1,4 @@
+import sys
 """Eugene Securities — 순수 스크래핑 코어."""
 import re, requests
 from datetime import datetime, timezone, timedelta

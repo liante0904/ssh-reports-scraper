@@ -1,3 +1,4 @@
+import sys
 """iM Securities — 순수 스크래핑 코어."""
 import base64, hashlib, json, random, re, time, requests
 from datetime import datetime, timezone, timedelta

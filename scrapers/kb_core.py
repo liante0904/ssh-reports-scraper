@@ -1,3 +1,4 @@
+import sys
 """KB Securities — config 기반 스크래핑 코어."""
 import re, requests
 from datetime import datetime, timezone, timedelta

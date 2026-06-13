@@ -1,3 +1,4 @@
+import sys
 """Leading Securities — config 기반 HTML 파싱."""
 import re, requests
 from datetime import datetime, timezone, timedelta

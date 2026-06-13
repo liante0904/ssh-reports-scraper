@@ -3,10 +3,11 @@ import json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from scrapers.nhqv_core import scrape_nhqv
 
-K = NHQV_URLS_JSON
+K = "NHQV_URLS_JSON"
+NM = "NH투자증권"
 if __name__ == "__main__":
     raw = os.getenv(K, "")
-    if not raw: print(f"["NH투자증권"] FATAL: {K} not set", file=sys.stderr), sys.exit(1)
+    if not raw: print(f"[{NM}] FATAL: {K} not set", file=sys.stderr), sys.exit(1)
     result = scrape_nhqv(cfg=json.loads(raw))
-    print(f"["NH투자증권"] total {len(result)} articles collected", file=sys.stderr)
+    print(f"[{NM}] total {len(result)} articles collected", file=sys.stderr)
     json.dump(result, sys.stdout, ensure_ascii=False, indent=2)

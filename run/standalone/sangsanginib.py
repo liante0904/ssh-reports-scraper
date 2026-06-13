@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 import json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from scrapers.sangsanginib_core import scrape_sangsangin
+from scrapers.sangsanginib_core import scrape_sangsanginib
 
-K = SANGSANGINIB_URLS_JSON
+K = "SANGSANGINIB_URLS_JSON"
+NM = "상상인증권"
 if __name__ == "__main__":
     raw = os.getenv(K, "")
-    if not raw: print(f"["상상인증권"] FATAL: {K} not set", file=sys.stderr), sys.exit(1)
-    result = scrape_sangsangin(cfg=json.loads(raw))
-    print(f"["상상인증권"] total {len(result)} articles collected", file=sys.stderr)
+    if not raw: print(f"[{NM}] FATAL: {K} not set", file=sys.stderr), sys.exit(1)
+    result = scrape_sangsanginib(cfg=json.loads(raw))
+    print(f"[{NM}] total {len(result)} articles collected", file=sys.stderr)
     json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
