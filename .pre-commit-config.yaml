@@ -6,3 +6,15 @@ repos:
         entry: python3 scripts/check_url_leaks.py
         language: system
         pass_filenames: false
+      - id: verify-dockerfile
+        name: Verify Dockerfile COPY
+        entry: bash scripts/verify_dockerfile.sh
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+      - id: verify-standalones
+        name: Verify GA standalone syntax
+        entry: bash scripts/verify_standalones.sh
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
