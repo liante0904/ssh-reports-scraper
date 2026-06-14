@@ -64,3 +64,25 @@
 | pre-push | standalone 22개 Python 문법 검증 | `scripts/verify_standalones.sh` |
 | post-deploy | 컨테이너/디렉토리/로그 검증 | `scripts/smoke_test.sh` |
 | DB | key + report_unique_key 이중 UNIQUE | - |
+
+---
+
+## #4: config 기반 core ↔ server wrapper 불일치 (2026-06-15)
+
+| 항목 | 내용 |
+|------|------|
+| 원인 | core 함수 signature를 config dict로 변경했으나 server wrapper는 URL 리스트 전달 |
+| 증상 | `invalid input syntax for type integer: ""` — 빈 integer 필드가 INSERT 시도됨 |
+| 영향 | 07:22 KST full-scrape 시간대 DB 에러 (데이터 누락 가능성) |
+| 재발방지 | 1) core 함수가 list/str도 받도록 backward compat 추가 |
+|           | 2) wrapper 변경 시 core signature 일치 확인 |
+
+## 재발방지 요약
+
+| # | 방지책 | 적용 위치 |
+|---|--------|----------|
+| 1 | Dockerfile COPY 누락 → verify_dockerfile.sh | pre-push hook |
+| 2 | standalone 문법 오류 → verify_standalones.sh | pre-push hook |
+| 3 | core/wrapper 불일치 → backward compat + deploy smoke test | core 코드 + post-deploy |
+| 4 | UNIQUE constraint 전환 → key+report_unique_key 이중 유지 (과도기) | DB |
+| 5 | DB migration 전 코드 배포 확인 → deploy 완료 후 DB 변경 | 운영 절차 |
