@@ -70,7 +70,6 @@ def scrape_imfn(base_url: str) -> list[dict]:
                     result.append({
                         "sec_firm_order": 18, "article_board_order": board_order,
                         "firm_nm": "IM증권", "reg_dt": re.sub(r"[-./]", "", item["reg_dt"]),
-                        "article_url": base_url, "download_url": attach_url,
                         "telegram_url": attach_url, "pdf_url": attach_url,
                         "article_title": item["title"], "writer": item["username"],
                         "key": attach_url, "report_unique_key": attach_url,

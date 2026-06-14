@@ -190,7 +190,7 @@ async def enrich_data():
                     # 유휴시간(20시~06시) 전체 backlog 정리
                     if is_idle_time:
                         backlog = db._fetchall('''
-                            SELECT report_id, article_title, writer, telegram_url, article_url,
+                            SELECT report_id, article_title, writer, telegram_url,
                                    report_date AS reg_dt, key
                             FROM tbl_sec_reports
                             WHERE sec_firm_order = 19
@@ -212,7 +212,7 @@ async def enrich_data():
 
                     # 최근 1일 이내 upload/ fallback → writer 기반 재시도 (reconstruct_msg_url_from_db 개선)
                     fallback_records = db._fetchall('''
-                        SELECT report_id, article_title, writer, telegram_url, article_url,
+                        SELECT report_id, article_title, writer, telegram_url,
                                report_date AS reg_dt, key
                         FROM tbl_sec_reports
                         WHERE sec_firm_order = 0
@@ -233,7 +233,7 @@ async def enrich_data():
                     # 유휴시간(20시~06시)에는 전체 LS backlog 정리
                     if is_idle_time:
                         backlog = db._fetchall('''
-                            SELECT report_id, article_title, writer, telegram_url, article_url,
+                            SELECT report_id, article_title, writer, telegram_url,
                                    report_date AS reg_dt, key
                             FROM tbl_sec_reports
                             WHERE sec_firm_order = 0
