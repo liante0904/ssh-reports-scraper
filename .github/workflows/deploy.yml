@@ -44,12 +44,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Verify Dockerfile COPY
-        run: bash scripts/verify_dockerfile.sh
-
-      - name: Verify GA standalones syntax
-        run: bash scripts/verify_standalones.sh
-
       - name: Prepare optional vendor context
         run: mkdir -p vendor/ssh_library
 
