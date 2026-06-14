@@ -347,22 +347,62 @@ async def run_async_scrapers(async_funcs, total_data, max_concurrency=3):
             SCRAPER_HEALTH_ERRORS.append(msg)
             logger.error(msg)
 
+
+async def sync_reports_to_db(db, total_data, label="DB"):
+    if not total_data:
+        return 0, 0
+
+    import html as _html
+    import re as _re
+
+    for data in total_data:
+        title = data.get("article_title")
+        if title:
+            if any(entity in title for entity in ("&amp;", "&lt;", "&gt;", "&quot;")):
+                data["article_title"] = _html.unescape(title)
+            mkt = data.get("mkt_tp", "")
+            if mkt in ("GLOBAL", "global", "US", "JP"):
+                if _re.search(r"\([0-9]{5,6}\.K[QS]\)", title) or _re.search(r"코스피|코스닥|국내", title):
+                    data["mkt_tp"] = "KR"
+
+    unique = {}
+    for data in total_data:
+        unique_key = data.get("report_unique_key") or data.get("key") or data.get("article_url")
+        if unique_key:
+            data["report_unique_key"] = unique_key
+            unique[unique_key] = data
+
+    total_data.clear()
+    if not unique:
+        logger.warning(f"[{label}] No reports with a usable unique key.")
+        return 0, 0
+
+    inserted, updated = db.insert_json_data_list(list(unique.values()))
+    logger.success(f"[{label}] DB Sync: {inserted} new, {updated} updated.")
+    await asyncio.sleep(1)
+    return inserted, updated
+
+
 async def main(date_str=None):
     logger.info("=================== SCRAPER START ===================")
     total_data = []
     db = get_db()
     
     # ── LS증권: 목록 2p 스크래핑 → DB 키 비교 → 신규만 detail ──
-    try:
-        ls_articles = await asyncio.wait_for(
-            asyncio.to_thread(LS_checkNewArticle),
-            timeout=LS_LIST_TIMEOUT_SECONDS,
-        )
-    except asyncio.TimeoutError:
+    if os.getenv("SKIP_LS", "").lower() in ("1", "true", "yes"):
         ls_articles = []
-        msg = f"LS Scraper Timeout (LS_checkNewArticle): {LS_LIST_TIMEOUT_SECONDS}s"
-        SCRAPER_HEALTH_ERRORS.append(msg)
-        logger.error(msg)
+        logger.warning("[LS] SKIP_LS enabled; skipping LS scraper.")
+    else:
+        try:
+            ls_articles = await asyncio.wait_for(
+                asyncio.to_thread(LS_checkNewArticle),
+                timeout=LS_LIST_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            ls_articles = []
+            msg = f"LS Scraper Timeout (LS_checkNewArticle): {LS_LIST_TIMEOUT_SECONDS}s"
+            SCRAPER_HEALTH_ERRORS.append(msg)
+            logger.error(msg)
     if ls_articles:
         logger.info(f"[LS] 신규 {len(ls_articles)}건 detail 추출 시작")
         try:
@@ -376,10 +416,15 @@ async def main(date_str=None):
             SCRAPER_HEALTH_ERRORS.append(msg)
             logger.error(msg)
             logger.warning("[LS] detail 타임아웃: 목록에서 확인한 신규 건은 URL 미해결 상태로 DB 저장 후 enrichment에서 재시도합니다.")
-        for a in enriched:
-            total_data.append(a)
         resolved_count = sum(1 for a in enriched if a.get("telegram_url"))
         logger.success(f"[LS] {len(enriched)}건 detail 완료 (URL resolved={resolved_count})")
+        try:
+            ls_inserted, ls_updated = db.insert_json_data_list(enriched)
+            logger.success(
+                f"[LS] DB Sync: {ls_inserted} new, {ls_updated} updated."
+            )
+        except Exception as e:
+            logger.error(f"[LS] DB error: {e}")
 
     is_full = _is_full_scrape_hour()
     if is_full:
@@ -399,51 +444,32 @@ async def main(date_str=None):
         # eugene_checkNewArticle # 세션 만료 및 제한 에러 (보류)
     ]
 
+    if os.getenv("SKIP_BNK", "").lower() in ("1", "true", "yes"):
+        async_functions = [
+            ShinHanInvest_checkNewArticle,
+            Koreainvestment_selenium_checkNewArticle,
+            Daeshin_checkNewArticle,
+        ]
+        logger.warning("[Local] SKIP_BNK enabled; skipping BNK for urgent sync.")
+
     if is_full:
         sync_funcs.extend(_GA_FIRMS_SYNC)
         async_functions.extend(_GA_FIRMS_ASYNC)
         logger.info(f"[Full-Scrape] sync={len(sync_funcs)}, async={len(async_functions)} total={len(sync_funcs) + len(async_functions)}")
 
     await run_sync_scrapers(sync_funcs, total_data)
+    try:
+        await sync_reports_to_db(db, total_data, label="Sync scrapers")
+    except Exception as e:
+        logger.error(f"[Sync scrapers] DB error: {e}")
+
     await run_async_scrapers(async_functions, total_data)
 
     if total_data:
-        # 2026-06-11: HTML 엔티티 디코딩 (F&amp;F → F&F, M&amp;A → M&A 등)
-        import html as _html
-        import re as _re
-        for d in total_data:
-            title = d.get("article_title")
-            if title:
-                if '&amp;' in title or '&lt;' in title or '&gt;' in title or '&quot;' in title:
-                    d["article_title"] = _html.unescape(title)
-                # 2026-06-14: mkt_tp 보정 — .KQ/.KS 티커가 제목에 있으면 KR
-                mkt = d.get("mkt_tp", "")
-                if mkt in ("GLOBAL", "global", "US", "JP"):
-                    if _re.search(r'\([0-9]{5,6}\.K[QS]\)', title) or _re.search(r'코스피|코스닥|국내', title):
-                        d["mkt_tp"] = "KR"
-
-        # 2026-06-11: report_unique_key 우선, 없으면 key 폴백
-        unique = { d.get("report_unique_key"): d for d in total_data if d.get("report_unique_key") }
-        total_list = list(unique.values())
         try:
-            ins, upd = db.insert_json_data_list(total_list)
-            logger.success(f"DB Sync: {ins} new, {upd} updated.")
-            
-            # 새로 insert된 레포트 자동 태그 추출 (enricher) -> 최적화 실패로 인한 일시 주석 처리
-            # new_keys = getattr(db, '_last_inserted_keys', [])
-            # if new_keys:
-            #     try:
-            #         from enricher import EnricherManager
-            #         enricher = EnricherManager(db_manager=db)
-            #         enrich_result = enricher.enrich_by_keys(new_keys)
-            #         logger.info(f"[Enricher] {enrich_result['enriched']}/{len(new_keys)} enriched")
-            #     except Exception as e:
-            #         logger.warning(f"[Enricher] skipped (non-critical): {e}")
-            
-            # DB 삽입 후 잠시 대기하여 트리거/커밋이 확실히 반영되도록 함
-            await asyncio.sleep(1)
+            await sync_reports_to_db(db, total_data, label="Async scrapers")
         except Exception as e:
-            logger.error(f"DB error: {e}")
+            logger.error(f"[Async scrapers] DB error: {e}")
 
     await enrich_data()
     

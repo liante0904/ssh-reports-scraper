@@ -13,13 +13,16 @@ from scrapers.nhqv_core import scrape_nhqv
 
 
 async def NHQV_checkNewArticle(target_date=None):
-    urls = {"urls": config.get_urls("NHQV_2")}
+    cfg = config.get_urls("NHQV_2")
+    if not cfg:
+        logger.warning("No config for NHQV_2")
+        return []
 
     logger.debug("NHQV Scraper Start: NH투자증권 via scrapers.nhqv_core")
 
     loop = asyncio.get_event_loop()
     try:
-        result = await loop.run_in_executor(None, scrape_nhqv, urls[0])
+        result = await loop.run_in_executor(None, scrape_nhqv, cfg, target_date)
         logger.info(f"NHQV Scraper: Found {len(result)} articles")
         return result
     except Exception as e:

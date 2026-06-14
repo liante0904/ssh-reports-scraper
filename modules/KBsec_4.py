@@ -20,14 +20,16 @@ async def KB_checkNewArticle():
     scraper.py에서 async function으로 취급되도록 coroutine 반환.
     실제 HTTP는 scrapers.kb_core.scrape_kb() (requests 기반, thread executor).
     """
-    urls = {"urls": config.get_urls("KBsec_4")}
+    cfg = config.get_urls("KBsec_4")
+    if not cfg:
+        logger.warning("No config for KBsec_4")
+        return []
 
-    TARGET_URL = urls[0]
     logger.debug(f"KB Scraper Start: KB증권 via scrapers.kb_core")
 
     loop = asyncio.get_event_loop()
     try:
-        result = await loop.run_in_executor(None, scrape_kb, TARGET_URL)
+        result = await loop.run_in_executor(None, scrape_kb, cfg)
         logger.info(f"KB Scraper: Found {len(result)} articles")
         return result
     except Exception as e:

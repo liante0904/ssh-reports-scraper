@@ -17,7 +17,7 @@ def get_db():
         return PostgreSQLManager()
 
     # default: ssh_library
-    from ssh_library import SecReportsManager
+    from models.SecReportsManager import SecReportsManager
     return SecReportsManager(
         db_name=os.getenv("POSTGRES_REPORT_DB", "ssh_reports_hub"),
         user=os.getenv("POSTGRES_USER", "ssh_reports_hub"),

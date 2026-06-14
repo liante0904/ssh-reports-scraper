@@ -8,10 +8,14 @@ from scrapers.hanwha_core import scrape_hanwha
 
 
 async def Hanwha_checkNewArticle():
-    urls = {"urls": config.get_urls("Hanwhawm_21")}
+    cfg = config.get_urls("Hanwhawm_21")
+    if not cfg:
+        logger.warning("No config for Hanwhawm_21")
+        return []
+
     loop = asyncio.get_event_loop()
     try:
-        return await loop.run_in_executor(None, scrape_hanwha, urls[0])
+        return await loop.run_in_executor(None, scrape_hanwha, cfg)
     except Exception as e:
         logger.error(f"Hanwha error: {e}")
         return []

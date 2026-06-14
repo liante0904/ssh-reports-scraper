@@ -10,13 +10,13 @@ if (LIB_DIR / "ssh_library").exists():
     sys.path.append(str(LIB_DIR))
 
 
-def test_get_db_default_uses_local_postgres(monkeypatch):
+def test_get_db_default_uses_sec_reports_manager(monkeypatch):
     monkeypatch.delenv("DB_BACKEND", raising=False)
 
-    from models.PostgreSQLManager import PostgreSQLManager
+    from models.SecReportsManager import SecReportsManager
     from models.db_factory import get_db
 
-    assert isinstance(get_db(), PostgreSQLManager)
+    assert isinstance(get_db(), SecReportsManager)
 
 
 def test_get_db_ssh_library_backend(monkeypatch):

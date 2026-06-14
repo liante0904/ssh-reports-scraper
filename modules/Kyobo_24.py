@@ -6,10 +6,14 @@ from models.ConfigManager import config
 from scrapers.kyobo_core import scrape_kyobo
 
 async def Kyobo_checkNewArticle(full_fetch=False):
-    urls = {"urls": config.get_urls("Kyobo_24")}
+    cfg = config.get_urls("Kyobo_24")
+    if not cfg:
+        logger.warning("No config for Kyobo_24")
+        return []
+
     loop = asyncio.get_event_loop()
     try:
-        return await loop.run_in_executor(None, scrape_kyobo, urls)
+        return await loop.run_in_executor(None, scrape_kyobo, cfg)
     except Exception as e:
         logger.error(f"Kyobo error: {e}")
         return []

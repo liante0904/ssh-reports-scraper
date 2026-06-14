@@ -8,10 +8,14 @@ from scrapers.kiwoom_core import scrape_kiwoom
 
 
 async def Kiwoom_checkNewArticle():
-    urls = {"urls": config.get_urls("Kiwoom_10")}
+    cfg = config.get_urls("Kiwoom_10")
+    if not cfg:
+        logger.warning("No config for Kiwoom_10")
+        return []
+
     loop = asyncio.get_event_loop()
     try:
-        return await loop.run_in_executor(None, scrape_kiwoom, urls)
+        return await loop.run_in_executor(None, scrape_kiwoom, cfg)
     except Exception as e:
         logger.error(f"Kiwoom error: {e}")
         return []
