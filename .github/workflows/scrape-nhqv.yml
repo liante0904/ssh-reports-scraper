@@ -31,6 +31,9 @@ jobs:
           COUNT=$(python3 -c "import json; print(len(json.load(open('nhqv_result.json'))))")
           echo "Articles collected: $COUNT"
 
+      - name: Validate result
+        run: |
+          python scripts/validate_scrape_result.py nhqv_result.json --require-non-empty
       - name: SCP to server
         run: |
           mkdir -p ~/.ssh

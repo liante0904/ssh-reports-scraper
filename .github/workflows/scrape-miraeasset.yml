@@ -19,6 +19,9 @@ jobs:
           cat miraeasset_log.txt
           COUNT=$(python3 -c "import json; print(len(json.load(open('miraeasset_result.json'))))")
           echo "Articles collected: $COUNT"
+      - name: Validate result
+        run: |
+          python scripts/validate_scrape_result.py miraeasset_result.json --require-non-empty
       - name: SCP
         run: |
           mkdir -p ~/.ssh
