@@ -37,9 +37,11 @@ def scrape_yuanta(cfg: dict) -> list[dict]:
                     dl = ""
                     if pt and pt.has_attr(cfg["pdf_attr"]):
                         dl = cfg["pdf_tpl"].replace("{path}", pt[cfg["pdf_attr"]])
+                    # dl이 비어있으면 article_url을 fallback으로 사용
+                    if not dl: dl = article_url
                     result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=board_idx,
-                        firm_nm=cfg["firm_nm"],reg_dt=reg_dt,article_url=article_url,
-                        download_url=dl,telegram_url=dl,writer=writer,
+                        firm_nm=cfg["firm_nm"],reg_dt=reg_dt,
+                        download_url=dl,telegram_url=dl,pdf_url=dl,writer=writer,
                         key=article_url,report_unique_key=article_url,
                         article_title=title,save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception: continue
