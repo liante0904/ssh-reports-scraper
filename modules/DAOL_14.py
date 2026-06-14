@@ -6,8 +6,5 @@ from models.ConfigManager import config
 from scrapers.daol_core import scrape_daol
 
 async def DAOL_checkNewArticle():
-    urls=config.get_urls("DAOL_14")
-    if not urls:logger.warning("No URLs for DAOL_14");return[]
-    loop=asyncio.get_event_loop()
-    try:return await loop.run_in_executor(None,scrape_daol,urls)
+    urls={"urls": config.get_urls("DAOL_14")}
     except Exception as e:logger.error(f"DAOL error: {e}");return[]

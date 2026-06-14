@@ -13,10 +13,7 @@ from scrapers.nhqv_core import scrape_nhqv
 
 
 async def NHQV_checkNewArticle(target_date=None):
-    urls = config.get_urls("NHQV_2")
-    if not urls:
-        logger.warning("No URLs found for NHQV_2")
-        return []
+    urls = {"urls": config.get_urls("NHQV_2")}
 
     logger.debug("NHQV Scraper Start: NH투자증권 via scrapers.nhqv_core")
 

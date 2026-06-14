@@ -18,7 +18,7 @@ from models.ConfigManager import config
 from models.db_factory import get_db
 
 # 시크릿 설정 로드
-dbfi_cfg = config.get_urls("DBfi_19")
+dbfi_cfg = {"urls": config.get_urls("DBfi_19")}
 BASE_URL = dbfi_cfg["base_url"]
 VIEWER_BASE = dbfi_cfg["viewer_base_url"]
 URL_PATHS = dbfi_cfg["url_paths"]

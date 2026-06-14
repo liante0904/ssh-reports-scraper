@@ -8,10 +8,7 @@ from scrapers.hanyang_core import scrape_hanyang
 
 
 async def Hanyang_checkNewArticle():
-    urls = config.get_urls("Hygood_22")
-    if not urls:
-        logger.warning("No URLs found for Hygood_22")
-        return []
+    urls = {"urls": config.get_urls("Hygood_22")}
     loop = asyncio.get_event_loop()
     try:
         return await loop.run_in_executor(None, scrape_hanyang, urls)

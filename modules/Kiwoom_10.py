@@ -8,10 +8,7 @@ from scrapers.kiwoom_core import scrape_kiwoom
 
 
 async def Kiwoom_checkNewArticle():
-    urls = config.get_urls("Kiwoom_10")
-    if not urls:
-        logger.warning("No URLs found for Kiwoom_10")
-        return []
+    urls = {"urls": config.get_urls("Kiwoom_10")}
     loop = asyncio.get_event_loop()
     try:
         return await loop.run_in_executor(None, scrape_kiwoom, urls)
