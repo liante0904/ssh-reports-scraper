@@ -6,13 +6,14 @@ from bs4 import BeautifulSoup
 
 def scrape_meritz(cfg: dict) -> list[dict]:
     requests.packages.urllib3.disable_warnings()
+    hdr = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     result = []
     for board_order, base_url in enumerate(cfg.get("urls", [cfg.get("url","")])):
         if not base_url: continue
         for page in range(1, 4):
             url = base_url.replace("pageNum=1", f"pageNum={page}")
             try:
-                resp = requests.get(url, timeout=30, verify=False)
+                resp = requests.get(url, headers=hdr, timeout=30, verify=False)
                 resp.raise_for_status()
             except Exception: break
             soup = BeautifulSoup(resp.text, "html.parser")
