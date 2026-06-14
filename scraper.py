@@ -423,7 +423,7 @@ async def main(date_str=None):
                         d["mkt_tp"] = "KR"
 
         # 2026-06-11: report_unique_key 우선, 없으면 key 폴백
-        unique = { d.get("report_unique_key") or d.get("key"): d for d in total_data if d.get("report_unique_key") or d.get("key") }
+        unique = { d.get("report_unique_key"): d for d in total_data if d.get("report_unique_key") }
         total_list = list(unique.values())
         try:
             ins, upd = db.insert_json_data_list(total_list)
