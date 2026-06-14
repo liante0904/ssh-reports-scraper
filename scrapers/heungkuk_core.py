@@ -18,6 +18,8 @@ def _norm_date(text):
     return digits[:8] if len(digits) >= 8 else ""
 
 def scrape_heungkuk(cfg: dict) -> list[dict]:
+    if isinstance(cfg, list): cfg = {"urls": cfg}
+    elif isinstance(cfg, str): cfg = {"url": cfg}
     requests.packages.urllib3.disable_warnings()
     result = []
     for board_order, list_url in enumerate(cfg.get("urls",[cfg.get("url","")])):

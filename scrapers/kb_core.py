@@ -4,6 +4,9 @@ import re, requests
 from datetime import datetime, timezone, timedelta
 
 def scrape_kb(cfg: dict, from_date: str = None, to_date: str = None) -> list[dict]:
+    # backward compat: URL list → config dict
+    if isinstance(cfg, list): cfg = {"urls": cfg}
+    elif isinstance(cfg, str): cfg = {"url": cfg}
     requests.packages.urllib3.disable_warnings()
     if from_date is None: from_date = datetime(datetime.now(timezone(timedelta(hours=9))).year, 1, 1).strftime("%Y%m%d")
     if to_date is None: to_date = datetime.now(timezone(timedelta(hours=9))).strftime("%Y%m%d")

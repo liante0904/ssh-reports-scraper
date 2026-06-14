@@ -4,6 +4,8 @@ import re, requests
 from datetime import datetime, timezone, timedelta
 
 def scrape_kiwoom(cfg: dict) -> list[dict]:
+    if isinstance(cfg, list): cfg = {"urls": cfg}
+    elif isinstance(cfg, str): cfg = {"url": cfg}
     requests.packages.urllib3.disable_warnings()
     now = datetime.now(timezone(timedelta(hours=9)))
     p = dict(cfg["payload"])

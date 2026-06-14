@@ -14,6 +14,8 @@ BBS_API = "https://bbs2.shinhansec.com/mobile/json.list.do"
 
 def scrape_shinhan(cfg: dict) -> list[dict]:
     """cfg: {mobile_api_url, str_boards, bbs_boards}"""
+    if isinstance(cfg, list): cfg = {"urls": cfg}
+    elif isinstance(cfg, str): cfg = {"url": cfg}
     requests.packages.urllib3.disable_warnings()
     headers = {"User-Agent":"Mozilla/5.0","Content-Type":"application/json",
                "Referer":"https://m.shinhansec.com/mweb/invt/shrh/ishrh1001"}

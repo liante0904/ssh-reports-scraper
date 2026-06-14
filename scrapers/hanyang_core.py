@@ -6,6 +6,8 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
 def scrape_hanyang(cfg: dict) -> list[dict]:
+    if isinstance(cfg, list): cfg = {"urls": cfg}
+    elif isinstance(cfg, str): cfg = {"url": cfg}
     requests.packages.urllib3.disable_warnings()
     result = []
     for board_order, url in enumerate(cfg.get("urls",[cfg.get("url","")])):

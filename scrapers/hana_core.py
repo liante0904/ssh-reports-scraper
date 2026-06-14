@@ -17,6 +17,8 @@ def _adjust_date(reg_dt, time_str):
     return reg_date.strftime("%Y%m%d")
 
 def scrape_hana(cfg: dict) -> list[dict]:
+    if isinstance(cfg, list): cfg = {"urls": cfg}
+    elif isinstance(cfg, str): cfg = {"url": cfg}
     requests.packages.urllib3.disable_warnings()
     result = []
     for board_order, base_url in enumerate(cfg.get("urls", [cfg.get("url","")])):

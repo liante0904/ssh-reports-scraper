@@ -5,6 +5,8 @@ from datetime import datetime, timezone, timedelta
 from bs4 import BeautifulSoup
 
 def scrape_eugene(url: str) -> list[dict]:
+    if isinstance(cfg, list): cfg = {"urls": cfg}
+    elif isinstance(cfg, str): cfg = {"url": cfg}
     requests.packages.urllib3.disable_warnings()
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     result = []

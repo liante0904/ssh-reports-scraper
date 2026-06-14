@@ -5,6 +5,8 @@ from datetime import datetime, timezone, timedelta
 from xml.etree import ElementTree as ET
 
 def scrape_hanwha(cfg: dict) -> list[dict]:
+    if isinstance(cfg, list): cfg = {"urls": cfg}
+    elif isinstance(cfg, str): cfg = {"url": cfg}
     requests.packages.urllib3.disable_warnings()
     result = []
     base_url = cfg.get("urls",[cfg.get("url","")])[0] if isinstance(cfg.get("urls"),list) else cfg.get("url","")

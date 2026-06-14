@@ -4,6 +4,8 @@ import re, requests
 from datetime import datetime, timezone, timedelta
 
 def scrape_toss(cfg: dict) -> list[dict]:
+    if isinstance(cfg, list): cfg = {"urls": cfg}
+    elif isinstance(cfg, str): cfg = {"url": cfg}
     requests.packages.urllib3.disable_warnings()
     result = []
     for board_order, base_url in enumerate(cfg.get("urls", [cfg.get("url","")])):

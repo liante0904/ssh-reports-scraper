@@ -5,6 +5,8 @@ from datetime import datetime, timezone, timedelta
 from bs4 import BeautifulSoup
 
 def scrape_kyobo(cfg: dict) -> list[dict]:
+    if isinstance(cfg, list): cfg = {"urls": cfg}
+    elif isinstance(cfg, str): cfg = {"url": cfg}
     requests.packages.urllib3.disable_warnings()
     result = []
     for board_order, base_url in enumerate(cfg.get("urls",[cfg.get("url","")])):

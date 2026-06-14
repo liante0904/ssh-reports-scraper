@@ -4,6 +4,9 @@ import requests
 from datetime import datetime, timezone, timedelta
 
 def scrape_nhqv(cfg: dict, target_date: str = None) -> list[dict]:
+    # backward compat: URL list → config dict
+    if isinstance(cfg, list): cfg = {"urls": cfg}
+    elif isinstance(cfg, str): cfg = {"url": cfg}
     requests.packages.urllib3.disable_warnings()
     if target_date is None:
         KST = timezone(timedelta(hours=9)); now = datetime.now(KST)
@@ -17,8 +20,8 @@ def scrape_nhqv(cfg: dict, target_date: str = None) -> list[dict]:
         resp = requests.post(cfg["url"], headers=cfg["headers"], data=p, timeout=30, verify=False)
         resp.raise_for_status(); jres = resp.json()
         ik = cfg["item_keys"]
-        def _jp(path, d=jres): 
-            for k in path.split("."): d = d[k]
+        def _jp(path, d=jres):
+            for k in path.split("."): d = d[int(k) if k.isdigit() else k]
             return d
         cnt = int(_jp(cfg["count_path"]))
         if cnt == 0: break

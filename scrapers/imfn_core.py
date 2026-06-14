@@ -16,6 +16,8 @@ def _gen_cookie():
 
 def scrape_imfn(base_url: str) -> list[dict]:
     bids = ["R_E08", "R_E09", "R_E14", "R_E03", "R_E04", "R_E05"]
+    if isinstance(cfg, list): cfg = {"urls": cfg}
+    elif isinstance(cfg, str): cfg = {"url": cfg}
     requests.packages.urllib3.disable_warnings()
     sess = requests.Session()
     sess.headers.update({
