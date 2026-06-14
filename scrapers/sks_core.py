@@ -1,47 +1,36 @@
-import sys
-"""SK Securities — 순수 스크래핑 코어."""
-import re, requests
+"""SK Securities — config 기반 JSON POST."""
+import sys, re, requests
 from datetime import datetime, timezone, timedelta
-from bs4 import BeautifulSoup
 
-
-def scrape_sks(urls: list[str]) -> list[dict]:
+def scrape_sks(cfg: dict) -> list[dict]:
     requests.packages.urllib3.disable_warnings()
     result = []
-
-    for board_order, target_url in enumerate(urls):
+    urls = cfg.get("urls", [cfg.get("url","")])
+    if isinstance(urls, str): urls = [urls]
+    for board_order, url in enumerate(urls):
+        if not url: continue
+        payload = {"searchVal":"","searchType":"","page":1,"rowPerPage":cfg.get("row_per_page",2000),"_r_":"0.999"}
         try:
-            resp = requests.get(target_url, timeout=30, verify=False)
+            resp = requests.post(url, params=payload, timeout=30, verify=False)
             resp.raise_for_status()
-        except Exception:
-            continue
-
-        soup = BeautifulSoup(resp.text, "html.parser")
-        for row in soup.select("table.board_list tbody tr"):
-            cells = row.find_all("td")
-            if len(cells) < 5:
-                continue
-            link = cells[1].find("a")
-            if not link:
-                continue
-            title = link.get_text(strip=True)
-            reg_dt = cells[3].get_text(strip=True).replace(".", "").replace("-", "")
-            writer = cells[4].get_text(strip=True)
-            pdf_link = cells[5].find("a")
-            download_url = ""
-            if pdf_link:
-                download_url = pdf_link.get("href", "")
-                if download_url and not download_url.startswith("http"):
-                    from urllib.parse import urljoin
-                    download_url = urljoin(target_url, download_url)
-
-            result.append({
-                "sec_firm_order": 26, "article_board_order": board_order,
-                "firm_nm": "SK증권", "reg_dt": reg_dt,
-                "download_url": download_url, "telegram_url": download_url,
-                "pdf_url": download_url, "article_title": title, "writer": writer,
-                "save_time": datetime.now(timezone(timedelta(hours=9))).isoformat(),
-            })
-
+            items = resp.json().get(cfg.get("list_key","list"), [])
+        except Exception: continue
+        for item in items:
+            try:
+                pdfpath = item.get(cfg.get("pdf_key","PDFPATH"),"").strip()
+                dl = ""
+                if pdfpath:
+                    dl = cfg.get("pdf_base","https://www.sks.co.kr") + cfg.get("pdf_path_prefix","/Upload/Research/") + pdfpath
+                reg_dt = (item.get(cfg.get("date_key","RDATE"),"") or "").strip()
+                reg_dt = re.sub(r"[-./]","",reg_dt)
+                title = item.get(cfg.get("title_key","RSUBJECT"),"").strip()
+                writer = item.get(cfg.get("writer_key","RWRITER"),"").strip()
+                result.append(dict(sec_firm_order=cfg.get("sec_firm_order",26),
+                    article_board_order=board_order,firm_nm=cfg.get("firm_nm","SK증권"),
+                    reg_dt=reg_dt,download_url=dl,telegram_url=dl,pdf_url=dl,
+                    article_title=title,writer=writer,
+                    save_time=datetime.now(timezone(timedelta(hours=9))).isoformat(),
+                    key=dl,report_unique_key=dl))
+            except Exception: continue
     print(f"[sks] {len(result)} articles collected", file=sys.stderr)
     return result
