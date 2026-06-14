@@ -1,10 +1,49 @@
-"""SK Securities — config 기반 JSON POST."""
-import sys, re, requests
+"""SK Securities scraper using the JSON API."""
+import re
+import sys
 from datetime import datetime, timezone, timedelta
+from pathlib import PurePosixPath
+
+import requests
+
+
+def _normalize_date(value):
+    digits = re.sub(r"[^0-9]", "", str(value or ""))
+    if len(digits) < 8:
+        return ""
+    candidate = digits[:8]
+    try:
+        datetime.strptime(candidate, "%Y%m%d")
+    except ValueError:
+        return ""
+    return candidate
+
+
+def _extract_reg_dt(item, cfg, pdf_path):
+    date_keys = (
+        cfg.get("date_key"),
+        "RDATE",
+        "REGDATE",
+        "REG_DT",
+        "REGDT",
+        "WDATE",
+        "WRITE_DATE",
+        "CREATED_AT",
+    )
+    for key in date_keys:
+        if key:
+            reg_dt = _normalize_date(item.get(key))
+            if reg_dt:
+                return reg_dt
+
+    filename = PurePosixPath(str(pdf_path or "")).name
+    match = re.search(r"(?<![0-9])((?:19|20)[0-9]{6})", filename)
+    return _normalize_date(match.group(1)) if match else ""
 
 def scrape_sks(cfg: dict) -> list[dict]:
     requests.packages.urllib3.disable_warnings()
     result = []
+    invalid_dates = 0
     urls = cfg.get("urls", [cfg.get("url","")])
     if isinstance(urls, str): urls = [urls]
     for board_order, url in enumerate(urls):
@@ -21,8 +60,10 @@ def scrape_sks(cfg: dict) -> list[dict]:
                 dl = ""
                 if pdfpath:
                     dl = cfg.get("pdf_base","https://www.sks.co.kr") + cfg.get("pdf_path_prefix","/Upload/Research/") + pdfpath
-                reg_dt = (item.get(cfg.get("date_key","RDATE"),"") or "").strip()
-                reg_dt = re.sub(r"[-./]","",reg_dt)
+                reg_dt = _extract_reg_dt(item, cfg, pdfpath or dl)
+                if not reg_dt:
+                    invalid_dates += 1
+                    continue
                 title = item.get(cfg.get("title_key","RSUBJECT"),"").strip()
                 writer = item.get(cfg.get("writer_key","RWRITER"),"").strip()
                 result.append(dict(sec_firm_order=cfg.get("sec_firm_order",26),
@@ -32,5 +73,9 @@ def scrape_sks(cfg: dict) -> list[dict]:
                     save_time=datetime.now(timezone(timedelta(hours=9))).isoformat(),
                     key=dl,report_unique_key=dl))
             except Exception: continue
-    print(f"[sks] {len(result)} articles collected", file=sys.stderr)
+    print(
+        f"[sks] {len(result)} articles collected, "
+        f"{invalid_dates} skipped due to invalid date",
+        file=sys.stderr,
+    )
     return result
