@@ -410,10 +410,17 @@ async def main(date_str=None):
     if total_data:
         # 2026-06-11: HTML 엔티티 디코딩 (F&amp;F → F&F, M&amp;A → M&A 등)
         import html as _html
+        import re as _re
         for d in total_data:
             title = d.get("article_title")
-            if title and ('&amp;' in title or '&lt;' in title or '&gt;' in title or '&quot;' in title):
-                d["article_title"] = _html.unescape(title)
+            if title:
+                if '&amp;' in title or '&lt;' in title or '&gt;' in title or '&quot;' in title:
+                    d["article_title"] = _html.unescape(title)
+                # 2026-06-14: mkt_tp 보정 — .KQ/.KS 티커가 제목에 있으면 KR
+                mkt = d.get("mkt_tp", "")
+                if mkt in ("GLOBAL", "global", "US", "JP"):
+                    if _re.search(r'\([0-9]{5,6}\.K[QS]\)', title) or _re.search(r'코스피|코스닥|국내', title):
+                        d["mkt_tp"] = "KR"
 
         # 2026-06-11: report_unique_key 우선, 없으면 key 폴백
         unique = { d.get("report_unique_key") or d.get("key"): d for d in total_data if d.get("report_unique_key") or d.get("key") }
