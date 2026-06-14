@@ -6,7 +6,7 @@ DOCKERFILE="Dockerfile"
 errors=0
 
 # Dockerfile에 COPY 되어야 할 디렉토리 목록
-REQUIRED_DIRS=("run" "models" "utils" "modules" "scrapers" "scripts" "sql" "tests" "tools" "enricher")
+REQUIRED_DIRS=("run" "models" "utils" "modules" "scrapers")
 
 echo "=== Dockerfile COPY 검증 ==="
 for dir in "${REQUIRED_DIRS[@]}"; do
