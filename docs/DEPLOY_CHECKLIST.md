@@ -86,3 +86,41 @@
 | 3 | core/wrapper 불일치 → backward compat + deploy smoke test | core 코드 + post-deploy |
 | 4 | UNIQUE constraint 전환 → key+report_unique_key 이중 유지 (과도기) | DB |
 | 5 | DB migration 전 코드 배포 확인 → deploy 완료 후 DB 변경 | 운영 절차 |
+
+---
+
+## 2026-06-15 GA 복구 작업 기록
+
+### 수정된 core (8개)
+| core | 증상 | 원인 | 수정 |
+|------|------|------|------|
+| `nhqv_core` | `list indices must be integers` | `_jp()`가 `.0.` numeric segment를 dict key로 처리 | `int(k) if k.isdigit()` |
+| `hmsec_core` | 0건 (정상 API) | `cfg["viewer_tpl"]` KeyError → silent skip | `cfg.get("viewer_tpl", dl)` |
+| `heungkuk_core` | 0건 (정상 API) | JSON config의 `\\\\` escape → regex mismatch | `.replace("\\\\","\\")` + fallback `r"key=(\d+)"` |
+| `ibk_core` | 0건 (API 404) | 통합 URL 대신 보드별 POST URL 필요 | config urls → board-specific endpoint |
+| `sangsangin_core` | 0건 (4XX) | JSESSIONID 쿠키 만료 | 세션 발급 추가 (인증 만료 시 추가 조사) |
+| `shinhan` | 6/11 이후 0건 | API 파라미터 변경 (lastPageFlag, tran) | wrapper → core delegate |
+| `sks_core` | reg_dt="" 2000건 | API 응답 날짜 키 불일치 | `_extract_reg_dt()` 다단계 fallback |
+| 22개 core | `'list' object has no attribute 'get'` | standalone이 URL list 전달, core는 dict 기대 | `isinstance(cfg, list/str)` backward compat |
+
+### 백필 실적 (6/15)
+| 증권사 | 건수 | 방법 |
+|--------|------|------|
+| 하나 | 510 | core 직접 실행 → SCP |
+| 메리츠 | 2,400 | core 직접 실행 → SCP |
+| 한화 | 5,000 | core 직접 실행 → SCP |
+| 키움 | 344 | core 직접 실행 → SCP |
+| IBK | 1,426 | core 직접 실행 → SCP |
+| 현대차 | 120 | core 직접 실행 → SCP |
+| 흥국 | 45 | core 직접 실행 → SCP |
+| 신한 | 545 | core 직접 실행 → SCP |
+| 토스 | 194 | core 직접 실행 → SCP |
+| 한양 | 30 | core 직접 실행 → SCP |
+| NH | 13 | core 직접 실행 → SCP |
+
+### 남은 장애
+| 증권사 | 상태 | 사유 |
+|--------|------|------|
+| BNK | BLOCKED | IP 차단 (코드 문제 아님) |
+| IM | 장기 장애 | secure key 만료 |
+| 상상인 | 쿠키 필요 | JSESSIONID 인증 갱신 필요 |
