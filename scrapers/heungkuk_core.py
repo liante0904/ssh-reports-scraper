@@ -33,12 +33,17 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
         except Exception: continue
         soup = BeautifulSoup(resp.text, "html.parser")
         base = list_url.split("/research/")[0]
-        bm = re.search(cfg["board_pattern"], list_url)
+        board_pat = cfg["board_pattern"].replace("\\\\","\\")
+        bm = re.search(board_pat, list_url)
         bp = bm.group(1) if bm else "company"
         for tr in soup.select(cfg["table_sel"]):
             a = tr.select_one(cfg["link_sel"])
             if not a: continue
-            km = re.search(cfg["onclick_pattern"], a.get("onclick",""))
+            onclick = a.get("onclick","")
+            pat = cfg["onclick_pattern"].replace("\\\\","\\")
+            km = re.search(pat, onclick)
+            if not km:
+                km = re.search(r"key=(\d+)", onclick)
             if not km: continue
             vk = int(km.group(1))
             title = re.sub(r"\s+"," ", a.get_text(" ",strip=True))
