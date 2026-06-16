@@ -15,6 +15,38 @@ setup_logger("scheduler")
 
 load_dotenv()
 
+# ---------------------------------------------------------------------------
+# Redis 캐시 무효화 — 새 데이터 insert 후 FastAPI에 알림
+# ---------------------------------------------------------------------------
+
+CACHE_INVALIDATE_URL = os.getenv("CACHE_INVALIDATE_URL", "http://localhost:8002/external/api/internal/cache/invalidate")
+INTERNAL_CACHE_TOKEN = os.getenv("INTERNAL_CACHE_TOKEN", "")
+
+
+def invalidate_api_cache() -> bool:
+    """FastAPI의 Redis 캐시를 무효화한다. 실패 시 False 반환 (non-fatal)."""
+    if not INTERNAL_CACHE_TOKEN:
+        logger.debug("Cache invalidation skipped: INTERNAL_CACHE_TOKEN not set")
+        return False
+    try:
+        import requests
+        resp = requests.post(
+            CACHE_INVALIDATE_URL,
+            headers={"X-Internal-Token": INTERNAL_CACHE_TOKEN},
+            timeout=5,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            logger.info(f"Cache invalidated: {data.get('deleted_keys', 0)} keys deleted")
+            return True
+        else:
+            logger.warning(f"Cache invalidation returned {resp.status_code}: {resp.text}")
+            return False
+    except Exception as e:
+        logger.warning(f"Cache invalidation failed (non-fatal): {e}")
+        return False
+
+
 def run_scraper():
     """메인 스크래퍼 실행 (scraper.py)"""
     logger.info("--- [Job Start] Main Scraper (scraper.py) ---")
@@ -33,6 +65,7 @@ def run_scraper():
                 logger.error(f"Scraper Error Output:\n{result.stderr}")
         else:
             logger.success("Scraper job completed successfully.")
+            invalidate_api_cache()
     except Exception as e:
         logger.error(f"Execution Error: {e}")
     logger.info("--- [Job End] Main Scraper ---")
@@ -81,6 +114,8 @@ def run_ga_import():
                 logger.info(f"[GA-Import] {fpath.name}: deduped {len(data)} → {len(deduped_list)}")
             ins, upd = db.insert_json_data_list(deduped_list)
             logger.success(f"[GA-Import] {fpath.name}: {ins} inserted, {upd} updated")
+            if ins > 0:
+                invalidate_api_cache()
             shutil.move(str(fpath), str(archive_dir / fpath.name))
         except Exception as e:
             logger.error(f"[GA-Import] {fpath.name} failed: {e}")
