@@ -55,6 +55,15 @@ class SecReportsManager(LibrarySecReportsManager):
                 or ""
             )
             legacy_key = entry.get("key") or unique_key
+            save_time = entry.get("save_time", "")
+            save_at = entry.get("save_at")
+            if not save_at and save_time:
+                try:
+                    from datetime import datetime
+                    save_at = datetime.fromisoformat(str(save_time).replace("Z", "+00:00"))
+                except Exception:
+                    pass
+
             records.append((
                 entry.get("sec_firm_order"),
                 entry.get("article_board_order"),
@@ -70,8 +79,9 @@ class SecReportsManager(LibrarySecReportsManager):
                 entry.get("mkt_tp", "KR"),
                 legacy_key,
                 unique_key,
-                entry.get("save_time"),
+                save_time,
                 entry.get("is_sent", False),
+                save_at,
             ))
 
         if not records:
@@ -83,7 +93,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 sec_firm_order, article_board_order, firm_nm, reg_dt,
                 article_title, article_url, main_ch_send_yn, download_url,
                 telegram_url, pdf_url, writer, mkt_tp, key,
-                report_unique_key, save_time, is_sent
+                report_unique_key, save_time, is_sent, save_at
             ) VALUES %s
             ON CONFLICT (report_unique_key) DO UPDATE SET
                 sec_firm_order      = EXCLUDED.sec_firm_order,
@@ -97,7 +107,8 @@ class SecReportsManager(LibrarySecReportsManager):
                 download_url        = COALESCE(NULLIF(EXCLUDED.download_url, ''), {table_name}.download_url),
                 telegram_url        = COALESCE(NULLIF(EXCLUDED.telegram_url, ''), {table_name}.telegram_url),
                 pdf_url             = COALESCE(NULLIF(EXCLUDED.pdf_url, ''), {table_name}.pdf_url),
-                is_sent             = EXCLUDED.is_sent
+                is_sent             = EXCLUDED.is_sent,
+                save_at             = COALESCE(EXCLUDED.save_at, {table_name}.save_at)
             RETURNING report_unique_key, (xmax = 0) AS inserted
         """
 
