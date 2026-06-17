@@ -40,7 +40,6 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
                 reg_dt = re.sub(r"[^0-9]","",str(item.get("date","")))[:8]
                 if not reg_dt or reg_dt < cutoff: continue
                 dl = str(item.get("attachment_url") or "")
-                dl = dl.replace("shinhaninvest.com","shinhansec.com")
                 if not dl.startswith("http"): continue
                 board = BOARD_MAP.get(bbs_name, 99)
                 result.append({"sec_firm_order":1,"article_board_order":board,
@@ -71,7 +70,7 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
             for item in items:
                 reg_dt = re.sub(r"[^0-9]","",str(item.get(d_key,"")))[:8]
                 if not reg_dt or reg_dt < cutoff: continue
-                dl = str(item.get(u_key,"")).replace("shinhaninvest.com","shinhansec.com").replace("/board/message/file.do?","/board/message/file.pdf.do?")
+                dl = str(item.get(u_key,""))
                 if not dl.startswith("http"): continue
                 board = BOARD_MAP.get(board_name, 99)
                 result.append({"sec_firm_order":1,"article_board_order":board,
