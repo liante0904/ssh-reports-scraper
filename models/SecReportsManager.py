@@ -26,13 +26,13 @@ class SecReportsManager(LibrarySecReportsManager):
                     for (title, reg_dt, firm), keys in groups.items():
                         cur.execute(f"""
                             UPDATE {table_name}
-                            SET main_ch_send_yn = 'N'
+                            SET main_ch_send_yn = 'N', is_sent = false
                             WHERE article_title = %s AND reg_dt = %s AND firm_nm = %s
-                              AND main_ch_send_yn = 'Y'
+                              AND is_sent = true
                               AND key != ALL(%s)
                         """, (title, reg_dt, firm, keys))
                         if cur.rowcount > 0:
-                            logger.info(f"[DEDUP] reset send_yn for '{title[:40]}' ({cur.rowcount} rows)")
+                            logger.info(f"[DEDUP] reset is_sent for '{title[:40]}' ({cur.rowcount} rows)")
         except Exception as e:
             logger.warning(f"[DEDUP] reset send_yn failed: {e}")
         finally:
@@ -71,6 +71,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 legacy_key,
                 unique_key,
                 entry.get("save_time"),
+                entry.get("is_sent", False),
             ))
 
         if not records:
@@ -82,7 +83,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 sec_firm_order, article_board_order, firm_nm, reg_dt,
                 article_title, article_url, main_ch_send_yn, download_url,
                 telegram_url, pdf_url, writer, mkt_tp, key,
-                report_unique_key, save_time
+                report_unique_key, save_time, is_sent
             ) VALUES %s
             ON CONFLICT (report_unique_key) DO UPDATE SET
                 sec_firm_order      = EXCLUDED.sec_firm_order,
@@ -95,7 +96,8 @@ class SecReportsManager(LibrarySecReportsManager):
                 key                 = EXCLUDED.key,
                 download_url        = COALESCE(NULLIF(EXCLUDED.download_url, ''), {table_name}.download_url),
                 telegram_url        = COALESCE(NULLIF(EXCLUDED.telegram_url, ''), {table_name}.telegram_url),
-                pdf_url             = COALESCE(NULLIF(EXCLUDED.pdf_url, ''), {table_name}.pdf_url)
+                pdf_url             = COALESCE(NULLIF(EXCLUDED.pdf_url, ''), {table_name}.pdf_url),
+                is_sent             = EXCLUDED.is_sent
             RETURNING report_unique_key, (xmax = 0) AS inserted
         """
 
