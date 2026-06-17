@@ -51,9 +51,9 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
             if len(cells) < 5: continue
             writer = re.sub(r"\s+"," ",cells[2].get_text(" ",strip=True))
             rd = _norm_date(cells[3].get_text(" ",strip=True))
-            # 3개 후보키 중 실제 PDF인 것을 선택 (Heungkuk key 체계 변경 대응)
+            # 27201962 패턴 PDF 검색 (Heungkuk key 체계 불규칙 → filename 기반 매칭)
             pk = None
-            for offset in [12028, 12029, 12027]:
+            for offset in range(12030, 12020, -1):
                 candidate = 2 * vk - offset
                 try:
                     import urllib.request
@@ -61,9 +61,9 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
                         f"{base}/download.do?type=Board&key={candidate}",
                         headers={"User-Agent": cfg["headers"].get("User-Agent", "Mozilla/5.0")},
                         method="HEAD")
-                    resp = urllib.request.urlopen(req, timeout=3)
+                    resp = urllib.request.urlopen(req, timeout=2)
                     disp = resp.getheader("Content-Disposition", "")
-                    if ".pdf" in disp:
+                    if ".pdf" in disp and "27201962" in disp:
                         pk = candidate
                         break
                 except Exception:
