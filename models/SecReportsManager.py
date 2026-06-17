@@ -8,10 +8,43 @@ from ssh_library import SecReportsManager as LibrarySecReportsManager
 class SecReportsManager(LibrarySecReportsManager):
     """Keep legacy ``key`` and canonical ``report_unique_key`` in sync."""
 
+    def _reset_duplicate_send_yn(self, json_data_list, table_name):
+        """title+reg_dt+firm_nm 같고 key 다르면 기존 레코드의 send_yn을 N으로 초기화"""
+        from collections import defaultdict
+        groups = defaultdict(list)
+        for entry in json_data_list:
+            t = (entry.get("article_title","").strip(),
+                 entry.get("reg_dt","").strip(),
+                 entry.get("firm_nm","").strip())
+            if all(t):
+                groups[t].append(entry.get("key") or entry.get("report_unique_key",""))
+
+        conn = self.get_connection()
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    for (title, reg_dt, firm), keys in groups.items():
+                        cur.execute(f"""
+                            UPDATE {table_name}
+                            SET main_ch_send_yn = 'N'
+                            WHERE article_title = %s AND reg_dt = %s AND firm_nm = %s
+                              AND main_ch_send_yn = 'Y'
+                              AND key != ALL(%s)
+                        """, (title, reg_dt, firm, keys))
+                        if cur.rowcount > 0:
+                            logger.info(f"[DEDUP] reset send_yn for '{title[:40]}' ({cur.rowcount} rows)")
+        except Exception as e:
+            logger.warning(f"[DEDUP] reset send_yn failed: {e}")
+        finally:
+            conn.close()
+
     def insert_json_data_list(self, json_data_list, table_name=None):
         if table_name is None:
             table_name = self.table_name
         table_name = self._TABLE_MAP.get(table_name, table_name)
+
+        # title+date+firm 중복 & key 다른 경우 → 기존 레코드 send_yn=N 초기화 (재발송)
+        self._reset_duplicate_send_yn(json_data_list, table_name)
 
         records = []
         for entry in json_data_list:
