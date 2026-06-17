@@ -51,7 +51,25 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
             if len(cells) < 5: continue
             writer = re.sub(r"\s+"," ",cells[2].get_text(" ",strip=True))
             rd = _norm_date(cells[3].get_text(" ",strip=True))
-            pk = eval(cfg["pdf_formula"].replace("{view_key}",str(vk)))
+            # 3개 후보키 중 실제 PDF인 것을 선택 (Heungkuk key 체계 변경 대응)
+            pk = None
+            for offset in [12028, 12029, 12027]:
+                candidate = 2 * vk - offset
+                try:
+                    import urllib.request
+                    req = urllib.request.Request(
+                        f"{base}/download.do?type=Board&key={candidate}",
+                        headers={"User-Agent": cfg["headers"].get("User-Agent", "Mozilla/5.0")},
+                        method="HEAD")
+                    resp = urllib.request.urlopen(req, timeout=3)
+                    disp = resp.getheader("Content-Disposition", "")
+                    if ".pdf" in disp:
+                        pk = candidate
+                        break
+                except Exception:
+                    pass
+            if pk is None:
+                pk = eval(cfg["pdf_formula"].replace("{view_key}", str(vk)))
             dl = cfg["download_tpl"].replace("{base}",base).replace("{pdf_key}",str(pk))
             au = cfg["view_tpl"].replace("{base}",base).replace("{board_path}",bp).replace("{view_key}",str(vk))
             result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=board_order,
