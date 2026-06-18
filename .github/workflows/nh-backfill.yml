@@ -13,8 +13,9 @@ jobs:
           NHQV_URLS_JSON: ${{ secrets.NHQV_URLS_JSON }}
         run: |
           for d in 20260603 20260604 20260605 20260618; do
-            uv run python run/standalone/nhqv.py $d > nhqv_$d.json 2>nhqv_$d.log
-            echo "$d: $(python3 -c \"import json; print(len(json.load(open('nhqv_$d.json'))))\") articles"
+            uv run python run/standalone/nhqv.py $d > nhqv_$d.json
+            echo "$d: $(wc -l < nhqv_$d.json) lines"
+            cat nhqv_$d.json | python3 -c "import json,sys; print(len(json.load(sys.stdin)),'articles')"
           done
       - uses: actions/upload-artifact@v4
         with:
