@@ -1,0 +1,26 @@
+name: Article Text Backfill
+on:
+  workflow_dispatch:
+    inputs:
+      firm:
+        description: '증권사 (DS/신한/대신/메리츠/흥국)'
+        required: true
+        type: choice
+        options: [DS, 신한, 대신, 메리츠, 흥국]
+      batch:
+        description: '처리 건수'
+        required: false
+        default: '200'
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run article_text extraction on server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # enricher에 스크립트 복사 후 실행
+            docker exec ssh-reports-enricher-prod python3 /app/enricher/article_text_enrich.py ${{ inputs.firm }} ${{ inputs.batch }}
