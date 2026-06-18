@@ -67,7 +67,7 @@ def format_message(data_list):
     return "\n".join(formatted_messages)
 
 
-def save_data_to_local_json(filename, sec_firm_order, article_board_order, firm_nm, pdf_url, article_title, article_url=None, download_url=None, main_ch_send_yn="N"):
+def save_data_to_local_json(filename, sec_firm_order, article_board_order, firm_nm, pdf_url, article_title, article_url=None, download_url=None, main_ch_send_yn="N", is_sent=False):
     directory = os.path.dirname(filename)
 
     # 디렉터리가 존재하는지 확인하고, 없으면 생성합니다.
@@ -92,6 +92,7 @@ def save_data_to_local_json(filename, sec_firm_order, article_board_order, firm_
         "article_title": article_title,
         "article_url": article_url,
         "main_ch_send_yn": main_ch_send_yn,
+        "is_sent": is_sent,
         "download_url": download_url,
         "pdf_url": pdf_url,
         "save_time": current_time
@@ -190,7 +191,7 @@ def get_unsent_main_ch_data_to_local_json(filename):
     unsent_data = [
         item for item in data
         if item.get("save_time", "").startswith(today_str) and 
-           item.get("main_ch_send_yn") == "N" and 
+           not item.get("is_sent", False) and 
            item.get("firm_nm") not in sent_firms
     ]
 
@@ -256,6 +257,7 @@ def update_main_ch_send_yn_to_y(file_path, target_date=None):
         for item in data:
             if item.get("save_time", "").startswith(target_date):
                 item["main_ch_send_yn"] = "Y"
+                item["is_sent"] = True
 
         # 안전한 쓰기 방식 적용
         safe_json_dump(data, file_path)

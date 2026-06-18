@@ -105,7 +105,7 @@ class SQLiteManager:
                 self.cursor.execute(f'''
                     INSERT INTO {table_name} (
                         sec_firm_order, article_board_order, firm_nm, reg_dt,
-                        article_title, article_url, main_ch_send_yn,
+                        article_title, article_url, is_sent,
                         download_url, telegram_url, pdf_url, writer, mkt_tp, key, save_time
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(key) DO UPDATE SET
@@ -134,7 +134,7 @@ class SQLiteManager:
                     entry.get("reg_dt", ''),
                     entry["article_title"],
                     entry.get("article_url", None),  # ARTICLE_URL이 없으면 NULL을 넣음
-                    entry.get("main_ch_send_yn", 'N'),  # 기본값 'N'
+                    1 if entry.get("is_sent", False) else 0,  # is_sent 매핑
                     entry.get("download_url", None),  # DOWNLOAD_URL이 없으면 NULL을 넣음
                     entry.get("telegram_url", None),  # TELEGRAM_URL이 없으면 NULL을 넣음
                     entry.get("pdf_url") or entry.get("download_url") or entry.get("telegram_url", None),  # PDF_URL이 없으면 대체 URL을 넣음
@@ -176,8 +176,8 @@ class SQLiteManager:
         query = f"""
         SELECT 
             report_id, sec_firm_order, article_board_order, firm_nm, reg_dt,
-            article_title, article_url, main_ch_send_yn, 
-            download_url, writer, save_time, main_ch_send_yn, telegram_url, key, pdf_url
+            article_title, article_url, is_sent, 
+            download_url, writer, save_time, telegram_url, key, pdf_url
         FROM 
             {self.main_table_name}
         WHERE 
@@ -213,8 +213,8 @@ class SQLiteManager:
         query = f"""
         SELECT 
             report_id, sec_firm_order, article_board_order, firm_nm, reg_dt,
-            article_title, article_url, main_ch_send_yn, 
-            download_url, writer, save_time, main_ch_send_yn, telegram_url, key, pdf_url
+            article_title, article_url, is_sent, 
+            download_url, writer, save_time, telegram_url, key, pdf_url
         FROM 
             {self.main_table_name}
         WHERE 
@@ -241,7 +241,7 @@ class SQLiteManager:
         query = f"""
         SELECT 
             report_id, sec_firm_order, article_board_order, firm_nm, reg_dt,
-            pdf_url, article_title, article_url, main_ch_send_yn, 
+            pdf_url, article_title, article_url, is_sent, 
             download_url, writer, save_time, telegram_url, key
         FROM 
             {self.main_table_name}
@@ -334,10 +334,10 @@ class SQLiteManager:
 
         # 쿼리 타입에 따라 조건을 다르게 설정
         if type == 'send':
-            query_condition = "(main_ch_send_yn != 'Y' OR main_ch_send_yn IS NULL)"
+            query_condition = "(is_sent = false OR is_sent IS NULL)"
             query_condition += "AND (sec_firm_order != 19 OR (sec_firm_order = 19 AND telegram_url <> ''))"
         elif type == 'download':
-            query_condition = "main_ch_send_yn = 'Y' AND pdf_sync_status != 2"
+            query_condition = "is_sent = true AND pdf_sync_status != 2"
 
         # 3일 이내 조건 추가
         three_days_ago = (datetime.now() - timedelta(days=3)).strftime('%Y%m%d')
@@ -345,8 +345,8 @@ class SQLiteManager:
         query = f"""
         SELECT 
             report_id, sec_firm_order, article_board_order, firm_nm, reg_dt,
-            pdf_url, article_title, article_url, main_ch_send_yn, 
-            download_url, writer, save_time, telegram_url, main_ch_send_yn
+            pdf_url, article_title, article_url, is_sent, 
+            download_url, writer, save_time, telegram_url
         FROM 
             {self.main_table_name} 
         WHERE 
@@ -375,10 +375,10 @@ class SQLiteManager:
             for row in fetched_rows:
                 telegram_url = row.get('telegram_url')
                 if telegram_url:
-                    update_query = f"UPDATE {self.main_table_name} SET main_ch_send_yn = 'Y' WHERE telegram_url = ?"
+                    update_query = f"UPDATE {self.main_table_name} SET is_sent = true WHERE telegram_url = ?"
                     param = (telegram_url,)
                 else:
-                    update_query = f"UPDATE {self.main_table_name} SET main_ch_send_yn = 'Y' WHERE report_id = ?"
+                    update_query = f"UPDATE {self.main_table_name} SET is_sent = true WHERE report_id = ?"
                     param = (row['report_id'],)
                 
                 await self.execute_query(update_query, param)
@@ -398,12 +398,12 @@ class SQLiteManager:
             summary_time = ?, 
             summary_model = ?
         WHERE telegram_url = ?
-          AND main_ch_send_yn = 'Y'
+          AND is_sent = true
           AND report_id = (
               SELECT MAX(report_id) 
               FROM {self.main_table_name} 
               WHERE telegram_url = ? 
-                AND main_ch_send_yn = 'Y'
+                AND is_sent = true
           )
         """
         now = datetime.now().isoformat()

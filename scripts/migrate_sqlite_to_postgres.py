@@ -131,6 +131,7 @@ def migrate_main(batch_size=5000, truncate=False):
                 _clean(r["summary_time"]), _clean(r["summary_model"]),
                 _clean(r.get("archive_status") or r.get("ARCHIVE_STATUS") or 'INIT'),
                 r["pdf_sync_status"] or 0, _clean(r["pdf_url"] or ''),
+                True if r["main_ch_send_yn"] == 'Y' else False,
             )
             for r in rows
         ]
@@ -142,13 +143,14 @@ def migrate_main(batch_size=5000, truncate=False):
                 article_title, article_url, main_ch_send_yn,
                 download_url, save_time, reg_dt, writer, key, telegram_url, mkt_tp,
                 gemini_summary, summary_time, summary_model, archive_status,
-                pdf_sync_status, pdf_url
+                pdf_sync_status, pdf_url, is_sent
             ) VALUES %s
             ON CONFLICT (key) DO UPDATE SET
                 reg_dt             = EXCLUDED.reg_dt,
                 writer             = EXCLUDED.writer,
                 mkt_tp             = EXCLUDED.mkt_tp,
                 main_ch_send_yn    = EXCLUDED.main_ch_send_yn,
+                is_sent            = EXCLUDED.is_sent,
                 gemini_summary     = COALESCE(NULLIF(EXCLUDED.gemini_summary,''), tbl_sec_reports.gemini_summary),
                 download_url       = COALESCE(NULLIF(EXCLUDED.download_url,''),  tbl_sec_reports.download_url),
                 telegram_url       = COALESCE(NULLIF(EXCLUDED.telegram_url,''),  tbl_sec_reports.telegram_url),

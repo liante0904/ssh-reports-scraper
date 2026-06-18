@@ -25,7 +25,7 @@ def reset_yesterday_status():
     table_name = getattr(db, "MAIN_TABLE", getattr(db, "table_name", "tbl_sec_reports"))
     sql = f"""
         UPDATE {table_name}
-        SET "main_ch_send_yn" = 'N'
+        SET "main_ch_send_yn" = 'N', "is_sent" = false
         WHERE DATE("save_time") = %s
     """
     
