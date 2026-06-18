@@ -12,6 +12,8 @@ jobs:
       - run: pip install uv
       - run: uv sync --frozen --no-cache
       - name: Run DS scraper
+        env:
+          urls: ${{ secrets.DS_URLS_JSON }}
         run: |
           uv run python run/standalone/ds.py > ds_result.json 2>ds_log.txt
           echo "=== Scraper Log ==="

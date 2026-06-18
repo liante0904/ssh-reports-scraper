@@ -12,6 +12,8 @@ jobs:
       - run: pip install uv
       - run: uv sync --frozen --no-cache
       - name: Run Daeshin scraper
+        env:
+          urls: ${{ secrets.DAESHIN_URLS_JSON }}
         run: |
           uv run python run/standalone/daeshin.py > daeshin_result.json 2>daeshin_log.txt
           echo "=== Scraper Log ==="
