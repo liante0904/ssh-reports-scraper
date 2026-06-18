@@ -1,0 +1,34 @@
+name: KoreaInvestment Scraper → SCP
+on:
+  schedule:
+    - cron: '0 * * * 1-5'
+  workflow_dispatch:
+jobs:
+  scrape-and-scp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+      - run: pip install uv
+      - run: uv sync --frozen --no-cache
+      - name: Run KoreaInvestment scraper
+        env:
+          urls: ${{ secrets.KOREAINVESTMENT_URLS_JSON }}
+        run: |
+          uv run python run/standalone/koreainvestment.py > ki_result.json 2>ki_log.txt
+          echo "=== Scraper Log ==="
+          cat ki_log.txt
+          COUNT=$(python3 -c "import json; print(len(json.load(open('ki_result.json'))))")
+          echo "Articles collected: $COUNT"
+      - name: Validate result
+        run: python scripts/validate_scrape_result.py ki_result.json --require-non-empty
+      - name: SCP to server
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+          scp -P ${{ secrets.SERVER_PORT || 22 }} ki_result.json ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:incoming/ga-scrapes/
+          echo "SCP transfer complete"
