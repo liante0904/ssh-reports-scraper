@@ -90,7 +90,7 @@ services:
       - SQLITE_DB_PATH=/app/db/telegram.db
       - LOG_BASE_DIR=/log
       - TZ=Asia/Seoul
-      - POSTGRES_HOST=localhost
+      - POSTGRES_HOST=10.0.0.111
     command: [".venv/bin/python", "scheduler_keyword_alert.py"]
     logging:
       driver: "json-file"
@@ -119,7 +119,7 @@ services:
       - SQLITE_DB_PATH=/app/db/telegram.db
       - LOG_BASE_DIR=/log
       - TZ=Asia/Seoul
-      - POSTGRES_HOST=localhost
+      - POSTGRES_HOST=10.0.0.111
     command: [".venv/bin/python", "scheduler_keyword_alert.py"]
     logging:
       driver: "json-file"
