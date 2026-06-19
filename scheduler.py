@@ -99,6 +99,10 @@ def run_ga_import():
     db = get_db()
 
     for fpath in json_files:
+        # 💡 자가 치유 가드: 다른 프로세스가 이미 파일을 처리하여 가로챈 경우, 예외 없이 스킵합니다.
+        if not fpath.exists():
+            logger.info(f"[GA-Import] {fpath.name} already processed by another instance. Skipping.")
+            continue
         try:
             data = json.loads(fpath.read_text(encoding="utf-8"))
             if not isinstance(data, list):
