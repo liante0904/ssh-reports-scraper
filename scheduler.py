@@ -120,10 +120,49 @@ def run_ga_import():
             logger.success(f"[GA-Import] {fpath.name}: {ins} inserted, {upd} updated")
             if ins > 0:
                 invalidate_api_cache()
+                # 신규 insert건 텔레그램 채널 발송
+                try:
+                    new_keys = [d.get("report_unique_key") or d.get("key") for d in deduped_list if d.get("report_unique_key") or d.get("key")]
+                    if new_keys:
+                        _broadcast_ga_reports(db, new_keys)
+                except Exception as e:
+                    logger.warning(f"[GA-Import] broadcast failed (non-fatal): {e}")
             shutil.move(str(fpath), str(archive_dir / fpath.name))
         except Exception as e:
             logger.error(f"[GA-Import] {fpath.name} failed: {e}")
             shutil.move(str(fpath), str(failed_dir / fpath.name))
+
+
+def _broadcast_ga_reports(db, keys: list[str]) -> None:
+    """GA import된 신규 리포트를 텔레그램 채널에 발송"""
+    import asyncio
+    token = os.getenv("TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET", "")
+    chat_id = os.getenv("TELEGRAM_CHANNEL_ID_REPORT_ALARM", "")
+    if not token or not chat_id or not keys:
+        return
+
+    try:
+        from utils.telegram_util import sendMarkDownText
+        from utils.sqlite_util import convert_sql_to_telegram_messages
+
+        # report_unique_key로 DB에서 실제 row 조회
+        placeholders = ",".join(["%s"] * len(keys))
+        rows = db._fetchall(
+            f"SELECT * FROM tbl_sec_reports WHERE report_unique_key IN ({placeholders})",
+            keys,
+        )
+        if not rows:
+            return
+
+        msgs = convert_sql_to_telegram_messages(rows)
+        for msg in msgs:
+            try:
+                asyncio.run(sendMarkDownText(token=token, chat_id=chat_id, sendMessageText=msg))
+            except Exception as e:
+                logger.warning(f"[GA-Broadcast] TG send error: {e}")
+        logger.info(f"[GA-Broadcast] {len(rows)} reports sent to channel")
+    except Exception as e:
+        logger.warning(f"[GA-Broadcast] error: {e}")
 
 
 def run_fnguide_matcher():
