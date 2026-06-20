@@ -35,7 +35,7 @@ def scrape_hana(cfg: dict) -> list[dict]:
     result = []
     for board_order, base_url in enumerate(cfg.get("urls", [cfg.get("url","")])):
         if not base_url: continue
-        for page in range(1, 4):
+        for page in range(1, 2):  # 1페이지만 (새 구조에서 충분)
             url = f"{base_url}&curPage={page}"
             try:
                 resp = requests.get(url, timeout=30, verify=False)
@@ -44,6 +44,7 @@ def scrape_hana(cfg: dict) -> list[dict]:
             soup = BeautifulSoup(resp.text, "html.parser")
             # 2026.06 새 구조: title=li.mb4>a.more_btn, meta=li.mb7.m-info, dl=div.pdf a
             title_links = [a for a in soup.select("a.more_btn") if a.get_text(strip=True) != "더보기"]
+            if not title_links: break  # 빈 페이지 → 다음 board로
             pdf_links = {a["href"]: a for a in soup.select("div.pdf a[href*='download.cmd']")}
             writers = soup.select("li.mb7.m-info span.m-name")
             dates = soup.select("li.mb7.m-info span.txtbasic:not(.r-side-bar)")
