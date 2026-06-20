@@ -19,6 +19,17 @@ def _adjust_date(reg_dt, time_str):
 def scrape_hana(cfg: dict) -> list[dict]:
     if isinstance(cfg, list): cfg = {"urls": cfg}
     elif isinstance(cfg, str): cfg = {"url": cfg}
+    # 기본값 (GA standalone에서 list만 전달되는 경우 대비)
+    cfg.setdefault("list_sel", "#rschPprList > ul > li")
+    cfg.setdefault("title_sel", ".titArea strong")
+    cfg.setdefault("url_sel", ".fileArea a")
+    cfg.setdefault("date_sel", ".dateArea .date")
+    cfg.setdefault("writer_sel", ".writerArea .writer")
+    cfg.setdefault("time_sel", ".dateArea .time")
+    cfg.setdefault("base_url", "https://www.hanaw.com")
+    cfg.setdefault("sec_firm_order", 3)
+    cfg.setdefault("firm_nm", "하나증권")
+    cfg.setdefault("global_boards", [])
     requests.packages.urllib3.disable_warnings()
     result = []
     for board_order, base_url in enumerate(cfg.get("urls", [cfg.get("url","")])):
