@@ -1,7 +1,0 @@
-name: _dump_hana
-on: [workflow_dispatch]
-jobs:
-  dump:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo '${{ secrets.HANA_URLS_JSON }}' | head -c 300

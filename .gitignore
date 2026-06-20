@@ -171,3 +171,4 @@ error_response.txt
 .codex/
 vendor/
 .aider*
+.env
