@@ -20,12 +20,13 @@ def scrape_hana(cfg: dict) -> list[dict]:
     if isinstance(cfg, list): cfg = {"urls": cfg}
     elif isinstance(cfg, str): cfg = {"url": cfg}
     # 기본값 (GA standalone에서 list만 전달되는 경우 대비)
-    cfg.setdefault("list_sel", "#rschPprList > ul > li")
-    cfg.setdefault("title_sel", ".titArea strong")
-    cfg.setdefault("url_sel", ".fileArea a")
-    cfg.setdefault("date_sel", ".dateArea .date")
-    cfg.setdefault("writer_sel", ".writerArea .writer")
-    cfg.setdefault("time_sel", ".dateArea .time")
+    # 2026.06 Hana 사이트 구조: li.mb4(a.more_btn) + li.mb7.m-info(span) + li.mb7.contn(body)
+    cfg.setdefault("list_sel", "li.mb4:has(a.more_btn)")
+    cfg.setdefault("title_sel", "a.more_btn")
+    cfg.setdefault("url_sel", "div.pdf a[href*='download.cmd']")
+    cfg.setdefault("date_sel", "li.mb7.m-info span.txtbasic:not(.r-side-bar)")
+    cfg.setdefault("writer_sel", "li.mb7.m-info span.m-name")
+    cfg.setdefault("time_sel", "li.mb7.m-info span.r-side-bar")
     cfg.setdefault("base_url", "https://www.hanaw.com")
     cfg.setdefault("sec_firm_order", 3)
     cfg.setdefault("firm_nm", "하나증권")
@@ -41,16 +42,23 @@ def scrape_hana(cfg: dict) -> list[dict]:
                 resp.raise_for_status()
             except Exception: break
             soup = BeautifulSoup(resp.text, "html.parser")
-            items = soup.select(cfg["list_sel"])
-            if not items: break
-            for item in items:
+            # 2026.06 새 구조: title=li.mb4>a.more_btn, meta=li.mb7.m-info, dl=div.pdf a
+            title_links = [a for a in soup.select("a.more_btn") if a.get_text(strip=True) != "더보기"]
+            pdf_links = {a["href"]: a for a in soup.select("div.pdf a[href*='download.cmd']")}
+            writers = soup.select("li.mb7.m-info span.m-name")
+            dates = soup.select("li.mb7.m-info span.txtbasic:not(.r-side-bar)")
+            times = soup.select("li.mb7.m-info span.r-side-bar")
+
+            for i, a in enumerate(title_links):
                 try:
-                    title = item.select_one(cfg["title_sel"]).get_text()
-                    dl = cfg["base_url"] + item.select_one(cfg["url_sel"])["href"]
-                    rd = item.select_one(cfg["date_sel"]).get_text()
+                    title = a.get_text(strip=True)
+                    # download 링크 찾기 (title과 같은 인덱스)
+                    dl_keys = list(pdf_links.keys())
+                    dl = cfg["base_url"] + dl_keys[i] if i < len(dl_keys) else ""
+                    rd = dates[i].get_text(strip=True) if i < len(dates) else ""
                     rd = re.sub(r"[-./]","",rd)
-                    writer = item.select_one(cfg["writer_sel"]).get_text()
-                    ts = item.select_one(cfg["time_sel"]).get_text()
+                    writer = writers[i].get_text(strip=True) if i < len(writers) else ""
+                    ts = times[i].get_text(strip=True) if i < len(times) else ""
                     mkt = "GLOBAL" if board_order in cfg.get("global_boards",[]) else "KR"
                     result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=board_order,
                         firm_nm=cfg["firm_nm"],reg_dt=_adjust_date(rd,ts),download_url=dl,
