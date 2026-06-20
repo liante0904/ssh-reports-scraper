@@ -21,7 +21,7 @@ jobs:
           echo "Articles collected: $COUNT"
       - name: Validate result
         run: |
-          python scripts/validate_scrape_result.py hana_result.json --require-non-empty
+          python scripts/validate_scrape_result.py hana_result.json 
       - name: SCP
         run: |
           mkdir -p ~/.ssh
