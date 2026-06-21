@@ -35,7 +35,6 @@ class SecReportsManager(LibrarySecReportsManager):
                 or entry.get("article_url")
                 or ""
             )
-            legacy_key = entry.get("key") or unique_key
             save_time = entry.get("save_time", "")
             save_at = entry.get("save_at")
             if not save_at and save_time:
@@ -58,7 +57,6 @@ class SecReportsManager(LibrarySecReportsManager):
                 entry.get("pdf_url") or entry.get("telegram_url"),
                 entry.get("writer", ""),
                 entry.get("mkt_tp", "KR"),
-                legacy_key,
                 unique_key,
                 save_time,
                 False,
@@ -73,7 +71,7 @@ class SecReportsManager(LibrarySecReportsManager):
             INSERT INTO {table_name} (
                 sec_firm_order, article_board_order, firm_nm, reg_dt,
                 article_title, article_url, main_ch_send_yn, download_url,
-                telegram_url, pdf_url, writer, mkt_tp, key,
+                telegram_url, pdf_url, writer, mkt_tp,
                 report_unique_key, save_time, is_sent, save_at
             ) VALUES %s
             ON CONFLICT (report_unique_key) DO UPDATE SET
@@ -84,7 +82,6 @@ class SecReportsManager(LibrarySecReportsManager):
                 reg_dt              = EXCLUDED.reg_dt,
                 writer              = EXCLUDED.writer,
                 mkt_tp              = EXCLUDED.mkt_tp,
-                key                 = EXCLUDED.key,
                 download_url        = COALESCE(NULLIF(EXCLUDED.download_url, ''), {table_name}.download_url),
                 telegram_url        = COALESCE(NULLIF(EXCLUDED.telegram_url, ''), {table_name}.telegram_url),
                 pdf_url             = COALESCE(NULLIF(EXCLUDED.pdf_url, ''), {table_name}.pdf_url),
