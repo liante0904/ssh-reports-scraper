@@ -301,7 +301,7 @@ if __name__ == "__main__":
     import fcntl
 
     # ── Lock file: 중복 실행 방지 ──
-    LOCK_FILE = "/tmp/ssh_reports_scheduler.lock"
+    LOCK_FILE = "/app/ssh_reports_scheduler.lock"
     _lock_fd = open(LOCK_FILE, "w")
     try:
         fcntl.flock(_lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
