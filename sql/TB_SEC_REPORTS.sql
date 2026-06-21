@@ -34,7 +34,7 @@ CREATE TABLE public.tbl_sec_reports (
     save_time text,
     reg_dt text DEFAULT ''::text,
     writer text DEFAULT ''::text,
-    report_unique_key text,
+    key text,
     telegram_url text DEFAULT ''::text,
     mkt_tp text DEFAULT 'KR'::text,
     gemini_summary text,
@@ -79,7 +79,7 @@ ALTER TABLE ONLY public.tbl_sec_reports ALTER COLUMN report_id SET DEFAULT nextv
 --
 
 ALTER TABLE ONLY public.tbl_sec_reports
-    ADD CONSTRAINT tbl_sec_reports_report_unique_key_unique UNIQUE (report_unique_key);
+    ADD CONSTRAINT tbl_sec_reports_key_unique UNIQUE (key);
 
 
 --
@@ -94,7 +94,7 @@ ALTER TABLE ONLY public.tbl_sec_reports
 -- Name: idx_tb_sec_reports_key; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_tb_sec_reports_report_unique_key ON public.tbl_sec_reports USING btree (report_unique_key);
+CREATE INDEX idx_tb_sec_reports_key ON public.tbl_sec_reports USING btree (key);
 
 
 --
