@@ -69,11 +69,13 @@ def scrape_imfn(base_url: str) -> list[dict]:
                     jres = json.loads(attach_resp.text)[0][0]
                     attach_url = f"https://www.imfnsec.com/upload/{jres['file_dir']}/{jres['file_name']}"
 
+                    # 2026.06.21 fix: GA Import 중복제거 및 DB 업서트 시 식별값으로 사용될 key, report_unique_key, article_url 설정 추가
                     result.append({
                         "sec_firm_order": 18, "article_board_order": board_order,
                         "firm_nm": "IM증권", "reg_dt": re.sub(r"[-./]", "", item["reg_dt"]),
                         "telegram_url": attach_url, "pdf_url": attach_url,
                         "article_title": item["title"], "writer": item["username"],
+                        "key": attach_url, "report_unique_key": attach_url, "article_url": attach_url,
                         "save_time": datetime.now(timezone(timedelta(hours=9))).isoformat(),
                     })
                 except Exception:

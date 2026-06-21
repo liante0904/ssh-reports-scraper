@@ -233,7 +233,7 @@ WHERE main_ch_send_yn = 'Y'
 
 It must not set `is_sent=false` from `main_ch_send_yn='N'`.
 
-## Applied Changes
+### Applied Changes
 
 ### Scraper Repository
 
@@ -249,6 +249,7 @@ It must not set `is_sent=false` from `main_ch_send_yn='N'`.
 
 - `scheduler.py`
   - GA broadcast now marks rows as sent after successful Telegram send.
+  - **[Added 2026-06-21]** Refactored `_broadcast_ga_reports` to update sent status in DB immediately after each message chunk (under 3,500 chars limit) is successfully sent. This prevents partial delivery failure from re-triggering duplicates for already sent reports on subsequent runs.
 
 - `tests/test_sec_reports_manager.py`
   - Guards against reintroducing `is_sent = EXCLUDED.is_sent`.
@@ -258,6 +259,9 @@ It must not set `is_sent=false` from `main_ch_send_yn='N'`.
 - `scrapers/shinhan_core.py`
   - Canonicalizes Shinhan report URLs before assigning `key` / `report_unique_key`.
   - Normalizes `shinhaninvest.com` → `shinhansec.com`, `http` → `https`, and `/file.do` → `/file.pdf.do`.
+
+- `scrapers/imfn_core.py`, `scrapers/ds_core.py`, `scrapers/eugene_core.py`, `scrapers/shinyoung_core.py`
+  - **[Added 2026-06-21]** Added missing `key` and `report_unique_key` (and `article_url` for IM Securities) in returned report payloads. This guarantees that reports imported via GA Standalone json are not dropped/filtered out due to missing unique keys.
 
 - `tests/test_shinhan_core.py`
   - Guards Shinhan URL canonicalization.
