@@ -38,11 +38,11 @@ def validate(filepath: str, require_non_empty: bool = True) -> int:
 
     errors = {"bad_date": 0, "missing_key": 0, "bad_firm": 0}
     for i, item in enumerate(data):
-        # Check report_unique_key or key
-        uid = item.get("report_unique_key") or item.get("key")
+        # Check report_unique_key
+        uid = item.get("report_unique_key")
         if not uid:
             errors["missing_key"] += 1
-            print(f"  item[{i}]: missing report_unique_key/key", file=sys.stderr)
+            print(f"  item[{i}]: missing report_unique_key", file=sys.stderr)
 
         # Check reg_dt
         reg_dt = str(item.get("reg_dt", "")).strip()

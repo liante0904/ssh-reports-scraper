@@ -110,7 +110,7 @@ def run_ga_import():
             # 배치 내 중복 제거 (같은 게시판 중복 등재 방지)
             deduped = {}
             for d in data:
-                k = d.get("report_unique_key") or d.get("key")
+                k = d.get("report_unique_key")
                 if k and k not in deduped:
                     deduped[k] = d
             deduped_list = list(deduped.values())
@@ -122,7 +122,7 @@ def run_ga_import():
                 invalidate_api_cache()
                 # 신규 insert건 텔레그램 채널 발송
                 try:
-                    new_keys = [d.get("report_unique_key") or d.get("key") for d in deduped_list if d.get("report_unique_key") or d.get("key")]
+                    new_keys = [d.get("report_unique_key") for d in deduped_list if d.get("report_unique_key")]
                     if new_keys:
                         _broadcast_ga_reports(db, new_keys)
                 except Exception as e:
