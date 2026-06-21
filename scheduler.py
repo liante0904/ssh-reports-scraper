@@ -120,9 +120,9 @@ def run_ga_import():
             logger.success(f"[GA-Import] {fpath.name}: {ins} inserted, {upd} updated")
             if ins > 0:
                 invalidate_api_cache()
-                # 신규 insert건 텔레그램 채널 발송
+                # 신규 insert건만 텔레그램 채널 발송 (db._last_inserted_keys 사용)
                 try:
-                    new_keys = [d.get("report_unique_key") for d in deduped_list if d.get("report_unique_key")]
+                    new_keys = getattr(db, "_last_inserted_keys", [])
                     if new_keys:
                         _broadcast_ga_reports(db, new_keys)
                 except Exception as e:
@@ -149,10 +149,10 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
     try:
         from utils.telegram_util import sendMarkDownText
 
-        # report_unique_key로 DB에서 실제 row 조회
+        # report_unique_key로 DB에서 실제 row 조회 (미발송 건만)
         placeholders = ",".join(["%s"] * len(keys))
         rows = db._fetchall(
-            f"SELECT * FROM tbl_sec_reports WHERE report_unique_key IN ({placeholders})",
+            f"SELECT * FROM tbl_sec_reports WHERE report_unique_key IN ({placeholders}) AND (is_sent = false OR is_sent IS NULL)",
             keys,
         )
         if not rows:
