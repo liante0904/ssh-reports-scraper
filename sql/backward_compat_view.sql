@@ -9,7 +9,7 @@ CREATE OR REPLACE VIEW v_sec_reports_full AS
 SELECT
     -- 핵심 컬럼 (tbl_sec_reports)
     r.report_id, r.sec_firm_order, r.article_board_order, r.firm_nm,
-    r.article_title, r.article_url, r.key, r.report_unique_key,
+    r.article_title, r.article_url, r.report_unique_key AS key, r.report_unique_key,
     r.reg_dt, r.report_date,
     r.save_time, r.saved_at,
     r.main_ch_send_yn, r.telegram_sent,
