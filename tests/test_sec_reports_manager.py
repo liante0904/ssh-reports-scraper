@@ -6,7 +6,8 @@ import asyncio
 ROOT = Path(__file__).resolve().parents[1]
 LIB_DIR = ROOT.parents[3] / "lib"
 sys.path.append(str(ROOT))
-sys.path.append(str(LIB_DIR))
+if (LIB_DIR / "ssh_library").exists():
+    sys.path.append(str(LIB_DIR / "ssh_library"))
 
 
 class FakeCursor:
@@ -72,13 +73,16 @@ def test_insert_includes_legacy_and_canonical_keys(monkeypatch):
     assert "key,\n                report_unique_key" in connection.cursor_instance.sql
     assert connection.cursor_instance.records[0][12] == "https://example.test/report.pdf"
     assert connection.cursor_instance.records[0][13] == "https://example.test/report.pdf"
+    assert connection.cursor_instance.records[0][14] == "2026-06-15T08:00:00+09:00"
+    assert connection.cursor_instance.records[0][15] is False
     assert "main_ch_send_yn     = CASE" in connection.cursor_instance.sql
     assert "is_sent             = COALESCE" in connection.cursor_instance.sql
-    assert "OR COALESCE(EXCLUDED.is_sent, false)" in connection.cursor_instance.sql
+    assert "EXCLUDED.is_sent" not in connection.cursor_instance.sql
+    assert "EXCLUDED.main_ch_send_yn" not in connection.cursor_instance.sql
     assert connection.closed is True
 
 
-def test_daily_update_data_marks_is_sent_and_legacy_main_channel_flag():
+def test_mark_reports_sent_marks_is_sent_and_legacy_main_channel_flag():
     from models.SecReportsManager import SecReportsManager
 
     calls = []
@@ -86,15 +90,28 @@ def test_daily_update_data_marks_is_sent_and_legacy_main_channel_flag():
     manager.table_name = "tbl_sec_reports"
     manager._execute = lambda sql, params: calls.append((sql, params))
 
-    result = asyncio.run(manager.daily_update_data(
-        fetched_rows=[{"report_id": 1, "telegram_url": "https://example.test/report.pdf"}],
-        type="send",
-    ))
+    result = manager.mark_reports_sent([
+        {"report_id": 1, "telegram_url": "https://example.test/report.pdf"},
+    ])
 
     assert result == {"status": "success"}
     assert len(calls) == 1
     assert "SET is_sent = true, main_ch_send_yn = 'Y'" in calls[0][0]
     assert calls[0][1] == ("https://example.test/report.pdf",)
+
+
+def test_daily_update_data_delegates_send_status_to_mark_reports_sent(monkeypatch):
+    from models.SecReportsManager import SecReportsManager
+
+    manager = object.__new__(SecReportsManager)
+    rows = [{"report_id": 1}]
+    seen = []
+    monkeypatch.setattr(manager, "mark_reports_sent", lambda fetched_rows: seen.append(fetched_rows) or {"status": "success"})
+
+    result = asyncio.run(manager.daily_update_data(fetched_rows=rows, type="send"))
+
+    assert result == {"status": "success"}
+    assert seen == [rows]
 
 
 def test_duplicate_reset_does_not_mutate_send_status():

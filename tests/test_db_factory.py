@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LIB_DIR = ROOT.parents[3] / "lib"
 sys.path.append(str(ROOT))
 if (LIB_DIR / "ssh_library").exists():
-    sys.path.append(str(LIB_DIR))
+    sys.path.append(str(LIB_DIR / "ssh_library"))
 
 
 def test_get_db_default_uses_sec_reports_manager(monkeypatch):

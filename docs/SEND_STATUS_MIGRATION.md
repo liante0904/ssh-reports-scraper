@@ -3,6 +3,55 @@
 > Created: 2026-06-21
 > Scope: `report_unique_key`/`key`, `save_at`/`save_time`, and `is_sent`/`main_ch_send_yn` handling across scraper, scheduler, backend API, and frontend consumers.
 
+## Read This First
+
+If you only remember one rule, remember this:
+
+**Scraping/upsert code must never decide that a report is unsent.**
+
+The scraper collects report metadata. Telegram delivery state is a side effect and must be changed only by the explicit send-status writer.
+
+### Current Direction
+
+Canonical columns:
+
+- `report_unique_key` replaces legacy `key`.
+- `save_at` replaces legacy `save_time`.
+- `is_sent` replaces legacy `main_ch_send_yn`.
+
+Transition rule:
+
+- Writers dual-populate legacy columns while old consumers exist.
+- Readers use canonical-first fallback through `v_sec_reports_canonical`.
+- `main_ch_send_yn='Y'` can make `is_sent=true`.
+- `main_ch_send_yn='N'` must never make `is_sent=false`.
+
+### Highest Priority Work
+
+1. Keep `insert_json_data_list()` limited to metadata upsert.
+2. Keep send completion inside `mark_reports_sent()` / `daily_update_data(type='send')`.
+3. Remove or quarantine any code that sets `is_sent=false` during scrape/upsert.
+4. Canonicalize URL-based keys before insert, starting with brokers that changed domains.
+5. Only after production mismatch checks are clean, remove legacy columns.
+
+### Never Do This
+
+- Do not set `is_sent = EXCLUDED.is_sent` in upsert SQL.
+- Do not reset `is_sent=false` because title/date/firm changed or duplicated.
+- Do not use raw source URLs as keys when the broker is known to change domains, protocols, or URL paths.
+- Do not drop `key`, `save_time`, or `main_ch_send_yn` until all readers have moved to canonical fields or the canonical view.
+- Do not retry a scraper job blindly after Telegram messages were already sent.
+
+### Safe Mental Model
+
+Think of the system as three separate lanes:
+
+| Lane | What it can change | What it must not change |
+|------|--------------------|-------------------------|
+| Scrape/upsert | report title, URLs, dates, analyst, canonical key | delivery state |
+| Send pipeline | `is_sent=true`, `main_ch_send_yn='Y'` | report identity |
+| Migration/view | fallback reads, one-way backfill to canonical fields | destructive resets |
+
 ## Summary
 
 The canonical columns are:

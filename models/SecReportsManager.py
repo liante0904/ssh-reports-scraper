@@ -45,7 +45,6 @@ class SecReportsManager(LibrarySecReportsManager):
                 except Exception:
                     pass
 
-            sent = bool(entry.get("is_sent", False)) or entry.get("main_ch_send_yn") == "Y"
             records.append((
                 entry.get("sec_firm_order"),
                 entry.get("article_board_order"),
@@ -53,7 +52,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 entry.get("reg_dt", ""),
                 entry.get("article_title"),
                 entry.get("article_url"),
-                "Y" if sent else entry.get("main_ch_send_yn", "N"),
+                "N",
                 entry.get("download_url"),
                 entry.get("telegram_url"),
                 entry.get("pdf_url") or entry.get("telegram_url"),
@@ -62,7 +61,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 legacy_key,
                 unique_key,
                 save_time,
-                sent,
+                False,
                 save_at,
             ))
 
@@ -91,14 +90,12 @@ class SecReportsManager(LibrarySecReportsManager):
                 pdf_url             = COALESCE(NULLIF(EXCLUDED.pdf_url, ''), {table_name}.pdf_url),
                 main_ch_send_yn     = CASE
                                         WHEN COALESCE({table_name}.is_sent, false)
-                                          OR COALESCE(EXCLUDED.is_sent, false)
                                           OR {table_name}.main_ch_send_yn = 'Y'
-                                          OR EXCLUDED.main_ch_send_yn = 'Y'
                                         THEN 'Y'
-                                        ELSE COALESCE(EXCLUDED.main_ch_send_yn, {table_name}.main_ch_send_yn)
+                                        ELSE COALESCE({table_name}.main_ch_send_yn, 'N')
                                       END,
                 is_sent             = COALESCE({table_name}.is_sent, false)
-                                      OR COALESCE(EXCLUDED.is_sent, false),
+                                      OR {table_name}.main_ch_send_yn = 'Y',
                 save_at             = COALESCE(EXCLUDED.save_at, {table_name}.save_at)
             RETURNING report_unique_key, (xmax = 0) AS inserted
         """
@@ -133,18 +130,13 @@ class SecReportsManager(LibrarySecReportsManager):
         )
         return inserted, updated
 
-    async def daily_update_data(self, date_str=None, fetched_rows=None, type=None):
-        """Mark sent status and mirror it to the legacy main channel flag."""
-        if type not in ("send", "download"):
-            raise ValueError("Invalid type. Must be 'send' or 'download'.")
+    def mark_reports_sent(self, fetched_rows):
+        """Mark Telegram delivery complete.
 
-        if type != "send":
-            return await super().daily_update_data(
-                date_str=date_str,
-                fetched_rows=fetched_rows,
-                type=type,
-            )
-
+        This is the only method in this manager that should turn send status
+        on. Scraper upserts must not use incoming scrape payloads to change
+        delivery state.
+        """
         for row in fetched_rows or []:
             telegram_url = row.get("telegram_url")
             if telegram_url:
@@ -166,3 +158,17 @@ class SecReportsManager(LibrarySecReportsManager):
                     (row["report_id"],),
                 )
         return {"status": "success"}
+
+    async def daily_update_data(self, date_str=None, fetched_rows=None, type=None):
+        """Mark sent status and mirror it to the legacy main channel flag."""
+        if type not in ("send", "download"):
+            raise ValueError("Invalid type. Must be 'send' or 'download'.")
+
+        if type != "send":
+            return await super().daily_update_data(
+                date_str=date_str,
+                fetched_rows=fetched_rows,
+                type=type,
+            )
+
+        return self.mark_reports_sent(fetched_rows)
