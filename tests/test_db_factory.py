@@ -29,3 +29,12 @@ def test_get_db_ssh_library_backend(monkeypatch):
     from ssh_library import SecReportsManager
 
     assert isinstance(get_db(), SecReportsManager)
+
+
+def test_get_db_postgres_backend_uses_scraper_sec_reports_manager(monkeypatch):
+    monkeypatch.setenv("DB_BACKEND", "postgres")
+
+    from models.SecReportsManager import SecReportsManager
+    from models.db_factory import get_db
+
+    assert isinstance(get_db(), SecReportsManager)

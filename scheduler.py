@@ -155,12 +155,18 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
             return
 
         msgs = convert_sql_to_telegram_messages(rows)
+        success = True
         for msg in msgs:
             try:
                 asyncio.run(sendMarkDownText(token=token, chat_id=chat_id, sendMessageText=msg))
             except Exception as e:
                 logger.warning(f"[GA-Broadcast] TG send error: {e}")
-        logger.info(f"[GA-Broadcast] {len(rows)} reports sent to channel")
+                success = False
+        if success:
+            asyncio.run(db.daily_update_data(fetched_rows=rows, type="send"))
+            logger.info(f"[GA-Broadcast] {len(rows)} reports sent to channel and marked sent")
+        else:
+            logger.warning("[GA-Broadcast] skipped sent-status update because at least one send failed")
     except Exception as e:
         logger.warning(f"[GA-Broadcast] error: {e}")
 

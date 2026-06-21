@@ -2,6 +2,7 @@ import sys
 """Shinhan Securities — 순수 스크래핑 코어."""
 import json, re, requests
 from datetime import datetime, timezone, timedelta
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 LOOKBACK_DAYS = 45
 BOARD_MAP = {'giindustry':0,'gicompanyanalyst':1,'giresearchIPO':2,'foreignstock':3,
@@ -11,6 +12,22 @@ BBS_BOARDS = ["foreignstock","giresearchIPO","gieconomy","gicomment","gibond",
               "foreignbond","gifuture","alternative"]
 MOBILE_API = "https://m.shinhansec.com/mweb/api/invt/shrh/ishrhShrhList"
 BBS_API = "https://bbs2.shinhansec.com/mobile/json.list.do"
+
+
+def canonical_shinhan_url(url: str) -> str:
+    """Normalize Shinhan report URLs so domain/protocol/path migrations do not create new keys."""
+    raw = str(url or "").strip()
+    if not raw:
+        return ""
+    raw = raw.replace("shinhaninvest.com", "shinhansec.com")
+    parsed = urlsplit(raw)
+    if not parsed.scheme or not parsed.netloc:
+        return raw
+
+    netloc = parsed.netloc.lower()
+    path = parsed.path.replace("/file.do", "/file.pdf.do")
+    query = urlencode(sorted(parse_qsl(parsed.query, keep_blank_values=True)))
+    return urlunsplit(("https", netloc, path, query, ""))
 
 def scrape_shinhan(cfg: dict) -> list[dict]:
     """cfg: {mobile_api_url, str_boards, bbs_boards}"""
@@ -39,7 +56,7 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
             for item in items:
                 reg_dt = re.sub(r"[^0-9]","",str(item.get("date","")))[:8]
                 if not reg_dt or reg_dt < cutoff: continue
-                dl = str(item.get("attachment_url") or "").replace("shinhaninvest.com","shinhansec.com").replace("/file.do?","/file.pdf.do?").replace("http://", "https://")
+                dl = canonical_shinhan_url(item.get("attachment_url") or "")
                 if not dl.startswith("http"): continue
                 board = BOARD_MAP.get(bbs_name, 99)
                 result.append({"sec_firm_order":1,"article_board_order":board,
@@ -70,7 +87,7 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
             for item in items:
                 reg_dt = re.sub(r"[^0-9]","",str(item.get(d_key,"")))[:8]
                 if not reg_dt or reg_dt < cutoff: continue
-                dl = str(item.get(u_key,"")).replace("shinhaninvest.com","shinhansec.com").replace("/file.do?","/file.pdf.do?").replace("http://", "https://")
+                dl = canonical_shinhan_url(item.get(u_key, ""))
                 if not dl.startswith("http"): continue
                 board = BOARD_MAP.get(board_name, 99)
                 result.append({"sec_firm_order":1,"article_board_order":board,

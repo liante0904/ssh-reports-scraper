@@ -9,41 +9,22 @@ class SecReportsManager(LibrarySecReportsManager):
     """Keep legacy ``key`` and canonical ``report_unique_key`` in sync."""
 
     def _reset_duplicate_send_yn(self, json_data_list, table_name):
-        """title+reg_dt+firm_nm 같고 key 다르면 기존 레코드의 send_yn을 N으로 초기화"""
-        from collections import defaultdict
-        groups = defaultdict(list)
-        for entry in json_data_list:
-            t = (entry.get("article_title","").strip(),
-                 entry.get("reg_dt","").strip(),
-                 entry.get("firm_nm","").strip())
-            if all(t):
-                groups[t].append(entry.get("key") or entry.get("report_unique_key",""))
+        """Do not mutate send status during scraper upsert.
 
-        conn = self.get_connection()
-        try:
-            with conn:
-                with conn.cursor() as cur:
-                    for (title, reg_dt, firm), keys in groups.items():
-                        cur.execute(f"""
-                            UPDATE {table_name}
-                            SET main_ch_send_yn = 'N', is_sent = false
-                            WHERE article_title = %s AND reg_dt = %s AND firm_nm = %s
-                              AND is_sent = true
-                              AND key != ALL(%s)
-                        """, (title, reg_dt, firm, keys))
-                        if cur.rowcount > 0:
-                            logger.info(f"[DEDUP] reset is_sent for '{title[:40]}' ({cur.rowcount} rows)")
-        except Exception as e:
-            logger.warning(f"[DEDUP] reset send_yn failed: {e}")
-        finally:
-            conn.close()
+        Historical code reset existing rows to unsent when the same
+        title/date/firm appeared with a different key. That makes URL
+        canonicalization issues turn into Telegram re-sends. Dedupe should be
+        handled by canonical keys or read-side grouping, not by toggling
+        delivery state.
+        """
+        return
 
     def insert_json_data_list(self, json_data_list, table_name=None):
         if table_name is None:
             table_name = self.table_name
         table_name = self._TABLE_MAP.get(table_name, table_name)
 
-        # title+date+firm 중복 & key 다른 경우 → 기존 레코드 send_yn=N 초기화 (재발송)
+        # Do not reset send status during upsert; see _reset_duplicate_send_yn.
         self._reset_duplicate_send_yn(json_data_list, table_name)
 
         records = []
@@ -64,6 +45,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 except Exception:
                     pass
 
+            sent = bool(entry.get("is_sent", False)) or entry.get("main_ch_send_yn") == "Y"
             records.append((
                 entry.get("sec_firm_order"),
                 entry.get("article_board_order"),
@@ -71,7 +53,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 entry.get("reg_dt", ""),
                 entry.get("article_title"),
                 entry.get("article_url"),
-                entry.get("main_ch_send_yn", "N"),
+                "Y" if sent else entry.get("main_ch_send_yn", "N"),
                 entry.get("download_url"),
                 entry.get("telegram_url"),
                 entry.get("pdf_url") or entry.get("telegram_url"),
@@ -80,7 +62,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 legacy_key,
                 unique_key,
                 save_time,
-                entry.get("is_sent", False),
+                sent,
                 save_at,
             ))
 
@@ -107,7 +89,16 @@ class SecReportsManager(LibrarySecReportsManager):
                 download_url        = COALESCE(NULLIF(EXCLUDED.download_url, ''), {table_name}.download_url),
                 telegram_url        = COALESCE(NULLIF(EXCLUDED.telegram_url, ''), {table_name}.telegram_url),
                 pdf_url             = COALESCE(NULLIF(EXCLUDED.pdf_url, ''), {table_name}.pdf_url),
-                is_sent             = EXCLUDED.is_sent,
+                main_ch_send_yn     = CASE
+                                        WHEN COALESCE({table_name}.is_sent, false)
+                                          OR COALESCE(EXCLUDED.is_sent, false)
+                                          OR {table_name}.main_ch_send_yn = 'Y'
+                                          OR EXCLUDED.main_ch_send_yn = 'Y'
+                                        THEN 'Y'
+                                        ELSE COALESCE(EXCLUDED.main_ch_send_yn, {table_name}.main_ch_send_yn)
+                                      END,
+                is_sent             = COALESCE({table_name}.is_sent, false)
+                                      OR COALESCE(EXCLUDED.is_sent, false),
                 save_at             = COALESCE(EXCLUDED.save_at, {table_name}.save_at)
             RETURNING report_unique_key, (xmax = 0) AS inserted
         """
@@ -141,3 +132,37 @@ class SecReportsManager(LibrarySecReportsManager):
             f"[SCRAPER-DB] Data inserted: {inserted} rows, updated: {updated} rows."
         )
         return inserted, updated
+
+    async def daily_update_data(self, date_str=None, fetched_rows=None, type=None):
+        """Mark sent status and mirror it to the legacy main channel flag."""
+        if type not in ("send", "download"):
+            raise ValueError("Invalid type. Must be 'send' or 'download'.")
+
+        if type != "send":
+            return await super().daily_update_data(
+                date_str=date_str,
+                fetched_rows=fetched_rows,
+                type=type,
+            )
+
+        for row in fetched_rows or []:
+            telegram_url = row.get("telegram_url")
+            if telegram_url:
+                self._execute(
+                    f"""
+                    UPDATE {self.table_name}
+                    SET is_sent = true, main_ch_send_yn = 'Y'
+                    WHERE telegram_url = %s
+                    """,
+                    (telegram_url,),
+                )
+            else:
+                self._execute(
+                    f"""
+                    UPDATE {self.table_name}
+                    SET is_sent = true, main_ch_send_yn = 'Y'
+                    WHERE report_id = %s
+                    """,
+                    (row["report_id"],),
+                )
+        return {"status": "success"}
