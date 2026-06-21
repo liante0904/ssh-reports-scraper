@@ -39,7 +39,7 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
             for item in items:
                 reg_dt = re.sub(r"[^0-9]","",str(item.get("date","")))[:8]
                 if not reg_dt or reg_dt < cutoff: continue
-                dl = str(item.get("attachment_url") or "").replace("shinhaninvest.com","shinhansec.com").replace("/file.do?","/file.pdf.do?")
+                dl = str(item.get("attachment_url") or "").replace("shinhaninvest.com","shinhansec.com").replace("/file.do?","/file.pdf.do?").replace("http://", "https://")
                 if not dl.startswith("http"): continue
                 board = BOARD_MAP.get(bbs_name, 99)
                 result.append({"sec_firm_order":1,"article_board_order":board,
@@ -70,7 +70,7 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
             for item in items:
                 reg_dt = re.sub(r"[^0-9]","",str(item.get(d_key,"")))[:8]
                 if not reg_dt or reg_dt < cutoff: continue
-                dl = str(item.get(u_key,"")).replace("shinhaninvest.com","shinhansec.com").replace("/file.do?","/file.pdf.do?")
+                dl = str(item.get(u_key,"")).replace("shinhaninvest.com","shinhansec.com").replace("/file.do?","/file.pdf.do?").replace("http://", "https://")
                 if not dl.startswith("http"): continue
                 board = BOARD_MAP.get(board_name, 99)
                 result.append({"sec_firm_order":1,"article_board_order":board,
@@ -78,5 +78,13 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
                     "article_title":item.get(t_key,"").strip(),"writer":item.get(w_key,"").strip(),
                     "key":dl,"report_unique_key":dl,
                     "save_time":datetime.now(timezone(timedelta(hours=9))).isoformat()})
-    print(f"[shinhan] {len(result)} articles collected", file=sys.stderr)
-    return result
+    print(f"[shinhan] {len(result)} articles collected before deduplication", file=sys.stderr)
+    seen = set()
+    deduped_result = []
+    for item in result:
+        dup_key = (item["reg_dt"], item["article_title"])
+        if dup_key not in seen:
+            seen.add(dup_key)
+            deduped_result.append(item)
+    print(f"[shinhan] {len(deduped_result)} articles collected after deduplication", file=sys.stderr)
+    return deduped_result
