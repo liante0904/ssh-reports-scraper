@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 from bs4 import BeautifulSoup
 
 def _adjust_date(reg_dt, time_str):
-    # 인위적인 미래 날짜 변조를 제거하고, 원래 등록일자를 그대로 사용합니다.
+    # 인위적인 미래 날짜 변조를 제거하고, 원래 등록일자를 그대로 사용합니다. (2026.06.21 fix)
     return reg_dt
 
 def scrape_hana(cfg: dict) -> list[dict]:
