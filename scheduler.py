@@ -298,27 +298,56 @@ scheduler.add_job(
 
 if __name__ == "__main__":
     import signal
-    
+    import fcntl
+
+    # ── Lock file: 중복 실행 방지 ──
+    LOCK_FILE = "/tmp/ssh_reports_scheduler.lock"
+    _lock_fd = open(LOCK_FILE, "w")
+    try:
+        fcntl.flock(_lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        _lock_fd.write(str(os.getpid()))
+        _lock_fd.flush()
+    except BlockingIOError:
+        # 이미 다른 scheduler가 실행 중 → 즉시 종료
+        try:
+            with open(LOCK_FILE) as lf:
+                existing_pid = lf.read().strip()
+            logger.warning(f"Another scheduler is already running (PID={existing_pid}). Exiting.")
+        except Exception:
+            logger.warning("Another scheduler is already running. Exiting.")
+        sys.exit(0)
+
+    def _cleanup_lock():
+        try:
+            fcntl.flock(_lock_fd, fcntl.LOCK_UN)
+            _lock_fd.close()
+            os.remove(LOCK_FILE)
+        except Exception:
+            pass
+
     def handle_sigterm(signum, frame):
         logger.warning("Received SIGTERM. Shutting down scheduler gracefully...")
+        _cleanup_lock()
         if scheduler.running:
-            # wait=False로 설정하여 즉시 스케줄러를 정지시키고 리소스를 정리합니다.
             scheduler.shutdown(wait=False)
         sys.exit(0)
 
     # Docker stop이 송출하는 SIGTERM 신호 핸들러 등록
     signal.signal(signal.SIGTERM, handle_sigterm)
+    signal.signal(signal.SIGINT, handle_sigterm)
 
     logger.info("🚀 Master Scheduler starting up...")
     logger.info("Registered Jobs:")
     for job in scheduler.get_jobs():
         logger.info(f"- {job.id}: {job.trigger}")
-    
+
     # 시작 시 즉시 한 번 실행
     import threading
     threading.Thread(target=run_scraper, daemon=True).start()
-    
+
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
         logger.warning("Scheduler stopped.")
+    finally:
+        _cleanup_lock()
