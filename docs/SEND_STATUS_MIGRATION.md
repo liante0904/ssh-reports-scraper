@@ -266,6 +266,9 @@ It must not set `is_sent=false` from `main_ch_send_yn='N'`.
 - `tests/test_shinhan_core.py`
   - Guards Shinhan URL canonicalization.
 
+- `tests/test_scheduler_ga_broadcast.py`
+  - **[Added 2026-06-21]** Guards `_broadcast_ga_reports` chunk-based Telegram send and DB status updates. It verifies chunk separation under 3,500-character limits, call counts, and proper database partial status marking during individual delivery success and failures.
+
 ### Backend Repository
 
 - `app/main.py`
