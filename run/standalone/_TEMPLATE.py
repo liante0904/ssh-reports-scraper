@@ -28,7 +28,7 @@ json_data_list.append({
     "article_title": "리포트 제목",
     "writer": "작성자",
     "mkt_tp": "KR",                  # "KR" or "GLOBAL"
-    "key": "https://...",           # 중복제거용 유니크 키 (URL 권장)
+    "report_unique_key": "https://...",  # 중복제거용 유니크 키 (URL 권장, key 컬럼 deprecated)
     "save_time": "2026-06-09T10:00:00",
 })
 """

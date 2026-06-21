@@ -1,41 +1,40 @@
 # GA Standalone 전환 현황
 
-> 갱신: 2026-06-15 | 25/29개사 GA 정상, 2개 보류, 1개 IP차단, 1개 인증만료
+> 갱신: 2026-06-22 | 24/29개사 GA 정상, 1개 GA 제외(IP차단), 2개 보류, 2개 장애
 
 ---
 
-## 정상 (25개사)
+## 정상 (24개사)
 
 ### GA Workflow + Secret 작동 확인
-| # | 증권사 | order | GA 건수 | 방식 | 상태 |
-|:---:|------|:---:|:---:|------|:---:|
-| 2 | NH투자증권 | 2 | 13 | JSON POST | ✅ 6/15 fix (_jp numeric) |
-| 3 | 하나증권 | 3 | 510 | HTML 파싱 | ✅ 6/15 secret fix |
-| 4 | KB증권 | 4 | 500 | JSON POST | ✅ |
-| 5 | 삼성증권 | 5 | 200 | HTML 파싱 | ✅ 6/15 secret fix |
-| 6 | 상상인증권 | 6 | 30 | form POST + 쿠키 | ✅ 6/15 fix (NT_NO int) |
-| 7 | 신영증권 | 7 | - | 서버 모듈 | ✅ 서버 전용 |
-| 8 | 미래에셋증권 | 8 | 10 | HTML 파싱 | ✅ 6/15 secret fix |
-| 9 | 현대차증권 | 9 | 120 | JSON GET | ✅ 6/15 fix (viewer_tpl) |
-| 10 | 키움증권 | 10 | 344 | JSON POST | ✅ 6/15 secret fix |
-| 14 | 다올투자증권 | 14 | 88 | form POST | ✅ |
-| 15 | 토스증권 | 15 | 194 | JSON GET | ✅ 6/15 secret fix |
-| 16 | 리딩투자증권 | 16 | 100 | HTML 파싱 | ✅ 6/15 secret fix |
-| 19 | DB증권 | 19 | 150 | JSON POST | ✅ |
-| 20 | 메리츠증권 | 20 | 2,400 | HTML 파싱 + detail | ✅ 6/15 (local IP 차단, GA 정상) |
-| 21 | 한화투자증권 | 21 | 5,000 | XML GET | ✅ 6/15 secret fix |
-| 22 | 한양증권 | 22 | 30 | HTML 파싱 | ✅ 6/15 secret fix |
-| 24 | 교보증권 | 24 | 70 | HTML 파싱 | ✅ 6/15 secret fix |
-| 25 | IBK투자증권 | 25 | 1,426 | 보드별 POST | ✅ 6/15 fix (보드 URL) |
-| 26 | SK증권 | 26 | 2,000 | JSON POST | ✅ 6/15 fix (PDF date fallback) |
-| 27 | 유안타증권 | 27 | 493 | form POST | ✅ |
-| 28 | 흥국증권 | 28 | 45 | HTML 파싱 (EUC-KR) | ✅ 6/15 fix (regex escape) |
+| # | 증권사 | order | 방식 | 상태 |
+|:---:|------|:---:|------|:---:|
+| 2 | NH투자증권 | 2 | JSON POST | ✅ |
+| 4 | KB증권 | 4 | JSON POST | ✅ |
+| 5 | 삼성증권 | 5 | HTML 파싱 | ✅ |
+| 6 | 상상인증권 | 6 | form POST + 쿠키 | ✅ |
+| 7 | 신영증권 | 7 | 서버 모듈 | ✅ 서버 전용 |
+| 8 | 미래에셋증권 | 8 | HTML 파싱 | ✅ |
+| 9 | 현대차증권 | 9 | JSON GET | ✅ |
+| 10 | 키움증권 | 10 | JSON POST | ✅ |
+| 14 | 다올투자증권 | 14 | form POST | ✅ |
+| 15 | 토스증권 | 15 | JSON GET | ✅ |
+| 16 | 리딩투자증권 | 16 | HTML 파싱 | ✅ |
+| 19 | DB증권 | 19 | JSON POST | ✅ |
+| 20 | 메리츠증권 | 20 | HTML 파싱 + detail | ✅ |
+| 21 | 한화투자증권 | 21 | XML GET | ✅ |
+| 22 | 한양증권 | 22 | HTML 파싱 | ✅ |
+| 24 | 교보증권 | 24 | HTML 파싱 | ✅ |
+| 25 | IBK투자증권 | 25 | 보드별 POST | ✅ |
+| 26 | SK증권 | 26 | JSON POST | ✅ |
+| 27 | 유안타증권 | 27 | form POST | ✅ |
+| 28 | 흥국증권 | 28 | HTML 파싱 (EUC-KR) | ✅ |
 
 ### 서버 전용 (GA 미해당)
 | # | 증권사 | order | 상태 |
 |:---:|------|:---:|------|
 | 0 | LS증권 | 0 | ✅ 서버 |
-| 1 | 신한투자증권 | 1 | ✅ 6/15 fix (core delegate) |
+| 1 | 신한투자증권 | 1 | ✅ 서버 |
 | 11 | DS투자증권 | 11 | ✅ 서버 |
 | 12 | 유진투자증권 | 12 | ✅ 서버 |
 | 13 | 한국투자증권 | 13 | ✅ 서버 (Selenium) |
@@ -43,13 +42,32 @@
 
 ---
 
-## 장애 (3개사)
+## GA 제외 (2026-06-22)
+
+| # | 증권사 | order | 상태 | 사유 |
+|:---:|------|:---:|------|------|
+| 3 | 하나증권 | 3 | ❌ GA 제외 → 서버 전용 | GA 러너 IP(미국/유럽)가 www.hanaw.com에서 차단. 17개 URL 전부 timeout → 510초 소모 후 0건. 서버 scheduler.py에서 직접 스크래핑 (modules/HANA_3.py → scrapers/hana_core.py) |
+
+---
+
+## 장애 (2개사)
 
 | # | 증권사 | order | 상태 | 사유 |
 |:---:|------|:---:|------|------|
 | 18 | IM증권 | 18 | ❌ 인증만료 | secure key 갱신 필요 |
 | 23 | BNK투자증권 | 23 | ❌ BLOCKED_BY_SOURCE_IP | 서버·GA 모두 IP 차단 |
-| 28 | 상상인증권 | 6 | ⚠️ 쿠키 의존 | JSESSIONID 하드코딩 (만료 시 재발급 필요) |
+
+---
+
+## 6/22 수정 내역
+
+| 항목 | 증상 | 원인 | 수정 |
+|------|------|------|------|
+| **하나증권 GA 제외** | GA workflow 9분 소모 후 0건 | GA 러너(미국/유럽) IP → hanaw.com 접근 불가, 17 URL × 30s timeout | GA cron 제거, 서버 scheduler가 직접 스크래핑 |
+| **하나증권 timeout 축소** | 8.5분 불필요 대기 | 30s timeout × 17 URL | 15s timeout + 연속 2회 실패 시 early abort (~30s) |
+| **하나증권 article_text** | "더보기" 요약 미수집 | `li.mb7.contn` 데이터 추출 로직 없음 | 인덱스 병렬 매칭으로 `article_text` 필드 추가 (170/170건) |
+| **GA cron 월요일 10분 간격** | 월요일 아침 수집 공백 | 08:50 ~ 09:00 사이 갭 | `*/10 22 * * 0` + `0 23 * * 0` (KST 07:00~08:00) 모든 GA workflow에 추가 |
+| **key → report_unique_key** | deprecated key 컬럼 의존 | key/report_unique_key 이중 관리 | validate.py fallback 제거, RETURNING report_unique_key 전환 |
 
 ---
 

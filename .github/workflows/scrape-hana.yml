@@ -1,7 +1,7 @@
-name: Hana Scraper → SCP
+name: Hana Scraper → SCP (DISABLED — GA 러너 IP 차단, 2026-06-22)
 on:
-  schedule:
-    - cron: '0 * * * 1-5'
+  # schedule 제거: GA 러너(미국/유럽)에서 www.hanaw.com 접근 불가
+  # 서버 scheduler.py에서 직접 스크래핑 (modules/HANA_3.py → scrapers/hana_core.py)
   workflow_dispatch:
 jobs:
   scrape-and-scp:

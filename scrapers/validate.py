@@ -6,10 +6,10 @@ def validate_results(results: list[dict], firm_name: str) -> list[dict]:
     valid = []
     errors = 0
     for i, r in enumerate(results):
-        # 1) report_unique_key or key must exist and be non-empty
-        uid = r.get("report_unique_key") or r.get("key")
+        # 1) report_unique_key must exist and be non-empty (key 컬럼 deprecated, drop 예정)
+        uid = r.get("report_unique_key")
         if not uid:
-            print(f"[{firm_name}] SKIP item[{i}]: missing report_unique_key/key", file=sys.stderr)
+            print(f"[{firm_name}] SKIP item[{i}]: missing report_unique_key", file=sys.stderr)
             errors += 1
             continue
 

@@ -1,6 +1,10 @@
 name: Yuanta Scraper → SCP
 on:
   schedule:
+    # KST 월요일 07~08시 10분 간격
+    - cron: '*/10 22 * * 0'
+    - cron: '0 23 * * 0'
+    # KST 월~금 09~18시 매시간
     - cron: '0 * * * 1-5'
   workflow_dispatch:
 jobs:

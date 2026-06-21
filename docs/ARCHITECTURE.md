@@ -1,8 +1,8 @@
 # SSH Reports Scraper — 아키텍처 & 설계 문서
 
-> **최종 갱신**: 2026-06-11
+> **최종 갱신**: 2026-06-22
 > **목표**: 증권사 리서치 레포트 스크래핑 → GA standalone + 서버 dual-mode
-> **현황**: GA 10개사 이관, DB 정규화 완료, RAG 파이프라인 구축
+> **현황**: GA 24개사, 서버전용 7개사(하나증권 IP차단 포함)
 
 ---
 
@@ -447,10 +447,10 @@ enricher가 `sync_status`, `retry_count`, `archive_path`를 직접 쓴다.
 ```sql
 INSERT INTO tbl_sec_reports (
     sec_firm_order, article_board_order, firm_nm, reg_dt,
-    article_title, article_url, main_ch_send_yn, download_url,
+    article_title, article_url, main_ch_send_yn, is_sent, download_url,
     telegram_url, pdf_url, writer, mkt_tp, key, save_time
 ) VALUES %s
-ON CONFLICT (key) DO UPDATE SET
+ON CONFLICT (report_unique_key) DO UPDATE SET
     sec_firm_order      = EXCLUDED.sec_firm_order,
     firm_nm             = EXCLUDED.firm_nm,
     article_title       = EXCLUDED.article_title,
@@ -459,12 +459,12 @@ ON CONFLICT (key) DO UPDATE SET
     mkt_tp              = EXCLUDED.mkt_tp,
     download_url        = COALESCE(NULLIF(EXCLUDED.download_url, ''), tbl_sec_reports.download_url),
     telegram_url        = COALESCE(NULLIF(EXCLUDED.telegram_url, ''), tbl_sec_reports.telegram_url),
-    pdf_url             = COALESCE(NULLIF(EXCLUDED.pdf_url, ''), tbl_sec_reports.pdf_url)
-RETURNING key, (xmax = 0) AS inserted
+    pdf_url             = COALESCE(NULLIF(EXCLUDED.pdf_url, ''),       tbl_sec_reports.pdf_url)
+RETURNING report_unique_key, (xmax = 0) AS inserted
 ```
 
-- **key**: `article_url`을 해시 기반으로 생성한 unique identifier
-- **ON CONFLICT**: 동일 key가 이미 존재하면 update, 없으면 insert
+- **report_unique_key**: 중복제거용 primary unique key (URL 기반). `key` 컬럼 deprecated, 안정화 후 drop 예정.
+- **ON CONFLICT (report_unique_key)**: 동일 report_unique_key 존재 시 update, 없으면 insert
 - **COALESCE**: 새로운 값이 빈 문자열이면 기존 값 유지 (다른 소스에서 채운 telegram_url 보존)
 - **RETURNING**: `xmax = 0`이면 신규 insert, 아니면 update
 

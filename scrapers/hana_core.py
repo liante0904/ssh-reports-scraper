@@ -31,16 +31,29 @@ def scrape_hana(cfg: dict) -> list[dict]:
     cfg.setdefault("sec_firm_order", 3)
     cfg.setdefault("firm_nm", "하나증권")
     cfg.setdefault("global_boards", [])
+    cfg.setdefault("request_timeout", 15)  # GA 환경 빠른 실패를 위해 축소
     requests.packages.urllib3.disable_warnings()
     result = []
+    url_count = len(cfg.get("urls", [cfg.get("url","")]))
+    fail_streak = 0   # 연속 실패 카운터 — 조기 abort
+    aborted = False   # double-break 플래그
     for board_order, base_url in enumerate(cfg.get("urls", [cfg.get("url","")])):
-        if not base_url: continue
+        if not base_url or aborted: continue
         for page in range(1, 2):  # 1페이지만 (새 구조에서 충분)
             url = f"{base_url}&curPage={page}"
             try:
-                resp = requests.get(url, timeout=30, verify=False)
+                resp = requests.get(url, timeout=cfg["request_timeout"], verify=False)
                 resp.raise_for_status()
-            except Exception: break
+            except Exception as e:
+                fail_streak += 1
+                print(f"[hana] FAIL [{board_order}] {type(e).__name__}: {url}", file=sys.stderr)
+                # 연속 2개 URL 실패 → 네트워크 차단으로 간주, 남은 URL 스킵
+                if fail_streak >= 2:
+                    print(f"[hana] ABORT: {fail_streak} consecutive failures, skipping remaining {url_count - board_order - 1} URLs", file=sys.stderr)
+                    aborted = True
+                    break
+                continue
+            fail_streak = 0  # 성공 시 리셋
             soup = BeautifulSoup(resp.text, "html.parser")
             # 2026.06 새 구조: title=li.mb4>a.more_btn, meta=li.mb7.m-info, dl=div.pdf a
             title_links = [a for a in soup.select("a.more_btn") if a.get_text(strip=True) != "더보기"]
@@ -49,6 +62,8 @@ def scrape_hana(cfg: dict) -> list[dict]:
             writers = soup.select("li.mb7.m-info span.m-name")
             dates = soup.select("li.mb7.m-info span.txtbasic:not(.r-side-bar)")
             times = soup.select("li.mb7.m-info span.r-side-bar")
+            # 2026.06 "더보기" 요약 텍스트 — li.mb7.contn (title_links와 1:1 인덱스 매칭)
+            contns = soup.select("li.mb7.contn")
 
             for i, a in enumerate(title_links):
                 try:
@@ -60,10 +75,12 @@ def scrape_hana(cfg: dict) -> list[dict]:
                     rd = re.sub(r"[-./]","",rd)
                     writer = writers[i].get_text(strip=True) if i < len(writers) else ""
                     ts = times[i].get_text(strip=True) if i < len(times) else ""
+                    article_text = contns[i].get_text(strip=True) if i < len(contns) else ""
                     mkt = "GLOBAL" if board_order in cfg.get("global_boards",[]) else "KR"
                     result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=board_order,
                         firm_nm=cfg["firm_nm"],reg_dt=_adjust_date(rd,ts),download_url=dl,
                         telegram_url=dl,pdf_url=dl,article_title=title,writer=writer,
+                        article_text=article_text,
                         key=dl,report_unique_key=dl,mkt_tp=mkt,save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception: continue
     print(f"[hana] {len(result)} articles collected", file=sys.stderr)
