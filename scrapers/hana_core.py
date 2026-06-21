@@ -5,8 +5,16 @@ from datetime import datetime, timezone, timedelta
 from bs4 import BeautifulSoup
 
 def _adjust_date(reg_dt, time_str):
-    # 인위적인 미래 날짜 변조를 제거하고, 원래 등록일자를 그대로 사용합니다. (2026.06.21 fix)
-    return reg_dt
+    reg_date = datetime.strptime(reg_dt, "%Y%m%d")
+    m = re.match(r"(오전|오후)?\s*(\d{1,2}):(\d{2})", time_str.strip())
+    if not m: return reg_dt
+    period, hour, minute = m.groups(); hour = int(hour)
+    if period == "오후" and hour != 12: hour += 12
+    elif period == "오전" and hour == 12: hour = 0
+    reg_date += timedelta(hours=hour, minutes=int(minute))
+    if reg_date.hour >= 10: reg_date += timedelta(days=1)
+    while reg_date.weekday() >= 5: reg_date += timedelta(days=1)
+    return reg_date.strftime("%Y%m%d")
 
 def scrape_hana(cfg: dict) -> list[dict]:
     if isinstance(cfg, list): cfg = {"urls": cfg}

@@ -278,7 +278,7 @@ scheduler = BlockingScheduler()
 # [스케줄 1] 메인 스크래퍼: */30 0,5-12,14-23 * * * (기존 crontab 복제)
 scheduler.add_job(
     run_scraper,
-    CronTrigger(minute='*/30', hour='0,5-23', jitter=300), # 300초(5분) 랜덤 지터 추가
+    CronTrigger(minute='*/30', hour='0,5-23'),
     id="main_scraper_job"
 )
 
@@ -314,8 +314,9 @@ if __name__ == "__main__":
     for job in scheduler.get_jobs():
         logger.info(f"- {job.id}: {job.trigger}")
     
-    # 시작 시 즉시 한 번 실행하려면 아래 주석 해제
-    # run_scraper()
+    # 시작 시 즉시 한 번 실행
+    import threading
+    threading.Thread(target=run_scraper, daemon=True).start()
     
     try:
         scheduler.start()
