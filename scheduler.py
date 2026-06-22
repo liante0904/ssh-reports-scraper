@@ -149,10 +149,10 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
     try:
         from utils.telegram_util import sendMarkDownText
 
-        # report_unique_key로 DB에서 실제 row 조회 (미발송 건만)
+        # report_unique_key로 DB에서 실제 row 조회 (미발송 건만, 뉴스 제외)
         placeholders = ",".join(["%s"] * len(keys))
         rows = db._fetchall(
-            f"SELECT * FROM tbl_sec_reports WHERE report_unique_key IN ({placeholders}) AND (telegram_sent IS NOT true)",
+            f"SELECT * FROM tbl_sec_reports WHERE report_unique_key IN ({placeholders}) AND (telegram_sent IS NOT true) AND firm_nm NOT IN ('네이버', '조선비즈')",
             keys,
         )
         if not rows:
