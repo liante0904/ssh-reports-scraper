@@ -28,7 +28,7 @@ CREATE TABLE public.tbl_sec_reports (
     firm_nm text,
     article_title text,
     article_url text,
-    main_ch_send_yn text,
+    telegram_sent boolean DEFAULT false,
     download_status_yn text DEFAULT ''::text,
     download_url text,
     save_time text,

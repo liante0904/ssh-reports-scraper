@@ -21,11 +21,11 @@ def reset_yesterday_status():
     logger.info(f"Target date for reset: {target_date}")
     
     # PostgreSQL 쿼리 실행
-    # "main_ch_send_yn"을 'N'으로 변경하여 재발송 대상으로 만듭니다.
+    # "telegram_sent"를 false로 변경하여 재발송 대상으로 만듭니다.
     table_name = getattr(db, "MAIN_TABLE", getattr(db, "table_name", "tbl_sec_reports"))
     sql = f"""
         UPDATE {table_name}
-        SET "main_ch_send_yn" = 'N', "is_sent" = false
+        SET "telegram_sent" = false
         WHERE DATE("save_time") = %s
     """
     

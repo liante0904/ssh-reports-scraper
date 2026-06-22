@@ -123,7 +123,6 @@ def migrate_main(batch_size=5000, truncate=False):
                 r["report_id"], r["sec_firm_order"], r["article_board_order"],
                 _clean(r["firm_nm"]), _clean(r["article_title"]),
                 _clean(r["article_url"]),
-                _clean(r["main_ch_send_yn"]),
                 _clean(r["download_url"]), _clean(r["save_time"]),
                 _clean(r["reg_dt"] or ''), _clean(r["writer"] or ''),
                 _clean(r["key"]), _clean(r["telegram_url"] or ''),
@@ -140,17 +139,16 @@ def migrate_main(batch_size=5000, truncate=False):
             cur,
             '''INSERT INTO tbl_sec_reports (
                 report_id, sec_firm_order, article_board_order, firm_nm,
-                article_title, article_url, main_ch_send_yn,
+                article_title, article_url,
                 download_url, save_time, reg_dt, writer, key, telegram_url, mkt_tp,
                 gemini_summary, summary_time, summary_model, archive_status,
-                pdf_sync_status, pdf_url, is_sent
+                pdf_sync_status, pdf_url, telegram_sent
             ) VALUES %s
             ON CONFLICT (key) DO UPDATE SET
                 reg_dt             = EXCLUDED.reg_dt,
                 writer             = EXCLUDED.writer,
                 mkt_tp             = EXCLUDED.mkt_tp,
-                main_ch_send_yn    = EXCLUDED.main_ch_send_yn,
-                is_sent            = EXCLUDED.is_sent,
+                telegram_sent      = EXCLUDED.telegram_sent,
                 gemini_summary     = COALESCE(NULLIF(EXCLUDED.gemini_summary,''), tbl_sec_reports.gemini_summary),
                 download_url       = COALESCE(NULLIF(EXCLUDED.download_url,''),  tbl_sec_reports.download_url),
                 telegram_url       = COALESCE(NULLIF(EXCLUDED.telegram_url,''),  tbl_sec_reports.telegram_url),
@@ -196,13 +194,13 @@ def migrate_aux_table(table_name):
         cur,
         f'''INSERT INTO {table_name}
                (sec_firm_order, article_board_order, firm_nm, pdf_url,
-                article_title, send_user, main_ch_send_yn, save_time,
+                article_title, send_user, telegram_sent, save_time,
                 article_url, download_url, writer)
            VALUES %s
            ON CONFLICT (pdf_url) DO NOTHING''',
         [(r["sec_firm_order"], r["article_board_order"], r["firm_nm"], r["pdf_url"],
           r["article_title"], r.get("send_user") or r.get("SEND_USER"), 
-          r["main_ch_send_yn"], r["save_time"],
+          True if r["main_ch_send_yn"] == 'Y' else False, r["save_time"],
           r["article_url"], r["download_url"], r["writer"] or '') for r in rows],
     )
     pg.commit()

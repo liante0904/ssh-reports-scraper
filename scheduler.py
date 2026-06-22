@@ -137,7 +137,7 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
     """GA import된 신규 리포트를 텔레그램 채널에 발송.
     
     2026-06-21 fix: 개별 텔레그램 메시지 청크 발송이 성공할 때마다 해당 청크 내 리포트들만 
-    우선적으로 DB 상태(is_sent=true, main_ch_send_yn='Y')를 마킹하여, 전체 전송 중 일부 
+    우선적으로 DB 상태(telegram_sent=true)를 마킹하여, 전체 전송 중 일부 
     실패 시의 중복 재발송 문제를 차단합니다.
     """
     import asyncio
@@ -152,7 +152,7 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
         # report_unique_key로 DB에서 실제 row 조회 (미발송 건만)
         placeholders = ",".join(["%s"] * len(keys))
         rows = db._fetchall(
-            f"SELECT * FROM tbl_sec_reports WHERE report_unique_key IN ({placeholders}) AND (is_sent = false OR is_sent IS NULL)",
+            f"SELECT * FROM tbl_sec_reports WHERE report_unique_key IN ({placeholders}) AND (telegram_sent IS NOT true)",
             keys,
         )
         if not rows:

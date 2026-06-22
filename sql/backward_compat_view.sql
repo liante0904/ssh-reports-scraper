@@ -12,7 +12,7 @@ SELECT
     r.article_title, r.article_url, r.report_unique_key AS key, r.report_unique_key,
     r.reg_dt, r.report_date,
     r.save_time, r.saved_at,
-    r.main_ch_send_yn, r.telegram_sent,
+    r.telegram_sent,
     r.telegram_url, r.writer, r.mkt_tp,
     r.download_url, r.pdf_url,
     -- pdf-archiver 관리 컬럼 (tbl_sec_reports에 직접 씀)

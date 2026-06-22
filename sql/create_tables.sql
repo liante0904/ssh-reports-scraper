@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS hankyungconsen (
     article_board_order INTEGER,
     firm_nm TEXT,
     article_title TEXT,
-    main_ch_send_yn TEXT,
+    telegram_sent BOOLEAN DEFAULT false,
     save_time TEXT
 );
 
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS data_main_daily_send (
     article_board_order INTEGER,
     firm_nm TEXT,
     article_title TEXT,
-    main_ch_send_yn TEXT,
+    telegram_sent BOOLEAN DEFAULT false,
     save_time TEXT
 );
 
@@ -28,6 +28,6 @@ CREATE TABLE IF NOT EXISTS naver_research (
     article_board_order INTEGER,
     firm_nm TEXT,
     article_title TEXT,
-    main_ch_send_yn TEXT,
+    telegram_sent BOOLEAN DEFAULT false,
     save_time TEXT
 );

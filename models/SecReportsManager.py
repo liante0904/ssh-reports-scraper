@@ -31,6 +31,7 @@ class SecReportsManager(LibrarySecReportsManager):
         for entry in json_data_list:
             unique_key = (
                 entry.get("report_unique_key")
+                or entry.get("key")
                 or entry.get("article_url")
                 or ""
             )
@@ -50,12 +51,12 @@ class SecReportsManager(LibrarySecReportsManager):
                 entry.get("reg_dt", ""),
                 entry.get("article_title"),
                 entry.get("article_url"),
-                "N",
                 entry.get("download_url"),
                 entry.get("telegram_url"),
                 entry.get("pdf_url") or entry.get("telegram_url"),
                 entry.get("writer", ""),
                 entry.get("mkt_tp", "KR"),
+                unique_key,
                 unique_key,
                 save_time,
                 False,
@@ -69,9 +70,9 @@ class SecReportsManager(LibrarySecReportsManager):
         sql = f"""
             INSERT INTO {table_name} (
                 sec_firm_order, article_board_order, firm_nm, reg_dt,
-                article_title, article_url, main_ch_send_yn, download_url,
+                article_title, article_url, download_url,
                 telegram_url, pdf_url, writer, mkt_tp,
-                report_unique_key, save_time, is_sent, save_at
+                key, report_unique_key, save_time, telegram_sent, save_at
             ) VALUES %s
             ON CONFLICT (report_unique_key) DO UPDATE SET
                 sec_firm_order      = EXCLUDED.sec_firm_order,
@@ -84,14 +85,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 download_url        = COALESCE(NULLIF(EXCLUDED.download_url, ''), {table_name}.download_url),
                 telegram_url        = COALESCE(NULLIF(EXCLUDED.telegram_url, ''), {table_name}.telegram_url),
                 pdf_url             = COALESCE(NULLIF(EXCLUDED.pdf_url, ''), {table_name}.pdf_url),
-                main_ch_send_yn     = CASE
-                                        WHEN COALESCE({table_name}.is_sent, false)
-                                          OR {table_name}.main_ch_send_yn = 'Y'
-                                        THEN 'Y'
-                                        ELSE COALESCE({table_name}.main_ch_send_yn, 'N')
-                                      END,
-                is_sent             = COALESCE({table_name}.is_sent, false)
-                                      OR {table_name}.main_ch_send_yn = 'Y',
+                telegram_sent       = COALESCE({table_name}.telegram_sent, false),
                 save_at             = COALESCE(EXCLUDED.save_at, {table_name}.save_at)
             RETURNING report_unique_key, (xmax = 0) AS inserted
         """
@@ -139,7 +133,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 self._execute(
                     f"""
                     UPDATE {self.table_name}
-                    SET is_sent = true, main_ch_send_yn = 'Y'
+                    SET telegram_sent = true
                     WHERE telegram_url = %s
                     """,
                     (telegram_url,),
@@ -148,7 +142,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 self._execute(
                     f"""
                     UPDATE {self.table_name}
-                    SET is_sent = true, main_ch_send_yn = 'Y'
+                    SET telegram_sent = true
                     WHERE report_id = %s
                     """,
                     (row["report_id"],),

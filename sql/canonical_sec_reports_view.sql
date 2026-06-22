@@ -18,9 +18,6 @@ SELECT
             ELSE NULL
         END
     ) AS scraped_at,
-    (
-        COALESCE(r.is_sent, false)
-        OR r.main_ch_send_yn = 'Y'
-    ) AS notification_sent,
+    COALESCE(r.telegram_sent, false) AS notification_sent,
     'report_unique_key'::text AS report_key_status
 FROM public.tbl_sec_reports r;

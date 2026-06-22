@@ -67,7 +67,7 @@ def format_message(data_list):
     return "\n".join(formatted_messages)
 
 
-def save_data_to_local_json(filename, sec_firm_order, article_board_order, firm_nm, pdf_url, article_title, article_url=None, download_url=None, main_ch_send_yn="N", is_sent=False):
+def save_data_to_local_json(filename, sec_firm_order, article_board_order, firm_nm, pdf_url, article_title, article_url=None, download_url=None, telegram_sent=False):
     directory = os.path.dirname(filename)
 
     # 디렉터리가 존재하는지 확인하고, 없으면 생성합니다.
@@ -91,8 +91,7 @@ def save_data_to_local_json(filename, sec_firm_order, article_board_order, firm_
         "firm_nm": firm_nm,
         "article_title": article_title,
         "article_url": article_url,
-        "main_ch_send_yn": main_ch_send_yn,
-        "is_sent": is_sent,
+        "telegram_sent": telegram_sent,
         "download_url": download_url,
         "pdf_url": pdf_url,
         "save_time": current_time
@@ -230,7 +229,7 @@ def get_unsent_main_ch_data_to_local_json(filename):
 
     return messages
 
-def update_main_ch_send_yn_to_y(file_path, target_date=None):
+def update_telegram_sent(file_path, target_date=None):
     directory = os.path.dirname(file_path)
 
     # 디렉터리가 존재하는지 확인하고, 없으면 생성합니다.
@@ -253,16 +252,15 @@ def update_main_ch_send_yn_to_y(file_path, target_date=None):
         if not isinstance(data, list):
             return
 
-        # 대상 날짜의 항목들에 대해 main_ch_send_yn 값을 Y로 설정합니다.
+        # 대상 날짜의 항목들에 대해 telegram_sent 값을 True로 설정합니다.
         for item in data:
             if item.get("save_time", "").startswith(target_date):
-                item["main_ch_send_yn"] = "Y"
-                item["is_sent"] = True
+                item["telegram_sent"] = True
 
         # 안전한 쓰기 방식 적용
         safe_json_dump(data, file_path)
         
-        print(f"\n{file_path} 파일의 {target_date} 날짜 항목에 대해 main_ch_send_yn 키가 Y로 업데이트되었습니다.")
+        print(f"\n{file_path} 파일의 {target_date} 날짜 항목에 대해 telegram_sent 키가 True로 업데이트되었습니다.")
     except json.JSONDecodeError:
         print(f"Error updating {file_path}: File is corrupted.")
 

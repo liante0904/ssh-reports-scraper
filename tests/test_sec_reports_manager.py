@@ -70,14 +70,15 @@ def test_insert_includes_legacy_and_canonical_keys(monkeypatch):
     }])
 
     assert (inserted, updated) == (1, 0)
-    assert "key,\n                report_unique_key" in connection.cursor_instance.sql
+    assert "key" in connection.cursor_instance.sql
+    assert "report_unique_key" in connection.cursor_instance.sql
+    assert connection.cursor_instance.records[0][11] == "https://example.test/report.pdf"
     assert connection.cursor_instance.records[0][12] == "https://example.test/report.pdf"
-    assert connection.cursor_instance.records[0][13] == "https://example.test/report.pdf"
-    assert connection.cursor_instance.records[0][14] == "2026-06-15T08:00:00+09:00"
-    assert connection.cursor_instance.records[0][15] is False
-    assert "main_ch_send_yn     = CASE" in connection.cursor_instance.sql
-    assert "is_sent             = COALESCE" in connection.cursor_instance.sql
-    assert "EXCLUDED.is_sent" not in connection.cursor_instance.sql
+    assert connection.cursor_instance.records[0][13] == "2026-06-15T08:00:00+09:00"
+    assert connection.cursor_instance.records[0][14] is False
+    assert "main_ch_send_yn     = CASE" not in connection.cursor_instance.sql
+    assert "telegram_sent       = COALESCE" in connection.cursor_instance.sql
+    assert "EXCLUDED.telegram_sent" not in connection.cursor_instance.sql
     assert "EXCLUDED.main_ch_send_yn" not in connection.cursor_instance.sql
     assert connection.closed is True
 
@@ -96,7 +97,8 @@ def test_mark_reports_sent_marks_is_sent_and_legacy_main_channel_flag():
 
     assert result == {"status": "success"}
     assert len(calls) == 1
-    assert "SET is_sent = true, main_ch_send_yn = 'Y'" in calls[0][0]
+    assert "SET telegram_sent = true" in calls[0][0]
+    assert "main_ch_send_yn" not in calls[0][0]
     assert calls[0][1] == ("https://example.test/report.pdf",)
 
 

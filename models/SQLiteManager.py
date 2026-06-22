@@ -105,7 +105,7 @@ class SQLiteManager:
                 self.cursor.execute(f'''
                     INSERT INTO {table_name} (
                         sec_firm_order, article_board_order, firm_nm, reg_dt,
-                        article_title, article_url, is_sent,
+                        article_title, article_url, telegram_sent,
                         download_url, telegram_url, pdf_url, writer, mkt_tp, key, save_time
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(key) DO UPDATE SET
@@ -134,7 +134,7 @@ class SQLiteManager:
                     entry.get("reg_dt", ''),
                     entry["article_title"],
                     entry.get("article_url", None),  # ARTICLE_URL이 없으면 NULL을 넣음
-                    1 if entry.get("is_sent", False) else 0,  # is_sent 매핑
+                    1 if entry.get("telegram_sent", False) else 0,  # telegram_sent 매핑
                     entry.get("download_url", None),  # DOWNLOAD_URL이 없으면 NULL을 넣음
                     entry.get("telegram_url", None),  # TELEGRAM_URL이 없으면 NULL을 넣음
                     entry.get("pdf_url") or entry.get("download_url") or entry.get("telegram_url", None),  # PDF_URL이 없으면 대체 URL을 넣음
@@ -391,19 +391,19 @@ class SQLiteManager:
         return {"status": "success"}
 
     async def update_report_summary_by_telegram_url(self, telegram_url, summary, model_name):
-        """TELEGRAM_URL이 일치하고 발송완료(main_ch_send_yn='Y')된 레코드 중 report_id가 가장 큰 최신 레코드에 요약 정보를 업데이트합니다."""
+        """TELEGRAM_URL이 일치하고 발송완료(telegram_sent IS true)된 레코드 중 report_id가 가장 큰 최신 레코드에 요약 정보를 업데이트합니다."""
         query = f"""
         UPDATE {self.main_table_name}
         SET gemini_summary = ?, 
             summary_time = ?, 
             summary_model = ?
         WHERE telegram_url = ?
-          AND is_sent = true
+          AND telegram_sent = 1
           AND report_id = (
               SELECT MAX(report_id) 
               FROM {self.main_table_name} 
               WHERE telegram_url = ? 
-                AND is_sent = true
+                AND telegram_sent = 1
           )
         """
         now = datetime.now().isoformat()
