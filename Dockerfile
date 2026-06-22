@@ -50,7 +50,7 @@ COPY --chown=appuser:appgroup *.py ./
 # COPY .env ./ # .env는 docker-compose의 env_file을 통해 주입됩니다.
 
 # 8. 실행 권한 부여 및 디렉토리 준비
-RUN mkdir -p /log && chown -R appuser:appgroup /log
+RUN mkdir -p /log && chown -R appuser:appgroup /log /app
 
 # 9. Switch to the non-root user
 USER appuser
