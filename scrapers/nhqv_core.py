@@ -2,11 +2,16 @@ import sys
 """NH Investment — config 기반 스크래핑 코어."""
 import requests
 from datetime import datetime, timezone, timedelta
+from scrapers.config_guard import normalize_cfg, require_keys
 
 def scrape_nhqv(cfg: dict, target_date: str = None) -> list[dict]:
     # backward compat: URL list → config dict
-    if isinstance(cfg, list): cfg = {"urls": cfg}
-    elif isinstance(cfg, str): cfg = {"url": cfg}
+    cfg = normalize_cfg(cfg, firm_key="NHQV")
+    require_keys(
+        cfg,
+        ("url", "headers", "payload", "count_path", "list_path", "item_keys", "page_size"),
+        firm_key="NHQV",
+    )
     requests.packages.urllib3.disable_warnings()
     if target_date is None:
         KST = timezone(timedelta(hours=9)); now = datetime.now(KST)

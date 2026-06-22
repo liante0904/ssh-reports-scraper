@@ -4,6 +4,39 @@
 > **대상**: `ssh-reports-scraper` 전체 코드베이스 (29개 증권사 모듈 + 코어 인프라)
 > **관점**: LLM/신규 개발자가 코드를 이해하고 수정할 때 혼란을 주는 구조적 문제점
 
+## 2026-06-22 재조사: 현재도 헷갈리는 포인트
+
+최근 수정으로 `key → report_unique_key`, GA import 발송 상태, 일부 core/list 호환, 상상인/하나/NH 계열 버그는 많이 정리됐다. 그래도 오늘 기준으로 LLM이 계속 실수하기 쉬운 지점은 아래다.
+
+| # | 현재 함정 | 왜 헷갈리는가 | 작업 원칙 |
+|:---:|---|---|---|
+| 1 | `*_URLS_JSON`이 이름과 달리 URL list일 수도, full config dict일 수도 있음 | `run/standalone/*.py`는 env secret을 직접 읽고, `modules/*.py`는 `ConfigManager.get_urls()`를 읽는다. 회사별 core는 selector/payload가 필요한 곳과 URL만 필요한 곳이 섞여 있다. | standalone은 `run/standalone/_runner.py`를 통해 실행하고, full config가 필요한 core는 명시적으로 required key를 검증한다. `KeyError` 그대로 노출 금지. |
+| 2 | `scripts/standalone_all_scraper.py` 문서/구조가 개별 `scrape-*.yml` 현실과 다름 | 과거 all-scraper artifact 방식 설명이 남아 있지만 현재는 회사별 workflow가 대부분 SCP로 서버에 직접 전송한다. | 장애 분석은 `.github/workflows/scrape-*.yml` + `run/standalone/{firm}.py`를 우선 본다. `standalone_all_scraper.py`는 보조/레거시로 취급한다. |
+| 3 | GA 이관 회사가 서버 full-scrape에도 다시 들어간다 | `scraper.py`는 KST 1/7/13/21시에 `_GA_FIRMS_*`를 다시 실행한다. 그래서 “GA 성공 후 서버 발송”과 “서버 fallback 발송” 시간이 섞인다. | 중복/발송 원인 분석 시 GitHub Actions만 보지 말고 `scraper.py` full-scrape 시간대와 서버 scheduler 로그를 같이 본다. |
+| 4 | 발송 상태 컬럼명이 아직 완전히 정리되지 않음 | PostgreSQL 경로는 `telegram_sent` 중심인데, SQLiteManager/docs/tests에는 `is_sent`, `main_ch_send_yn` 흔적이 남아 있다. | 새 코드는 `telegram_sent`/`report_unique_key`를 canonical로 사용한다. legacy 컬럼은 읽기 fallback 또는 마이그레이션 안전장치로만 본다. |
+| 5 | workflow 실패 로그가 실제 예외를 숨김 | 대부분 `uv run ... > result.json 2>log.txt` 뒤 `bash -e`라서 Python이 실패하면 `cat log.txt`가 실행되지 않는다. | workflow run step은 실패 시에도 stderr 파일을 출력하도록 `set +e` 패턴 또는 공통 composite action으로 바꾼다. |
+| 6 | `validate_scrape_result.py --require-non-empty`가 “장애”와 “장중 0건”을 구분하지 않음 | 사이트가 정상이어도 특정 시간/게시판은 0건일 수 있는데 workflow는 실패 처리한다. 반대로 실제 파싱 깨짐도 0건으로만 보일 수 있다. | 회사별 기대 수집 정책을 분리한다. “0건 허용 회사/시간대”와 “반드시 non-empty”를 config로 나눈다. |
+| 7 | 회사별 workflow env 이름이 통일되지 않음 | 대다수는 `FIRM_URLS_JSON`인데 LS/DS/Daeshin/KoreaInvestment는 `urls`를 쓴다. | 새 workflow는 `FIRM_URLS_JSON`만 사용한다. 레거시는 바꾸기 전까지 standalone entrypoint가 어떤 env를 읽는지 먼저 확인한다. |
+| 8 | docs 상태표가 실제 Actions와 빠르게 어긋남 | `GA_STATUS.md`의 정상/장애 표는 수동 문서라 최신 run과 다를 수 있다. | 현재 상태 판단은 `gh run list`를 기준으로 하고, docs는 배경 설명으로만 사용한다. |
+| 9 | 같은 증권사가 `modules/*`, `scrapers/*_core.py`, `run/standalone/*`, workflow 네 군데에 걸쳐 있음 | “어디를 고쳐야 하는지”가 회사마다 다르다. 일부 서버 모듈은 core wrapper, 일부는 독자 구현이다. | 우선순위: core 로직 수정 → standalone wrapper 확인 → server module wrapper 확인 → workflow env/result 파일명 확인. |
+| 10 | LS는 일반 GA standalone 패턴과 다름 | DB 기반 URL 복구, WARP 상태, `FirmInfo`, `get_db()`까지 얽혀 있어 순수 HTTP scraper가 아니다. | LS는 별도 시스템으로 취급한다. 일반 `scrapers/*_core.py` 규칙을 무리하게 적용하지 않는다. |
+
+### 2026-06-22 즉시 반영한 정리
+
+- `run/standalone/_runner.py` 추가: env JSON 파싱, missing secret, JSON 오류, config key 누락을 공통 처리.
+- env 기반 standalone 전부 공통 runner 경유로 정리: `KeyError` traceback 대신 회사명 포함 `FATAL` 로그.
+- `scrapers/config_guard.py` 추가: core에서 config shape 오류를 명시적으로 던질 수 있게 함.
+- `run/standalone/sangsanginib.py`의 존재하지 않는 `scrapers.sangsanginib_core` import를 `scrapers.sangsangin_core`로 수정.
+- `scrapers/hanwha_core.py`는 다운로드 URL이 비는 항목을 append하지 않도록 수정해 `report_unique_key=""` 검증 실패를 줄임.
+
+### 다음에 손대면 좋은 순서
+
+1. workflow run step 공통화: 실패해도 `*_log.txt`를 반드시 출력.
+2. `*_URLS_JSON` 스키마를 회사별 manifest로 선언: `url_list`/`full_config` 구분을 코드에 박아둔다.
+3. `scraper_registry.py`를 실제 SSoT로 만들고 `scraper.py`, `standalone_all_scraper.py`, docs 표를 거기서 생성.
+4. 0건 허용 정책을 `validate_scrape_result.py`에 회사/시간대별로 반영.
+5. `telegram_sent` 전환 완료 후 `is_sent`/`main_ch_send_yn` 경로를 제거하거나 legacy 모듈로 격리.
+
 ### 해결 완료 (2026-06-11)
 
 | # | 문제 | 조치 |

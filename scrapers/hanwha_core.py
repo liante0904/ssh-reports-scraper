@@ -35,6 +35,8 @@ def scrape_hanwha(cfg: dict) -> list[dict]:
                 dl = ""
                 if fn and sn and dp:
                     dl = cfg["url_tpl"].replace("{file}",urllib.parse.quote(fn)).replace("{store}",urllib.parse.quote(sn)).replace("{dir}",urllib.parse.quote(dp))
+                if not dl:
+                    continue
                 result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=0,
                     firm_nm=cfg["firm_nm"],reg_dt=re.sub(r"[-./]","",rd),download_url=dl,
                     article_title=title,writer=writer,mkt_tp=mkt,key=dl,report_unique_key=dl,

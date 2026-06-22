@@ -3,6 +3,7 @@ import sys
 import re, requests
 from datetime import datetime, timezone, timedelta
 from bs4 import BeautifulSoup
+from scrapers.config_guard import normalize_cfg, require_keys
 
 def _norm_date(text):
     if not text: return ""
@@ -18,8 +19,16 @@ def _norm_date(text):
     return digits[:8] if len(digits) >= 8 else ""
 
 def scrape_heungkuk(cfg: dict) -> list[dict]:
-    if isinstance(cfg, list): cfg = {"urls": cfg}
-    elif isinstance(cfg, str): cfg = {"url": cfg}
+    cfg = normalize_cfg(cfg, firm_key="Heungkuk")
+    require_keys(
+        cfg,
+        (
+            "urls", "headers", "board_pattern", "table_sel", "link_sel",
+            "onclick_pattern", "pdf_formula", "download_tpl", "view_tpl",
+            "sec_firm_order", "firm_nm",
+        ),
+        firm_key="Heungkuk",
+    )
     requests.packages.urllib3.disable_warnings()
     result = []
     for board_order, list_url in enumerate(cfg.get("urls",[cfg.get("url","")])):
