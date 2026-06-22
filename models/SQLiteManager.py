@@ -176,7 +176,7 @@ class SQLiteManager:
         query = f"""
         SELECT 
             report_id, sec_firm_order, article_board_order, firm_nm, reg_dt,
-            article_title, article_url, is_sent, 
+            article_title, article_url, telegram_sent, 
             download_url, writer, save_time, telegram_url, key, pdf_url
         FROM 
             {self.main_table_name}
@@ -213,7 +213,7 @@ class SQLiteManager:
         query = f"""
         SELECT 
             report_id, sec_firm_order, article_board_order, firm_nm, reg_dt,
-            article_title, article_url, is_sent, 
+            article_title, article_url, telegram_sent, 
             download_url, writer, save_time, telegram_url, key, pdf_url
         FROM 
             {self.main_table_name}
@@ -241,7 +241,7 @@ class SQLiteManager:
         query = f"""
         SELECT 
             report_id, sec_firm_order, article_board_order, firm_nm, reg_dt,
-            pdf_url, article_title, article_url, is_sent, 
+            pdf_url, article_title, article_url, telegram_sent, 
             download_url, writer, save_time, telegram_url, key
         FROM 
             {self.main_table_name}
@@ -334,10 +334,10 @@ class SQLiteManager:
 
         # 쿼리 타입에 따라 조건을 다르게 설정
         if type == 'send':
-            query_condition = "(is_sent = false OR is_sent IS NULL)"
+            query_condition = "(telegram_sent IS NOT true)"
             query_condition += "AND (sec_firm_order != 19 OR (sec_firm_order = 19 AND telegram_url <> ''))"
         elif type == 'download':
-            query_condition = "is_sent = true AND pdf_sync_status != 2"
+            query_condition = "telegram_sent = 1 AND pdf_sync_status != 2"
 
         # 3일 이내 조건 추가
         three_days_ago = (datetime.now() - timedelta(days=3)).strftime('%Y%m%d')
@@ -345,7 +345,7 @@ class SQLiteManager:
         query = f"""
         SELECT 
             report_id, sec_firm_order, article_board_order, firm_nm, reg_dt,
-            pdf_url, article_title, article_url, is_sent, 
+            pdf_url, article_title, article_url, telegram_sent, 
             download_url, writer, save_time, telegram_url
         FROM 
             {self.main_table_name} 
@@ -375,10 +375,10 @@ class SQLiteManager:
             for row in fetched_rows:
                 telegram_url = row.get('telegram_url')
                 if telegram_url:
-                    update_query = f"UPDATE {self.main_table_name} SET is_sent = true WHERE telegram_url = ?"
+                    update_query = f"UPDATE {self.main_table_name} SET telegram_sent = 1 WHERE telegram_url = ?"
                     param = (telegram_url,)
                 else:
-                    update_query = f"UPDATE {self.main_table_name} SET is_sent = true WHERE report_id = ?"
+                    update_query = f"UPDATE {self.main_table_name} SET telegram_sent = 1 WHERE report_id = ?"
                     param = (row['report_id'],)
                 
                 await self.execute_query(update_query, param)
