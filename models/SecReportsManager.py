@@ -130,11 +130,10 @@ class SecReportsManager(LibrarySecReportsManager):
         return inserted, updated
 
     def mark_reports_sent(self, fetched_rows):
-        """Mark Telegram delivery complete.
+        """Mark Telegram delivery complete (both is_sent + telegram_sent).
 
-        This is the only method in this manager that should turn send status
-        on. Scraper upserts must not use incoming scrape payloads to change
-        delivery state.
+        daily_select_data checks is_sent, while _broadcast_ga_reports checks
+        telegram_sent. Both must be set to prevent duplicate sending.
         """
         for row in fetched_rows or []:
             telegram_url = row.get("telegram_url")
@@ -142,7 +141,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 self._execute(
                     f"""
                     UPDATE {self.table_name}
-                    SET telegram_sent = true
+                    SET telegram_sent = true, is_sent = true
                     WHERE telegram_url = %s
                     """,
                     (telegram_url,),
@@ -151,7 +150,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 self._execute(
                     f"""
                     UPDATE {self.table_name}
-                    SET telegram_sent = true
+                    SET telegram_sent = true, is_sent = true
                     WHERE report_id = %s
                     """,
                     (row["report_id"],),
