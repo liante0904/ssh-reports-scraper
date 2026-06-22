@@ -70,9 +70,10 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
                 if am:
                     analyst_key = am.group(1)
             rd = _norm_date(cells[3].get_text(" ",strip=True))
-            # Heungkuk key 체계가 불규칙해 analyst key가 포함된 PDF filename을 우선 매칭한다.
+            # Heungkuk key 체계는 불규칙하지만 GA에서는 시간 제한이 더 중요하다.
+            # 정확한 filename 매칭이 필요할 때만 config로 HEAD scan을 명시적으로 켠다.
             pk = None
-            if analyst_key:
+            if cfg.get("match_pdf_by_analyst") and analyst_key:
                 for offset in range(12065, 12035, -1):
                     candidate = 2 * vk - offset
                     try:
