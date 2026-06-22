@@ -130,10 +130,10 @@ class SecReportsManager(LibrarySecReportsManager):
         return inserted, updated
 
     def mark_reports_sent(self, fetched_rows):
-        """Mark Telegram delivery complete (both is_sent + telegram_sent).
+        """Mark Telegram delivery complete — telegram_sent only.
 
-        daily_select_data checks is_sent, while _broadcast_ga_reports checks
-        telegram_sent. Both must be set to prevent duplicate sending.
+        모든 발송 상태는 telegram_sent 단일 컬럼으로 관리한다.
+        daily_select_data, _broadcast_ga_reports 모두 telegram_sent만 체크.
         """
         for row in fetched_rows or []:
             telegram_url = row.get("telegram_url")
@@ -141,7 +141,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 self._execute(
                     f"""
                     UPDATE {self.table_name}
-                    SET telegram_sent = true, is_sent = true
+                    SET telegram_sent = true
                     WHERE telegram_url = %s
                     """,
                     (telegram_url,),
@@ -150,7 +150,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 self._execute(
                     f"""
                     UPDATE {self.table_name}
-                    SET telegram_sent = true, is_sent = true
+                    SET telegram_sent = true
                     WHERE report_id = %s
                     """,
                     (row["report_id"],),
