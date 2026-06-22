@@ -168,14 +168,18 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
         last_firm_nm = None
 
         for row in rows:
-            send_message_text = ""
             firm_nm = row.get("firm_nm")
+
+            # 뉴스/미디어는 레포트 채널에서 제외 (헤더뿐 아니라 row 전체 스킵)
+            if firm_nm in EXCLUDED_FIRMS:
+                continue
+
+            send_message_text = ""
 
             # 증권사명 변경 여부에 따른 헤더(구분선) 빌드
             firm_header = ""
-            if firm_nm and firm_nm not in EXCLUDED_FIRMS:
-                if firm_nm != last_firm_nm:
-                    firm_header = f"\n\n●{firm_nm}\n"
+            if firm_nm and firm_nm != last_firm_nm:
+                firm_header = f"\n\n●{firm_nm}\n"
 
             # 제목 포맷팅
             title = row.get("article_title", "").replace("_", " ").replace("*", "")
@@ -205,7 +209,7 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
                         logger.error(f"[GA-Broadcast] Chunk send failed: {tx_err}")
                 
                 # 다음 청크 버퍼 세팅
-                message_chunk = f"\n\n●{firm_nm}\n{send_message_text}" if firm_nm and firm_nm not in EXCLUDED_FIRMS else send_message_text
+                message_chunk = f"\n\n●{firm_nm}\n{send_message_text}"
                 current_chunk_rows = [row]
                 last_firm_nm = firm_nm
             else:
@@ -301,27 +305,48 @@ if __name__ == "__main__":
     import fcntl
 
     # ── Lock file: 중복 실행 방지 ──
-    LOCK_FILE = "/tmp/ssh_reports_scheduler.lock"
-    _lock_fd = open(LOCK_FILE, "w")
-    try:
-        fcntl.flock(_lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        _lock_fd.write(str(os.getpid()))
-        _lock_fd.flush()
-    except BlockingIOError:
-        # 이미 다른 scheduler가 실행 중 → 즉시 종료
+    # /tmp/를 1순위로 사용. Docker에서 /app/이 root 소유인 경우에도
+    # /tmp/는 world-writable(1777)이므로 PermissionError 없이 lock 획득 가능.
+    # 만약 /tmp/마저 쓸 수 없는 극단적 상황이면 /dev/shm/으로 fallback.
+    LOCK_FILE = None
+    _lock_fd = None
+    for _candidate in ("/tmp/ssh_reports_scheduler.lock",
+                       "/dev/shm/ssh_reports_scheduler.lock"):
         try:
-            with open(LOCK_FILE) as lf:
-                existing_pid = lf.read().strip()
-            logger.warning(f"Another scheduler is already running (PID={existing_pid}). Exiting.")
+            _lock_fd = open(_candidate, "w")
+            LOCK_FILE = _candidate
+            break
+        except PermissionError:
+            logger.warning(f"Cannot write lock file to {_candidate}, trying next candidate...")
         except Exception:
-            logger.warning("Another scheduler is already running. Exiting.")
-        sys.exit(0)
+            continue
+
+    if _lock_fd is None:
+        # 최후의 수단: lock 없이 진행 (중복 실행 위험보다 crash가 더 나쁨)
+        logger.error("Cannot create lock file in any candidate path. Running WITHOUT lock.")
+    else:
+        try:
+            fcntl.flock(_lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            _lock_fd.write(str(os.getpid()))
+            _lock_fd.flush()
+        except BlockingIOError:
+            # 이미 다른 scheduler가 실행 중 → 즉시 종료
+            try:
+                with open(LOCK_FILE) as lf:
+                    existing_pid = lf.read().strip()
+                logger.warning(f"Another scheduler is already running (PID={existing_pid}). Exiting.")
+            except Exception:
+                logger.warning("Another scheduler is already running. Exiting.")
+            sys.exit(0)
 
     def _cleanup_lock():
+        if _lock_fd is None:
+            return
         try:
             fcntl.flock(_lock_fd, fcntl.LOCK_UN)
             _lock_fd.close()
-            os.remove(LOCK_FILE)
+            if LOCK_FILE:
+                os.remove(LOCK_FILE)
         except Exception:
             pass
 
