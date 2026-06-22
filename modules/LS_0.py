@@ -200,13 +200,18 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
 
     # ── DB 키 조회 → 신규 레코드만 필터 ──
     if json_data_list:
-        db = get_db()
-        existing_keys = db.fetch_existing_keys(sec_firm_order=sec_firm_order, days_limit=None)
-        new_articles = [a for a in json_data_list if a.get("key") and a["key"] not in existing_keys]
-        skipped = len(json_data_list) - len(new_articles)
-        if skipped:
-            logger.info(f"[LS] {skipped}건 기존 등록, 신규 {len(new_articles)}건")
-        return new_articles
+        try:
+            db = get_db()
+            existing_keys = db.fetch_existing_keys(sec_firm_order=sec_firm_order, days_limit=None)
+            new_articles = [a for a in json_data_list if a.get("key") and a["key"] not in existing_keys]
+            skipped = len(json_data_list) - len(new_articles)
+            if skipped:
+                logger.info(f"[LS] {skipped}건 기존 등록, 신규 {len(new_articles)}건")
+            return new_articles
+        except Exception as e:
+            # DB가 존재하지 않는 독립 실행(GA) 환경 등에서는 오류로 중단되지 않고 필터링 없이 전체 데이터를 반환하도록 처리
+            logger.warning(f"[LS] DB 조회 실패로 인해 중복 필터링 없이 전체 {len(json_data_list)}건을 반환합니다: {e}")
+            return json_data_list
 
     return json_data_list
 
