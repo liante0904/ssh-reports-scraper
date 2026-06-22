@@ -14,6 +14,7 @@ jobs:
       - name: Run LS scraper
         env:
           urls: ${{ secrets.LS_URLS_JSON }}
+          DB_BACKEND: sqlite
         run: |
           uv run python run/standalone/ls.py > ls_result.json 2>ls_log.txt
           echo "=== Scraper Log ==="
