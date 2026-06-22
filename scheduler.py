@@ -107,6 +107,12 @@ def run_ga_import():
             data = json.loads(fpath.read_text(encoding="utf-8"))
             if not isinstance(data, list):
                 raise ValueError(f"Expected JSON array, got {type(data).__name__}")
+            # ── 뉴스/미디어는 PostgreSQL에 insert하지 않고 완전히 제외 ──
+            EXCLUDED_FIRMS = {"네이버", "조선비즈"}
+            filtered = [d for d in data if d.get("firm_nm") not in EXCLUDED_FIRMS]
+            if len(filtered) < len(data):
+                logger.info(f"[GA-Import] {fpath.name}: stripped {len(data) - len(filtered)} news rows (네이버/조선비즈)")
+                data = filtered
             # 배치 내 중복 제거 (같은 게시판 중복 등재 방지)
             deduped = {}
             for d in data:

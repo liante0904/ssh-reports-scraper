@@ -24,6 +24,15 @@ class SecReportsManager(LibrarySecReportsManager):
             table_name = self.table_name
         table_name = self._TABLE_MAP.get(table_name, table_name)
 
+        # ── 중앙 차단: 뉴스/미디어는 PostgreSQL에 insert 금지 ──
+        EXCLUDED_FIRMS = {"네이버", "조선비즈"}
+        original_count = len(json_data_list)
+        json_data_list = [e for e in json_data_list if e.get("firm_nm") not in EXCLUDED_FIRMS]
+        if len(json_data_list) < original_count:
+            logger.info(
+                f"[SCRAPER-DB] Stripped {original_count - len(json_data_list)} rows (네이버/조선비즈 excluded)"
+            )
+
         # Do not reset send status during upsert; see _reset_duplicate_send_yn.
         self._reset_duplicate_send_yn(json_data_list, table_name)
 
