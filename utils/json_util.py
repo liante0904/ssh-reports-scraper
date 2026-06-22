@@ -190,7 +190,7 @@ def get_unsent_main_ch_data_to_local_json(filename):
     unsent_data = [
         item for item in data
         if item.get("save_time", "").startswith(today_str) and 
-           not item.get("is_sent", False) and 
+           not item.get("telegram_sent", False) and 
            item.get("firm_nm") not in sent_firms
     ]
 
