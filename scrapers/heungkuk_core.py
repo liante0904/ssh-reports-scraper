@@ -3,7 +3,7 @@ import sys
 import re, requests
 from datetime import datetime, timezone, timedelta
 from bs4 import BeautifulSoup
-from scrapers.config_guard import normalize_cfg, require_keys
+from scrapers.config_guard import normalize_cfg
 
 def _norm_date(text):
     if not text: return ""
@@ -20,15 +20,19 @@ def _norm_date(text):
 
 def scrape_heungkuk(cfg: dict) -> list[dict]:
     cfg = normalize_cfg(cfg, firm_key="Heungkuk")
-    require_keys(
-        cfg,
-        (
-            "urls", "headers", "board_pattern", "table_sel", "link_sel",
-            "onclick_pattern", "pdf_formula", "download_tpl", "view_tpl",
-            "sec_firm_order", "firm_nm",
-        ),
-        firm_key="Heungkuk",
-    )
+    cfg = {
+        "headers": {"User-Agent": "Mozilla/5.0"},
+        "board_pattern": r"/research/([^/]+)/list\.do",
+        "table_sel": "table.data_list_x tbody tr",
+        "link_sel": "td.left a",
+        "onclick_pattern": r"key=(\d+)",
+        "pdf_formula": "2 * {view_key} - 12059",
+        "download_tpl": "{base}/download.do?type=Board&key={pdf_key}",
+        "view_tpl": "{base}/research/{board_path}/view.do?key={view_key}",
+        "sec_firm_order": 28,
+        "firm_nm": "흥국증권",
+        **cfg,
+    }
     requests.packages.urllib3.disable_warnings()
     result = []
     for board_order, list_url in enumerate(cfg.get("urls",[cfg.get("url","")])):
@@ -59,24 +63,31 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
             cells = tr.find_all("td")
             if len(cells) < 5: continue
             writer = re.sub(r"\s+"," ",cells[2].get_text(" ",strip=True))
+            analyst_key = ""
+            analyst_link = cells[2].find("a")
+            if analyst_link:
+                am = re.search(r"key=(\d+)", analyst_link.get("href", ""))
+                if am:
+                    analyst_key = am.group(1)
             rd = _norm_date(cells[3].get_text(" ",strip=True))
-            # 27201962 패턴 PDF 검색 (Heungkuk key 체계 불규칙 → filename 기반 매칭)
+            # Heungkuk key 체계가 불규칙해 analyst key가 포함된 PDF filename을 우선 매칭한다.
             pk = None
-            for offset in range(12030, 12020, -1):
-                candidate = 2 * vk - offset
-                try:
-                    import urllib.request
-                    req = urllib.request.Request(
-                        f"{base}/download.do?type=Board&key={candidate}",
-                        headers={"User-Agent": cfg["headers"].get("User-Agent", "Mozilla/5.0")},
-                        method="HEAD")
-                    resp = urllib.request.urlopen(req, timeout=2)
-                    disp = resp.getheader("Content-Disposition", "")
-                    if ".pdf" in disp and "27201962" in disp:
-                        pk = candidate
-                        break
-                except Exception:
-                    pass
+            if analyst_key:
+                for offset in range(12080, 12010, -1):
+                    candidate = 2 * vk - offset
+                    try:
+                        import urllib.request
+                        req = urllib.request.Request(
+                            f"{base}/download.do?type=Board&key={candidate}",
+                            headers={"User-Agent": cfg["headers"].get("User-Agent", "Mozilla/5.0")},
+                            method="HEAD")
+                        resp = urllib.request.urlopen(req, timeout=2)
+                        disp = resp.getheader("Content-Disposition", "")
+                        if ".pdf" in disp.lower() and analyst_key in disp:
+                            pk = candidate
+                            break
+                    except Exception:
+                        pass
             if pk is None:
                 pk = eval(cfg["pdf_formula"].replace("{view_key}", str(vk)))
             dl = cfg["download_tpl"].replace("{base}",base).replace("{pdf_key}",str(pk))

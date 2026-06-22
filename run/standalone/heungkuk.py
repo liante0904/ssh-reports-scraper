@@ -11,9 +11,4 @@ if __name__ == "__main__":
         env_key=K,
         firm_name=NM,
         scrape_func=scrape_heungkuk,
-        required_keys=(
-            "urls", "headers", "board_pattern", "table_sel", "link_sel",
-            "onclick_pattern", "pdf_formula", "download_tpl", "view_tpl",
-            "sec_firm_order", "firm_nm",
-        ),
     )

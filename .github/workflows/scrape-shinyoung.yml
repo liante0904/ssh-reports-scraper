@@ -19,9 +19,15 @@ jobs:
         env:
           SHINYOUNG_URLS_JSON: ${{ secrets.SHINYOUNG_URLS_JSON }}
         run: |
+          set +e
           uv run python run/standalone/shinyoung.py > shinyoung_result.json 2>shinyoung_log.txt
+          SCRAPE_EXIT=$?
+          set -e
           echo "=== Scraper Log ==="
           cat shinyoung_log.txt
+          if [ "$SCRAPE_EXIT" -ne 0 ]; then
+            exit "$SCRAPE_EXIT"
+          fi
           COUNT=$(python3 -c "import json; print(len(json.load(open('shinyoung_result.json'))))")
           echo "Articles collected: $COUNT"
       - name: Validate result

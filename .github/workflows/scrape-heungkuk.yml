@@ -29,9 +29,15 @@ jobs:
         env:
           HEUNGKUK_URLS_JSON: ${{ secrets.HEUNGKUK_URLS_JSON }}
         run: |
+          set +e
           uv run python run/standalone/heungkuk.py > heungkuk_result.json 2>heungkuk_log.txt
+          SCRAPE_EXIT=$?
+          set -e
           echo "=== Scraper Log ==="
           cat heungkuk_log.txt
+          if [ "$SCRAPE_EXIT" -ne 0 ]; then
+            exit "$SCRAPE_EXIT"
+          fi
           COUNT=$(python3 -c "import json; print(len(json.load(open('heungkuk_result.json'))))")
           echo "Articles collected: $COUNT"
 
