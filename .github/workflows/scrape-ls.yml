@@ -16,7 +16,7 @@ jobs:
           urls: ${{ secrets.LS_URLS_JSON }}
           DB_BACKEND: sqlite
         run: |
-          uv run python run/standalone/ls.py > ls_result.json 2>ls_log.txt
+          uv run python run/standalone/ls.py > ls_result.json 2>ls_log.txt || (echo "=== Scraper Log ===" && cat ls_log.txt && exit 1)
           echo "=== Scraper Log ==="
           cat ls_log.txt
           COUNT=$(python3 -c "import json; print(len(json.load(open('ls_result.json'))))")
