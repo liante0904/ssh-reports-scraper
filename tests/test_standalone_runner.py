@@ -28,6 +28,31 @@ def test_run_env_scraper_outputs_json(monkeypatch, capsys):
     assert "[테스트증권] total 1 articles collected" in captured.err
 
 
+def test_run_env_scraper_accepts_plain_url_list(monkeypatch, capsys):
+    monkeypatch.setenv(
+        "TEST_URLS_JSON",
+        "https://example.test/a, https://example.test/b\nhttps://example.test/c",
+    )
+
+    def scrape_func(cfg):
+        assert cfg == [
+            "https://example.test/a",
+            "https://example.test/b",
+            "https://example.test/c",
+        ]
+        return []
+
+    run_env_scraper(
+        env_key="TEST_URLS_JSON",
+        firm_name="테스트증권",
+        scrape_func=scrape_func,
+    )
+
+    captured = capsys.readouterr()
+    assert json.loads(captured.out) == []
+    assert "[테스트증권] total 0 articles collected" in captured.err
+
+
 def test_run_env_scraper_rejects_list_when_full_config_required(monkeypatch, capsys):
     monkeypatch.setenv("TEST_URLS_JSON", json.dumps(["https://example.test/report"]))
 

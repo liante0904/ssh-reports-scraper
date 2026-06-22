@@ -2,8 +2,19 @@
 import json
 import os
 import sys
+import re
 
 from scrapers.config_guard import ScraperConfigError
+
+
+def _parse_env_config(raw, env_key):
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as exc:
+        parts = [part.strip() for part in re.split(r"[\s,]+", raw.strip()) if part.strip()]
+        if parts and all(part.startswith(("http://", "https://")) for part in parts):
+            return parts if len(parts) > 1 else parts[0]
+        raise ScraperConfigError(f"{env_key} is not valid JSON: {exc}") from exc
 
 
 def run_env_scraper(*, env_key, firm_name, scrape_func, required_keys=None, **kwargs):
@@ -13,9 +24,9 @@ def run_env_scraper(*, env_key, firm_name, scrape_func, required_keys=None, **kw
         sys.exit(1)
 
     try:
-        cfg = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        print(f"[{firm_name}] FATAL: {env_key} is not valid JSON: {exc}", file=sys.stderr)
+        cfg = _parse_env_config(raw, env_key)
+    except ScraperConfigError as exc:
+        print(f"[{firm_name}] FATAL: {exc}", file=sys.stderr)
         sys.exit(1)
 
     if required_keys and not isinstance(cfg, dict):
