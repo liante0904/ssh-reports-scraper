@@ -73,7 +73,7 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
             # Heungkuk key 체계가 불규칙해 analyst key가 포함된 PDF filename을 우선 매칭한다.
             pk = None
             if analyst_key:
-                for offset in range(12080, 12010, -1):
+                for offset in range(12065, 12035, -1):
                     candidate = 2 * vk - offset
                     try:
                         import urllib.request
@@ -81,7 +81,7 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
                             f"{base}/download.do?type=Board&key={candidate}",
                             headers={"User-Agent": cfg["headers"].get("User-Agent", "Mozilla/5.0")},
                             method="HEAD")
-                        resp = urllib.request.urlopen(req, timeout=2)
+                        resp = urllib.request.urlopen(req, timeout=0.5)
                         disp = resp.getheader("Content-Disposition", "")
                         if ".pdf" in disp.lower() and analyst_key in disp:
                             pk = candidate

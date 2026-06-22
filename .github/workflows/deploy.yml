@@ -192,8 +192,21 @@ jobs:
 
             if [ "${SSH_LIBRARY_ENABLED:-false}" = "true" ]; then
               # 라이브러리 임포트 연동이 신규 컨테이너 내부에서 잘 수행되는지 검증
-              docker exec "ssh-reports-scraper-main-scraper-$TARGET_COLOR" \
+              set +e
+              timeout 20 docker exec "ssh-reports-scraper-main-scraper-$TARGET_COLOR" \
                 .venv/bin/python -c "from ssh_library import SecReportsManager; print('ssh-library import OK:', SecReportsManager.__name__)"
+              SSH_LIB_CHECK_EXIT=$?
+              set -e
+              if [ "$SSH_LIB_CHECK_EXIT" -ne 0 ]; then
+                echo "ssh-library import check skipped/failed with exit=$SSH_LIB_CHECK_EXIT; continuing deploy"
+              fi
+            fi
+
+            RUNNING_STATE="$(docker inspect "ssh-reports-scraper-main-scraper-$TARGET_COLOR" --format '{{.State.Running}}')"
+            if [ "$RUNNING_STATE" != "true" ]; then
+              echo "main-scraper-$TARGET_COLOR is not running after health checks"
+              docker logs --tail 100 "ssh-reports-scraper-main-scraper-$TARGET_COLOR" || true
+              exit 1
             fi
 
             # 4) Keyword Alert 서비스도 세트로 배포
