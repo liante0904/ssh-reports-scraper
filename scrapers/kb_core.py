@@ -3,10 +3,47 @@ import sys
 import re, requests
 from datetime import datetime, timezone, timedelta
 
+DEFAULT_KB_CFG = {
+    "url": "https://rc.kbsec.com/ajax/categoryReportList.json",
+    "payload": {
+        "pageNo": 1,
+        "pageSize": 500,
+        "templateid": "",
+        "lowTempId": "",
+        "folderid": "",
+        "callGbn": "RCLIST"
+    },
+    "list_key": "response.reportList",
+    "item_keys": {
+        "cat_id": "pCategoryid",
+        "doc_id": "documentid",
+        "title": "docTitle",
+        "subtitle": "docTitleSub",
+        "reg_dt": "publicDate",
+        "writer": "analystNm"
+    },
+    "url_tpl": "http://rdata.kbsec.com/pdf_data/{doc_id}.pdf",
+    "global_cat": 26,
+    "category_map": {}
+}
+
 def scrape_kb(cfg: dict, from_date: str = None, to_date: str = None) -> list[dict]:
     # backward compat: URL list → config dict
-    if isinstance(cfg, list): cfg = {"urls": cfg}
-    elif isinstance(cfg, str): cfg = {"url": cfg}
+    if isinstance(cfg, list):
+        url = cfg[0] if cfg else DEFAULT_KB_CFG["url"]
+        cfg = {"url": url}
+    elif isinstance(cfg, str):
+        cfg = {"url": cfg}
+
+    # Merge default values if missing
+    for k, v in DEFAULT_KB_CFG.items():
+        if k not in cfg:
+            cfg[k] = v
+        elif isinstance(v, dict) and isinstance(cfg[k], dict):
+            for sub_k, sub_v in v.items():
+                if sub_k not in cfg[k]:
+                    cfg[k][sub_k] = sub_v
+
     requests.packages.urllib3.disable_warnings()
     if from_date is None: from_date = datetime(datetime.now(timezone(timedelta(hours=9))).year, 1, 1).strftime("%Y%m%d")
     if to_date is None: to_date = datetime.now(timezone(timedelta(hours=9))).strftime("%Y%m%d")

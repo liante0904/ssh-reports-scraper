@@ -4,9 +4,44 @@ import requests
 from datetime import datetime, timezone, timedelta
 from scrapers.config_guard import normalize_cfg, require_keys
 
+DEFAULT_NHQV_CFG = {
+    "url": "https://m.nhqv.com/research/commonTr.json",
+    "headers": {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "Accept": "application/json, text/javascript, */*; q=0.01"
+    },
+    "payload": {
+        "trName": "H3211",
+        "rshPprDruTmSt": "00000000",
+        "rshPprNo": ""
+    },
+    "count_path": "H3211.H3211OutBlock1.0.iqrCnt",
+    "list_path": "H3211.H3211OutBlock2",
+    "item_keys": {
+        "pdf_url": "hpgeFleUrlCts",
+        "reg_dt": "rshPprDruDtNm",
+        "writer": "rshPprDruEmpFnm",
+        "title": "rshPprTilCts"
+    },
+    "page_size": 11
+}
+
 def scrape_nhqv(cfg: dict, target_date: str = None) -> list[dict]:
     # backward compat: URL list → config dict
     cfg = normalize_cfg(cfg, firm_key="NHQV")
+
+    if "url" not in cfg and "urls" in cfg:
+        cfg["url"] = cfg["urls"][0] if cfg["urls"] else DEFAULT_NHQV_CFG["url"]
+
+    # Merge default values if missing
+    for k, v in DEFAULT_NHQV_CFG.items():
+        if k not in cfg:
+            cfg[k] = v
+        elif isinstance(v, dict) and isinstance(cfg[k], dict):
+            for sub_k, sub_v in v.items():
+                if sub_k not in cfg[k]:
+                    cfg[k][sub_k] = sub_v
+
     require_keys(
         cfg,
         ("url", "headers", "payload", "count_path", "list_path", "item_keys", "page_size"),

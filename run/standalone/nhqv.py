@@ -13,5 +13,4 @@ if __name__ == "__main__":
         firm_name=NM,
         scrape_func=scrape_nhqv,
         target_date=target_date,
-        required_keys=("url", "headers", "payload", "count_path", "list_path", "item_keys", "page_size"),
     )
