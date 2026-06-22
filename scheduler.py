@@ -48,27 +48,48 @@ def invalidate_api_cache() -> bool:
 
 
 def run_scraper():
-    """메인 스크래퍼 실행 (scraper.py)"""
-    logger.info("--- [Job Start] Main Scraper (scraper.py) ---")
+    """메인 스크래퍼 실행 (scraper.py) — subprocess 중복 실행 방지 포함"""
+    import fcntl
+    SCRAPER_LOCK = "/tmp/ssh_reports_scraper.lock"
+    _fd = None
     try:
-        # uv run scraper.py 실행 (출력 캡처)
-        # 권한 문제 예방 및 오버헤드 방지를 위해 현재 실행 중인 가상환경 파이썬 인터프리터를 직접 호출합니다.
-        result = subprocess.run(
-            [sys.executable, "scraper.py"],
-            capture_output=True,
-            text=True,
-            check=False
-        )
-        if result.returncode != 0:
-            logger.error(f"Scraper process exited with error code {result.returncode}")
-            if result.stderr:
-                logger.error(f"Scraper Error Output:\n{result.stderr}")
-        else:
-            logger.success("Scraper job completed successfully.")
-            invalidate_api_cache()
-    except Exception as e:
-        logger.error(f"Execution Error: {e}")
-    logger.info("--- [Job End] Main Scraper ---")
+        _fd = open(SCRAPER_LOCK, "w")
+        fcntl.flock(_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        _fd.write(str(os.getpid()))
+        _fd.flush()
+    except (BlockingIOError, PermissionError):
+        logger.warning("Another scraper is already running. Skipping this job.")
+        return
+    except Exception:
+        pass  # lock 없이 진행
+
+    try:
+        logger.info("--- [Job Start] Main Scraper (scraper.py) ---")
+        try:
+            result = subprocess.run(
+                [sys.executable, "scraper.py"],
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            if result.returncode != 0:
+                logger.error(f"Scraper process exited with error code {result.returncode}")
+                if result.stderr:
+                    logger.error(f"Scraper Error Output:\n{result.stderr}")
+            else:
+                logger.success("Scraper job completed successfully.")
+                invalidate_api_cache()
+        except Exception as e:
+            logger.error(f"Execution Error: {e}")
+        logger.info("--- [Job End] Main Scraper ---")
+    finally:
+        if _fd:
+            try:
+                fcntl.flock(_fd, fcntl.LOCK_UN)
+                _fd.close()
+                os.remove(SCRAPER_LOCK)
+            except Exception:
+                pass
 
 
 def run_ga_import():
@@ -288,8 +309,11 @@ scheduler = BlockingScheduler()
 # [스케줄 1] 메인 스크래퍼: */30 0,5-12,14-23 * * * (기존 crontab 복제)
 scheduler.add_job(
     run_scraper,
-    CronTrigger(minute='*/30', hour='0,5-23'),
-    id="main_scraper_job"
+    CronTrigger(minute='*/30', hour='0,5-23', jitter=60),
+    id="main_scraper_job",
+    max_instances=1,
+    coalesce=True,
+    misfire_grace_time=600,
 )
 
 # [스케줄 2] GA import 폴링: 5분마다 incoming 디렉토리 확인
