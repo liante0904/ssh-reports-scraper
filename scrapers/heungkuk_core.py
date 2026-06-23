@@ -72,27 +72,32 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
                 if am:
                     analyst_key = am.group(1)
             rd = _norm_date(cells[3].get_text(" ",strip=True))
-            # Heungkuk key 체계는 불규칙하지만 GA에서는 시간 제한이 더 중요하다.
-            # 정확한 filename 매칭이 필요할 때만 config로 HEAD scan을 명시적으로 켠다.
-            pk = None
-            if cfg.get("match_pdf_by_analyst") and analyst_key:
-                for offset in range(12065, 12025, -1):
-                    candidate = 2 * vk - offset
-                    try:
-                        import urllib.request
-                        req = urllib.request.Request(
-                            f"{base}/download.do?type=Board&key={candidate}",
-                            headers={"User-Agent": cfg["headers"].get("User-Agent", "Mozilla/5.0")},
-                            method="HEAD")
-                        resp = urllib.request.urlopen(req, timeout=0.5)
-                        disp = resp.getheader("Content-Disposition", "")
-                        if ".pdf" in disp.lower() and analyst_key in disp:
-                            pk = candidate
-                            break
-                    except Exception:
-                        pass
-            if pk is None:
-                pk = eval(cfg["pdf_formula"].replace("{view_key}", str(vk)))
+            # auto-probe: formula 키 HEAD 확인 → 404면 ±10 probe (매일 키 시프트 대응)
+            import urllib.request
+            pk = eval(cfg["pdf_formula"].replace("{view_key}", str(vk)))
+            try:
+                dl_test = cfg["download_tpl"].replace("{base}",base).replace("{pdf_key}",str(pk))
+                req = urllib.request.Request(dl_test, headers={"User-Agent": cfg["headers"].get("User-Agent", "Mozilla/5.0")}, method="HEAD")
+                resp = urllib.request.urlopen(req, timeout=2)
+                if resp.status != 200:
+                    raise Exception("404")
+            except Exception:
+                for delta in range(1, 11):
+                    found = False
+                    for sign in [1, -1]:
+                        candidate = pk + (delta * sign)
+                        dl_cand = cfg["download_tpl"].replace("{base}",base).replace("{pdf_key}",str(candidate))
+                        try:
+                            req2 = urllib.request.Request(dl_cand, headers={"User-Agent": cfg["headers"].get("User-Agent", "Mozilla/5.0")}, method="HEAD")
+                            resp2 = urllib.request.urlopen(req2, timeout=1)
+                            if resp2.status == 200:
+                                pk = candidate
+                                found = True
+                                break
+                        except Exception:
+                            pass
+                    if found:
+                        break
             dl = cfg["download_tpl"].replace("{base}",base).replace("{pdf_key}",str(pk))
             au = cfg["view_tpl"].replace("{base}",base).replace("{board_path}",bp).replace("{view_key}",str(vk))
             result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=board_order,
