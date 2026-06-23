@@ -72,17 +72,22 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
                 if am:
                     analyst_key = am.group(1)
             rd = _norm_date(cells[3].get_text(" ",strip=True))
-            # auto-probe: formula 키 HEAD 확인 → 404면 ±10 probe (매일 키 시프트 대응)
+            # auto-probe: formula → HEAD → 404면 ±20 probe with Content-Disposition 확인
             import urllib.request
             pk = eval(cfg["pdf_formula"].replace("{view_key}", str(vk)))
+            dl = cfg["download_tpl"].replace("{base}",base).replace("{pdf_key}",str(pk))
             try:
-                dl_test = cfg["download_tpl"].replace("{base}",base).replace("{pdf_key}",str(pk))
-                req = urllib.request.Request(dl_test, headers={"User-Agent": cfg["headers"].get("User-Agent", "Mozilla/5.0")}, method="HEAD")
+                req = urllib.request.Request(dl, headers={"User-Agent": cfg["headers"].get("User-Agent", "Mozilla/5.0")}, method="HEAD")
                 resp = urllib.request.urlopen(req, timeout=2)
                 if resp.status != 200:
                     raise Exception("404")
+                # 200이면 Content-Disposition 확인 (analyst_key 있으면 검증)
+                if analyst_key:
+                    disp = resp.getheader("Content-Disposition","")
+                    if ".pdf" in disp.lower() and analyst_key not in disp:
+                        raise Exception("wrong analyst")
             except Exception:
-                for delta in range(1, 11):
+                for delta in range(1, 21):
                     found = False
                     for sign in [1, -1]:
                         candidate = pk + (delta * sign)
@@ -91,6 +96,10 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
                             req2 = urllib.request.Request(dl_cand, headers={"User-Agent": cfg["headers"].get("User-Agent", "Mozilla/5.0")}, method="HEAD")
                             resp2 = urllib.request.urlopen(req2, timeout=1)
                             if resp2.status == 200:
+                                if analyst_key:
+                                    disp = resp2.getheader("Content-Disposition","")
+                                    if ".pdf" not in disp.lower() or analyst_key not in disp:
+                                        continue
                                 pk = candidate
                                 found = True
                                 break
