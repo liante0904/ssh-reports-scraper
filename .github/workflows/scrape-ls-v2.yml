@@ -20,22 +20,11 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
-      - name: Fetch existing LS keys from OCI API
-        env:
-          INTERNAL_CACHE_TOKEN: ${{ secrets.INTERNAL_CACHE_TOKEN }}
-        run: |
-          curl -sS -H "X-Internal-Token: $INTERNAL_CACHE_TOKEN" \
-            "https://ssh-oci.duckdns.org/external/api/internal/ls-existing-keys" \
-            -o ls_existing_keys.json 2>&1 || echo "API call failed (will fallback to full scrape)"
-          if [ -f ls_existing_keys.json ]; then
-            echo "Keys loaded: $(python3 -c 'import json; d=json.load(open("ls_existing_keys.json")); print(d.get("count",0))')"
-          fi
-
       - name: Run LS scraper v2
         env:
           urls: ${{ secrets.LS_URLS_JSON }}
           DB_BACKEND: sqlite
-          INTERNAL_CACHE_TOKEN: ${{ secrets.INTERNAL_CACHE_TOKEN }}
+          LS_KEYS_FILE: data/ls_existing_keys.json
           LS_LIST_MAX_PAGES: 2
           LS_DETAIL_TIMEOUT: 120
         run: |

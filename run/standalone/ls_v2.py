@@ -17,8 +17,6 @@ import asyncio
 import json
 import os
 import sys
-import re
-import requests
 from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -29,37 +27,27 @@ from models.FirmInfo import FirmInfo
 NM = "LS증권"
 
 # ── Config ──
-LS_API_URL = os.getenv(
-    "LS_KEYS_API_URL",
-    "https://ssh-oci.duckdns.org/external/api/internal/ls-existing-keys",
-)
-INTERNAL_CACHE_TOKEN = os.getenv("INTERNAL_CACHE_TOKEN", "")
+LS_KEYS_FILE = os.getenv("LS_KEYS_FILE", "data/ls_existing_keys.json")
 LS_LIST_MAX_PAGES = int(os.getenv("LS_LIST_MAX_PAGES", "2"))
-LS_DETAIL_CONCURRENT = int(os.getenv("LS_DETAIL_CONCURRENT", "3"))  # GA 2-core 제한 고려
-LS_DETAIL_TIMEOUT = int(os.getenv("LS_DETAIL_TIMEOUT", "120"))  # detail 전체 timeout
+LS_DETAIL_TIMEOUT = int(os.getenv("LS_DETAIL_TIMEOUT", "120"))
 
 
 def fetch_existing_keys() -> tuple[set, dict]:
-    """API에서 기존 LS key 목록 + writer 매핑 조회"""
-    if not INTERNAL_CACHE_TOKEN or not LS_API_URL:
-        print(f"[{NM}] WARN: LS_KEYS_API_URL or INTERNAL_CACHE_TOKEN not set. Falling back to full scrape (no key filter).",
+    """data/ls_existing_keys.json(OCI가 push한 파일)에서 기존 key 목록 로드"""
+    if not os.path.exists(LS_KEYS_FILE):
+        print(f"[{NM}] WARN: {LS_KEYS_FILE} not found. Falling back to full scrape (no key filter).",
               file=sys.stderr)
         return set(), {}
 
     try:
-        resp = requests.get(
-            LS_API_URL,
-            headers={"X-Internal-Token": INTERNAL_CACHE_TOKEN},
-            timeout=30,
-        )
-        resp.raise_for_status()
-        data = resp.json()
+        with open(LS_KEYS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
         keys = set(data.get("keys", []))
         key_writer_map = data.get("key_writer_map", {})
-        print(f"[{NM}] API: {len(keys)} existing keys loaded", file=sys.stderr)
+        print(f"[{NM}] File: {len(keys)} existing keys loaded from {LS_KEYS_FILE}", file=sys.stderr)
         return keys, key_writer_map
     except Exception as e:
-        print(f"[{NM}] WARN: Failed to fetch existing keys: {e}. Falling back to full scrape.", file=sys.stderr)
+        print(f"[{NM}] WARN: Failed to load {LS_KEYS_FILE}: {e}. Falling back to full scrape.", file=sys.stderr)
         return set(), {}
 
 
