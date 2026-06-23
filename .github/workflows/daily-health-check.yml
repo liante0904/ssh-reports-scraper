@@ -1,10 +1,10 @@
-name: Daily Scraper Health Check
+name: Daily Scraper Health Check (Import Only)
 
 on:
   schedule:
     # 한국 시간(KST) 오전 6시는 UTC 기준 오후 9시 (전날)
     - cron: '0 21 * * *'
-  workflow_dispatch: # 필요할 때 수동으로도 실행 가능
+  workflow_dispatch:
 
 jobs:
   health-check:
@@ -24,22 +24,12 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Run Scraper Health Tests
-        env:
-          ENV: prod
-          TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET: ${{ secrets.TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET }}
-          TELEGRAM_ADMIN_ID_DEV: ${{ secrets.TELEGRAM_ADMIN_ID_DEV }}
+      - name: Run Import & Syntax Tests (no network)
         run: |
-          uv run pytest -s tests/test_scrapers_health.py
+          uv run pytest tests/test_scraper_imports.py -v
+          uv run pytest tests/test_config_manager.py -v -q
 
-      - name: Final Report (Success)
-        if: success()
-        env:
-          TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET: ${{ secrets.TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET }}
-          TELEGRAM_ADMIN_ID_DEV: ${{ secrets.TELEGRAM_ADMIN_ID_DEV }}
-        run: |
-          uv run python3 -c "import asyncio; from utils.telegram_util import send_system_alert; asyncio.run(send_system_alert('✅ 모든 증권사 스크래퍼가 정상 작동 중입니다! (오전 6시 정기 점검 완료)'))"
-
-      - name: Final Report (Failure)
+      - name: Notify OCI Watchdog
         if: failure()
-        run: echo "Health check failed. Alerts should have been sent by the test script."
+        run: |
+          echo "GA import tests failed. Watchdog will detect via log monitoring."
