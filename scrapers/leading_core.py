@@ -8,8 +8,8 @@ def scrape_leading(cfg: dict) -> list[dict]:
     if isinstance(cfg, list): cfg = {"urls": cfg}
     elif isinstance(cfg, str): cfg = {"url": cfg}
     # 기본값 (GA standalone에서 list만 전달되는 경우 대비)
-    cfg.setdefault("table_sel", "#frm table")
-    cfg.setdefault("row_sel", "#frm table tbody tr")
+    cfg.setdefault("table_sel", "table.basic-tbl thead tr")
+    cfg.setdefault("row_sel", "table.basic-tbl tbody tr")
     cfg.setdefault("base_url", "http://www.leading.co.kr")
     cfg.setdefault("sec_firm_order", 16)
     cfg.setdefault("firm_nm", "리딩투자증권")
