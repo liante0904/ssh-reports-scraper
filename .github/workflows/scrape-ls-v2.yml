@@ -1,0 +1,62 @@
+name: LS Scraper v2 (key-filtered detail) → SCP
+
+# 기존 scrape-ls.yml 유지하면서 병행 테스트
+on:
+  workflow_dispatch:  # 수동 트리거 only (테스트 기간)
+  # schedule:         # stable 확인 후 cron 활성화
+  #   - cron: '5 * * * 1-5'  # 기존 LS cron과 5분 staggered
+
+jobs:
+  scrape-and-scp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20  # detail 포함이므로 15→20분
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Fetch existing LS keys from OCI API
+        env:
+          INTERNAL_CACHE_TOKEN: ${{ secrets.INTERNAL_CACHE_TOKEN }}
+        run: |
+          curl -sS -H "X-Internal-Token: $INTERNAL_CACHE_TOKEN" \
+            "https://ssh-oci.duckdns.org/external/api/internal/ls-existing-keys" \
+            -o ls_existing_keys.json 2>&1 || echo "API call failed (will fallback to full scrape)"
+          if [ -f ls_existing_keys.json ]; then
+            echo "Keys loaded: $(python3 -c 'import json; d=json.load(open("ls_existing_keys.json")); print(d.get("count",0))')"
+          fi
+
+      - name: Run LS scraper v2
+        env:
+          urls: ${{ secrets.LS_URLS_JSON }}
+          DB_BACKEND: sqlite
+          INTERNAL_CACHE_TOKEN: ${{ secrets.INTERNAL_CACHE_TOKEN }}
+          LS_LIST_MAX_PAGES: 2
+          LS_DETAIL_TIMEOUT: 120
+        run: |
+          uv run python run/standalone/ls_v2.py > ls_result.json 2>ls_log.txt
+          RC=$?
+          echo "=== Scraper Log ==="
+          cat ls_log.txt
+          echo "=== Result ==="
+          COUNT=$(python3 -c "import json; print(len(json.load(open('ls_result.json'))))")
+          PDF_COUNT=$(python3 -c "import json; d=json.load(open('ls_result.json')); print(sum(1 for a in d if a.get('download_url')))")
+          echo "Articles: $COUNT (with PDF: $PDF_COUNT)"
+          exit $RC
+
+      - name: Validate result
+        run: python scripts/validate_scrape_result.py ls_result.json
+
+      - name: SCP to server
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+          scp -P ${{ secrets.SERVER_PORT || 22 }} ls_result.json ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:incoming/ga-scrapes/
+          echo "SCP complete"
