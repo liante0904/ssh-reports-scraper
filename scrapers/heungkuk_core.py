@@ -26,13 +26,15 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
         "table_sel": "table.data_list_x tbody tr",
         "link_sel": "td.left a",
         "onclick_pattern": r"key=(\d+)",
-        "pdf_formula": "2 * {view_key} - 12059",
+        "pdf_formula": "2 * {view_key} - 12039",
         "download_tpl": "{base}/download.do?type=Board&key={pdf_key}",
         "view_tpl": "{base}/research/{board_path}/view.do?key={view_key}",
         "sec_firm_order": 28,
         "firm_nm": "흥국증권",
         **cfg,
     }
+    # 2026.06.24: PDF key 공식 시프트 (12059→12039). GA secret override 방지.
+    cfg["pdf_formula"] = "2 * {view_key} - 12039"
     requests.packages.urllib3.disable_warnings()
     result = []
     for board_order, list_url in enumerate(cfg.get("urls",[cfg.get("url","")])):
@@ -74,7 +76,7 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
             # 정확한 filename 매칭이 필요할 때만 config로 HEAD scan을 명시적으로 켠다.
             pk = None
             if cfg.get("match_pdf_by_analyst") and analyst_key:
-                for offset in range(12065, 12035, -1):
+                for offset in range(12065, 12025, -1):
                     candidate = 2 * vk - offset
                     try:
                         import urllib.request
