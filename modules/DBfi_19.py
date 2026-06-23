@@ -17,11 +17,16 @@ from models.FirmInfo import FirmInfo
 from models.ConfigManager import config
 from models.db_factory import get_db
 
-# 시크릿 설정 로드
-dbfi_cfg = config.get_urls("DBfi_19")
-BASE_URL = dbfi_cfg["base_url"]
-VIEWER_BASE = dbfi_cfg["viewer_base_url"]
-URL_PATHS = dbfi_cfg["url_paths"]
+# 시크릿 설정 로드 (list인 경우 GA health-check 환경 → import 실패 방지)
+_dbfi_cfg = config.get_urls("DBfi_19")
+if isinstance(_dbfi_cfg, dict):
+    BASE_URL = _dbfi_cfg.get("base_url", "")
+    VIEWER_BASE = _dbfi_cfg.get("viewer_base_url", "")
+    URL_PATHS = _dbfi_cfg.get("url_paths", [])
+else:
+    BASE_URL = ""
+    VIEWER_BASE = ""
+    URL_PATHS = []
 
 HEADERS_TEMPLATE = {
     "User-Agent": "Mozilla/5.0 (iPad; CPU OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148",

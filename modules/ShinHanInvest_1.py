@@ -7,8 +7,10 @@ from scrapers.shinhan_core import scrape_shinhan
 
 async def ShinHanInvest_checkNewArticle():
     """신한투자증권 — core delegate."""
+    urls = config.get_urls("ShinHanInvest_1")
+    if not urls: return []
     cfg = {
-        "url": config.get_urls("ShinHanInvest_1")[0],
+        "url": urls[0],
         "str_boards": "giperiodicaldaily|gistockchart|plananalysis|gicompanyanalyst|giindustry|gieconomy|fxmarket|commodity|gibond|foreignbond",
         "bbs_boards": ["foreignstock","giresearchIPO","gieconomy","gicomment","gibond","foreignbond","gifuture","alternative"],
     }

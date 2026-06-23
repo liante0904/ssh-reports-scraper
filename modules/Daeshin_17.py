@@ -25,7 +25,9 @@ async def Daeshin_checkNewArticle():
     logger.debug(f"Daeshin Scraper Start: {firm_info.get_firm_name()}")
 
     from urllib.parse import urljoin
-    url = config.get_urls("Daeshin_17")[0]
+    urls = config.get_urls("Daeshin_17")
+    if not urls: return json_data_list
+    url = urls[0]
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
