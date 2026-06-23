@@ -19,8 +19,15 @@ sudo docker cp scripts/export_ls_keys.py "$CT:/app/scripts/" 2>/dev/null || true
 sudo docker exec "$CT" .venv/bin/python /app/scripts/export_ls_keys.py /app/data/ls_existing_keys.json
 sudo docker cp "$CT:/app/data/ls_existing_keys.json" data/ls_existing_keys.json
 
-# encrypt with existing shared secret (no new keys)
-ENCRYPT_KEY="${TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET:?not set}"
+# encrypt with existing shared secret (from container env or host env)
+ENCRYPT_KEY="${TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET:-}"
+if [ -z "$ENCRYPT_KEY" ]; then
+    ENCRYPT_KEY=$(sudo docker exec "$CT" printenv TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET 2>/dev/null || echo "")
+fi
+if [ -z "$ENCRYPT_KEY" ]; then
+    echo "[$(date)] ERROR: TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET not found"
+    exit 1
+fi
 openssl enc -aes-256-cbc -pbkdf2 -pass "pass:${ENCRYPT_KEY:0:64}" \
     -in data/ls_existing_keys.json -out data/ls_existing_keys.enc 2>/dev/null
 

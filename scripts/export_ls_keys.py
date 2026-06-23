@@ -35,11 +35,29 @@ def export_ls_keys(output_path: str = None) -> dict:
         if w and k not in key_writer_map:
             key_writer_map[k] = w
 
+    # 2. writer → emp_id 매핑 (성공한 msg URL에서 사번 추출)
+    #    GA detail에서 2순위 URL 구성용 (DB 없이 CDN URL 직접 생성)
+    emp_rows = db._fetchall("""
+        SELECT DISTINCT writer,
+               SUBSTRING(telegram_url FROM 'eum/K_\\d{8}_(.+)_\\d+\\.pdf$') AS emp_id
+        FROM tbl_sec_reports
+        WHERE sec_firm_order = 0
+          AND telegram_url LIKE 'https://msg.ls-sec.co.kr/eum/K_%'
+          AND writer IS NOT NULL AND writer != ''
+    """)
+    writer_emp_map = {}
+    for r in emp_rows:
+        w = r["writer"]
+        eid = r["emp_id"]
+        if w and eid and w not in writer_emp_map:
+            writer_emp_map[w] = eid
+
     result = {
         "exported_at": __import__("datetime").datetime.now().isoformat(),
         "count": len(keys),
         "keys": keys,
         "key_writer_map": key_writer_map,
+        "writer_emp_map": writer_emp_map,
     }
 
     if output_path:
