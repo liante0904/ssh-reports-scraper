@@ -81,11 +81,11 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
                 resp = urllib.request.urlopen(req, timeout=2)
                 if resp.status != 200:
                     raise Exception("404")
-                # 200이면 Content-Disposition 확인 (analyst_key 있으면 검증)
+                # 200이면 Content-Disposition 확인 (.pdf 필수 + analyst_key 검증)
                 if analyst_key:
                     disp = resp.getheader("Content-Disposition","")
-                    if ".pdf" in disp.lower() and analyst_key not in disp:
-                        raise Exception("wrong analyst")
+                    if ".pdf" not in disp.lower() or analyst_key not in disp:
+                        raise Exception("not pdf or wrong analyst")
             except Exception:
                 for delta in range(1, 21):
                     found = False
