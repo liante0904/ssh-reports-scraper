@@ -1,15 +1,14 @@
 name: LS Scraper v2 (key-filtered detail) → SCP
 
-# 기존 scrape-ls.yml 유지하면서 병행 테스트
 on:
-  workflow_dispatch:  # 수동 트리거 only (테스트 기간)
-  # schedule:         # stable 확인 후 cron 활성화
-  #   - cron: '5 * * * 1-5'  # 기존 LS cron과 5분 staggered
+  workflow_dispatch:
+  # schedule:
+  #   - cron: '5 * * * 1-5'
 
 jobs:
   scrape-and-scp:
     runs-on: ubuntu-latest
-    timeout-minutes: 20  # detail 포함이므로 15→20분
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -24,28 +23,26 @@ jobs:
         env:
           urls: ${{ secrets.LS_URLS_JSON }}
           DB_BACKEND: sqlite
-          LS_KEYS_FILE: data/ls_existing_keys.json
+          TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET: ${{ secrets.TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET }}
+          GH_TOKEN: ${{ github.token }}
           LS_LIST_MAX_PAGES: 2
           LS_DETAIL_TIMEOUT: 120
         run: |
           uv run python run/standalone/ls_v2.py > ls_result.json 2>ls_log.txt
           RC=$?
-          echo "=== Scraper Log ==="
-          cat ls_log.txt
-          echo "=== Result ==="
+          echo "=== Log ===" && cat ls_log.txt
           COUNT=$(python3 -c "import json; print(len(json.load(open('ls_result.json'))))")
-          PDF_COUNT=$(python3 -c "import json; d=json.load(open('ls_result.json')); print(sum(1 for a in d if a.get('download_url')))")
-          echo "Articles: $COUNT (with PDF: $PDF_COUNT)"
+          PDF=$(python3 -c "import json; d=json.load(open('ls_result.json')); print(sum(1 for a in d if a.get('download_url')))")
+          echo "Articles: $COUNT (PDF: $PDF)"
           exit $RC
 
-      - name: Validate result
+      - name: Validate
         run: python scripts/validate_scrape_result.py ls_result.json
 
-      - name: SCP to server
+      - name: SCP
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
           scp -P ${{ secrets.SERVER_PORT || 22 }} ls_result.json ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:incoming/ga-scrapes/
-          echo "SCP complete"

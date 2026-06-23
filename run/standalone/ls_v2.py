@@ -27,27 +27,54 @@ from models.FirmInfo import FirmInfo
 NM = "LS증권"
 
 # ── Config ──
-LS_KEYS_FILE = os.getenv("LS_KEYS_FILE", "data/ls_existing_keys.json")
 LS_LIST_MAX_PAGES = int(os.getenv("LS_LIST_MAX_PAGES", "2"))
 LS_DETAIL_TIMEOUT = int(os.getenv("LS_DETAIL_TIMEOUT", "120"))
 
 
 def fetch_existing_keys() -> tuple[set, dict]:
-    """data/ls_existing_keys.json(OCI가 push한 파일)에서 기존 key 목록 로드"""
-    if not os.path.exists(LS_KEYS_FILE):
-        print(f"[{NM}] WARN: {LS_KEYS_FILE} not found. Falling back to full scrape (no key filter).",
-              file=sys.stderr)
+    """GitHub Release에서 암호화된 LS key 파일 다운로드 → 복호화 → key set 반환"""
+    import subprocess, tempfile
+
+    enc_key = os.getenv("TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET", "")
+    if not enc_key:
+        print(f"[{NM}] WARN: TELEGRAM_BOT_TOKEN not set", file=sys.stderr)
+        return set(), {}
+
+    enc_file = "data/ls_existing_keys.enc"
+    json_file = "data/ls_existing_keys.json"
+    os.makedirs("data", exist_ok=True)
+
+    # GitHub Release에서 다운로드
+    try:
+        subprocess.run([
+            "gh", "release", "download", "ls-keys-data",
+            "--repo", "liante0904/ssh-reports-scraper",
+            "--pattern", "*.enc", "--dir", "data",
+        ], check=True, capture_output=True)
+    except subprocess.CalledProcessError:
+        print(f"[{NM}] WARN: Release download failed", file=sys.stderr)
+        return set(), {}
+
+    # 복호화 (기존 공유키 사용 — 새 시크릿 없음)
+    try:
+        subprocess.run([
+            "openssl", "enc", "-aes-256-cbc", "-pbkdf2", "-d",
+            "-pass", f"pass:{enc_key[:64]}",
+            "-in", enc_file, "-out", json_file,
+        ], check=True, capture_output=True)
+    except subprocess.CalledProcessError:
+        print(f"[{NM}] WARN: Decryption failed", file=sys.stderr)
         return set(), {}
 
     try:
-        with open(LS_KEYS_FILE, "r", encoding="utf-8") as f:
+        with open(json_file, "r", encoding="utf-8") as f:
             data = json.load(f)
         keys = set(data.get("keys", []))
         key_writer_map = data.get("key_writer_map", {})
-        print(f"[{NM}] File: {len(keys)} existing keys loaded from {LS_KEYS_FILE}", file=sys.stderr)
+        print(f"[{NM}] Keys loaded: {len(keys)} existing", file=sys.stderr)
         return keys, key_writer_map
     except Exception as e:
-        print(f"[{NM}] WARN: Failed to load {LS_KEYS_FILE}: {e}. Falling back to full scrape.", file=sys.stderr)
+        print(f"[{NM}] WARN: {e}", file=sys.stderr)
         return set(), {}
 
 

@@ -1,46 +1,39 @@
 #!/bin/bash
-# OCI cron: LS existing key 목록 export → GitHub repo push → GA가 checkout해서 사용
-# 실행 주기: 매시간 55분 (GA cron 시작 5분 전)
-# Docker 컨테이너 내부 Python으로 실행 (ssh_library 의존성)
+# OCI cron: LS key export → 암호화 → GitHub Release 업로드
+# 매시간 55분 실행. 암호화 키: 기존 TELEGRAM_BOT_TOKEN (OCI/GA 양쪽에 존재)
+# Release tag: ls-keys-data (영구 — asset 덮어쓰기)
 set -euo pipefail
 
-REPO_DIR="/home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper"
-cd "$REPO_DIR"
+REPO="liante0904/ssh-reports-scraper"
+RELEASE_TAG="ls-keys-data"
+DIR="/home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper"
+cd "$DIR"
 mkdir -p data
 
-KEYS_FILE="data/ls_existing_keys.json"
-CONTAINER=$(sudo docker ps --format '{{.Names}}' | grep 'main-scraper' | head -1)
+CT=$(sudo docker ps --format '{{.Names}}' | grep 'main-scraper' | head -1)
+[ -z "$CT" ] && { echo "[$(date)] no container"; exit 1; }
 
-if [ -z "$CONTAINER" ]; then
-    echo "[$(date)] ERROR: no main-scraper container found"
-    exit 1
+# export
+sudo docker exec "$CT" mkdir -p /app/scripts /app/data 2>/dev/null
+sudo docker cp scripts/export_ls_keys.py "$CT:/app/scripts/" 2>/dev/null || true
+sudo docker exec "$CT" .venv/bin/python /app/scripts/export_ls_keys.py /app/data/ls_existing_keys.json
+sudo docker cp "$CT:/app/data/ls_existing_keys.json" data/ls_existing_keys.json
+
+# encrypt with existing shared secret (no new keys)
+ENCRYPT_KEY="${TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET:?not set}"
+openssl enc -aes-256-cbc -pbkdf2 -pass "pass:${ENCRYPT_KEY:0:64}" \
+    -in data/ls_existing_keys.json -out data/ls_existing_keys.enc 2>/dev/null
+
+COUNT=$(python3 -c "import json; print(json.load(open('data/ls_existing_keys.json')).get('count',0))")
+
+# GitHub Release upload
+if ! gh release view "$RELEASE_TAG" --repo "$REPO" &>/dev/null; then
+    gh release create "$RELEASE_TAG" data/ls_existing_keys.enc \
+        --repo "$REPO" --title "LS Keys" --notes "encrypted" 2>&1
+else
+    gh release upload "$RELEASE_TAG" data/ls_existing_keys.enc \
+        --repo "$REPO" --clobber 2>&1
 fi
 
-echo "[$(date)] Exporting LS keys from $CONTAINER..."
-
-# 컨테이너 내 디렉토리 보장
-sudo docker exec "$CONTAINER" mkdir -p /app/scripts /app/data
-
-# export 스크립트가 컨테이너에 없으면 호스트에서 복사
-sudo docker cp scripts/export_ls_keys.py "$CONTAINER:/app/scripts/" 2>/dev/null || true
-
-# 컨테이너 내부에서 export 실행
-sudo docker exec "$CONTAINER" .venv/bin/python /app/scripts/export_ls_keys.py /app/data/ls_existing_keys.json
-
-# 결과를 호스트로 복사
-sudo docker cp "$CONTAINER:/app/data/ls_existing_keys.json" "$KEYS_FILE"
-
-COUNT=$(python3 -c "import json; print(json.load(open('$KEYS_FILE')).get('count',0))")
-echo "[$(date)] $COUNT keys exported"
-
-# 변경 없으면 push 스킵
-if git diff --quiet "$KEYS_FILE" 2>/dev/null; then
-    echo "[$(date)] No changes, skipping push"
-    exit 0
-fi
-
-git add "$KEYS_FILE"
-git commit -m "data: update LS existing keys ($COUNT records)" 2>&1 || true
-git push origin main 2>&1
-
-echo "[$(date)] Pushed $COUNT keys to GitHub"
+rm -f data/ls_existing_keys.json data/ls_existing_keys.enc
+echo "[$(date)] Released $COUNT LS keys"
