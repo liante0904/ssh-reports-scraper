@@ -173,4 +173,4 @@ vendor/
 .aider*
 .env
 data/ls_existing_keys.json
-!data/ls_existing_keys.json
+!data/ls_existing_keys.enc
