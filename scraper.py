@@ -57,6 +57,21 @@ LS_LIST_TIMEOUT_SECONDS = int(os.getenv("LS_LIST_TIMEOUT_SECONDS", "900"))
 LS_DETAIL_TIMEOUT_SECONDS = int(os.getenv("LS_DETAIL_TIMEOUT_SECONDS", "900"))
 SCRAPER_HEALTH_ERRORS = []
 
+# Watchdog ERROR 알림 제외 패턴 — 외부 이슈로 인한 알람 노이즈 방지
+_KNOWN_EXTERNAL_ERRORS = [
+    "LS 직접 접속 실패",       # LS 사이트 서버 IP 차단 → WARP 우회
+    "ConnectTimeoutError",      # 네트워크 타임아웃
+    "WARP",                     # WARP 관련
+    "BNK.*0건",                # BNK IP 차단 (외부 이슈)
+    "blocked by source",        # IP 차단
+    "Max retries exceeded",     # requests 재시도 초과
+]
+
+def _is_external_error(msg: str) -> bool:
+    """외부 네트워크/차단 이슈로 인한 에러인지 확인 (watchdog 알람 제외 대상)"""
+    import re
+    return any(re.search(pattern, msg) for pattern in _KNOWN_EXTERNAL_ERRORS)
+
 # GA 이관 증권사 — 평시(30분 간격)에는 GA standalone이 처리, 서버는 full-scrape 시간대에만 fallback 실행
 _GA_FIRMS_SYNC = {
     Samsung_checkNewArticle,       # 삼성증권 (sec_firm_order=5)
@@ -123,8 +138,7 @@ def log_scraper_health(name, rows):
 
     if not rows:
         msg = f"{name} returned 0 articles. Check source API, selector, or credentials."
-        SCRAPER_HEALTH_ERRORS.append(msg)
-        logger.error(msg)
+        logger.warning(msg)  # 0건 수집 → 알람 노이즈 방지 (구조 변경 or IP 차단 등 외부 이슈일 가능성)
         return
 
     reg_dates = sorted({
@@ -290,11 +304,13 @@ async def run_sync_scrapers(sync_funcs, total_data):
             await asyncio.sleep(1)
         except asyncio.TimeoutError:
             msg = f"Sync Scraper Timeout ({func.__name__}): {SCRAPER_SYNC_TIMEOUT_SECONDS}s"
-            SCRAPER_HEALTH_ERRORS.append(msg)
-            logger.error(msg)
+            logger.warning(msg)  # 외부 네트워크 이슈 → ERROR 아님
         except Exception as e:
             msg = f"Sync Scraper Error ({func.__name__}): {e}"
-            SCRAPER_HEALTH_ERRORS.append(msg)
+            if _is_external_error(str(e)):
+                logger.warning(msg)
+            else:
+                SCRAPER_HEALTH_ERRORS.append(msg)
             logger.error(msg)
 
 
@@ -337,8 +353,11 @@ async def run_async_scrapers(async_funcs, total_data, max_concurrency=3):
     results = await asyncio.gather(*tasks)
     for name, res, error in results:
         if error:
-            SCRAPER_HEALTH_ERRORS.append(error)
-            logger.error(error)
+            if _is_external_error(str(error)):
+                logger.warning(f"{name}: {error}")  # 외부 네트워크 이슈 → WARNING
+            else:
+                SCRAPER_HEALTH_ERRORS.append(error)
+                logger.error(error)
         elif isinstance(res, list):
             total_data.extend(res)
             log_scraper_health(name, res)
@@ -401,8 +420,7 @@ async def main(date_str=None):
         except asyncio.TimeoutError:
             ls_articles = []
             msg = f"LS Scraper Timeout (LS_checkNewArticle): {LS_LIST_TIMEOUT_SECONDS}s"
-            SCRAPER_HEALTH_ERRORS.append(msg)
-            logger.error(msg)
+            logger.warning(msg)  # 외부 네트워크 이슈 → WARNING
     if ls_articles:
         logger.info(f"[LS] 신규 {len(ls_articles)}건 detail 추출 시작")
         try:
@@ -413,8 +431,7 @@ async def main(date_str=None):
         except asyncio.TimeoutError:
             enriched = ls_articles
             msg = f"LS Detail Timeout (LS_detail): {LS_DETAIL_TIMEOUT_SECONDS}s"
-            SCRAPER_HEALTH_ERRORS.append(msg)
-            logger.error(msg)
+            logger.warning(msg)  # 외부 네트워크 이슈 → WARNING
             logger.warning("[LS] detail 타임아웃: 목록에서 확인한 신규 건은 URL 미해결 상태로 DB 저장 후 enrichment에서 재시도합니다.")
         resolved_count = sum(1 for a in enriched if a.get("telegram_url"))
         logger.success(f"[LS] {len(enriched)}건 detail 완료 (URL resolved={resolved_count})")
