@@ -7,6 +7,15 @@ from bs4 import BeautifulSoup
 def scrape_meritz(cfg: dict) -> list[dict]:
     if isinstance(cfg, list): cfg = {"urls": cfg}
     elif isinstance(cfg, str): cfg = {"url": cfg}
+    # 기본값 (GA standalone에서 list만 전달되는 경우 대비)
+    cfg.setdefault("head_sel", "thead th")
+    cfg.setdefault("row_sel", "tbody tr")
+    cfg.setdefault("base_url", "https://home.imeritz.com")
+    cfg.setdefault("sec_firm_order", 20)
+    cfg.setdefault("firm_nm", "메리츠증권")
+    cfg.setdefault("detail_sel", ".fileArea a")
+    cfg.setdefault("detail_replace", "[메리츠증권] ")
+    cfg.setdefault("detail_url_tpl", "https://home.imeritz.com/board/download.go?fname={fname}")
     requests.packages.urllib3.disable_warnings()
     hdr = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     result = []

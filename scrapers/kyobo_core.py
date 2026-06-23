@@ -7,6 +7,25 @@ from bs4 import BeautifulSoup
 def scrape_kyobo(cfg: dict) -> list[dict]:
     if isinstance(cfg, list): cfg = {"urls": cfg}
     elif isinstance(cfg, str): cfg = {"url": cfg}
+    # 기본값 (GA standalone에서 list만 전달되는 경우 대비)
+    cfg.setdefault("headers", {"User-Agent": "Mozilla/5.0"})
+    cfg.setdefault("empty_sel", ".noData")
+    cfg.setdefault("row_sel", "table tbody tr")
+    cfg.setdefault("board_types", {})
+    cfg.setdefault("base_url", "https://www.iprovest.com")
+    cfg.setdefault("cell_date", 5)
+    cfg.setdefault("title_sel", "td.subject a")
+    cfg.setdefault("cell_cat", 3)
+    cfg.setdefault("cell_type", 4)
+    cfg.setdefault("cell_writer", 6)
+    cfg.setdefault("cell_attach", 7)
+    cfg.setdefault("attach_replace_from", "")
+    cfg.setdefault("attach_replace_to", "")
+    cfg.setdefault("path_replace_from", "")
+    cfg.setdefault("path_replace_to", "")
+    cfg.setdefault("sec_firm_order", 24)
+    cfg.setdefault("firm_nm", "교보증권")
+    cfg.setdefault("max_pages", 10)
     requests.packages.urllib3.disable_warnings()
     result = []
     for board_order, base_url in enumerate(cfg.get("urls",[cfg.get("url","")])):

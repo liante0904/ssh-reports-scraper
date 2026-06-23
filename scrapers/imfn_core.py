@@ -14,10 +14,13 @@ def _gen_cookie():
     return f"JSESSIONID={sid}; ACEFCID={ace}; ACEUACS=undefined;"
 
 
-def scrape_imfn(base_url: str) -> list[dict]:
+def scrape_imfn(cfg) -> list[dict]:
+    """cfg: base URL string 또는 config dict."""
     bids = ["R_E08", "R_E09", "R_E14", "R_E03", "R_E04", "R_E05"]
     if isinstance(cfg, list): cfg = {"urls": cfg}
     elif isinstance(cfg, str): cfg = {"url": cfg}
+    base_url = cfg.get("urls", [cfg.get("url", "")])[0] if isinstance(cfg.get("urls"), list) else cfg.get("url", "")
+    if not base_url: return []
     requests.packages.urllib3.disable_warnings()
     sess = requests.Session()
     sess.headers.update({

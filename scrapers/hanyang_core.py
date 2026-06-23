@@ -8,6 +8,16 @@ from urllib.parse import urljoin
 def scrape_hanyang(cfg: dict) -> list[dict]:
     if isinstance(cfg, list): cfg = {"urls": cfg}
     elif isinstance(cfg, str): cfg = {"url": cfg}
+    # 기본값 (GA standalone에서 list만 전달되는 경우 대비)
+    cfg.setdefault("headers", {"User-Agent": "Mozilla/5.0"})
+    cfg.setdefault("table_class", "board_list")
+    cfg.setdefault("row_sel", "tbody tr")
+    cfg.setdefault("cell_title", 1)
+    cfg.setdefault("cell_reg_dt", 3)
+    cfg.setdefault("cell_attach", 4)
+    cfg.setdefault("base_url", "https://www.hygood.co.kr")
+    cfg.setdefault("sec_firm_order", 22)
+    cfg.setdefault("firm_nm", "한양증권")
     requests.packages.urllib3.disable_warnings()
     result = []
     for board_order, url in enumerate(cfg.get("urls",[cfg.get("url","")])):

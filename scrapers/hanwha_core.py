@@ -7,6 +7,14 @@ from xml.etree import ElementTree as ET
 def scrape_hanwha(cfg: dict) -> list[dict]:
     if isinstance(cfg, list): cfg = {"urls": cfg}
     elif isinstance(cfg, str): cfg = {"url": cfg}
+    # 기본값 (GA standalone에서 list만 전달되는 경우 대비)
+    cfg.setdefault("headers", {"User-Agent": "Mozilla/5.0"})
+    cfg.setdefault("item_keys", {})
+    cfg.setdefault("url_tpl", "")
+    cfg.setdefault("max_pages", 50)
+    cfg.setdefault("page_size", 100)
+    cfg.setdefault("sec_firm_order", 21)
+    cfg.setdefault("firm_nm", "한화투자증권")
     requests.packages.urllib3.disable_warnings()
     result = []
     base_url = cfg.get("urls",[cfg.get("url","")])[0] if isinstance(cfg.get("urls"),list) else cfg.get("url","")

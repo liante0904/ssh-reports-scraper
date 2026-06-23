@@ -7,6 +7,21 @@ from bs4 import BeautifulSoup
 def scrape_yuanta(cfg: dict) -> list[dict]:
     if isinstance(cfg, list): cfg = {"urls": cfg}
     elif isinstance(cfg, str): cfg = {"url": cfg}
+    # 기본값 (GA standalone에서 list만 전달되는 경우 대비)
+    cfg.setdefault("board_codes", [])
+    cfg.setdefault("headers", {"User-Agent": "Mozilla/5.0"})
+    cfg.setdefault("row_sel", "table tbody tr")
+    cfg.setdefault("cell_date", 5)
+    cfg.setdefault("cell_title", "a")
+    cfg.setdefault("stock_sel", ".stock")
+    cfg.setdefault("writer_sel", ".writer a")
+    cfg.setdefault("pdf_sel", "a")
+    cfg.setdefault("pdf_attr", "href")
+    cfg.setdefault("url_tpl", "https://www.myasset.com/myasset/research/rs_view/rs_view.cmd?cd007={code}&seq={seq}")
+    cfg.setdefault("pdf_tpl", "{path}")
+    cfg.setdefault("pages", 5)
+    cfg.setdefault("sec_firm_order", 27)
+    cfg.setdefault("firm_nm", "유안타증권")
     requests.packages.urllib3.disable_warnings()
     result = []
     base_url = cfg.get("urls",[cfg.get("url","")])[0] if isinstance(cfg.get("urls"), list) else cfg.get("url","")
