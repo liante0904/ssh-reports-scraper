@@ -58,7 +58,7 @@ def fetch_existing_keys() -> tuple[set, dict, dict]:
         subprocess.run(
             f'curl -fsSL {"-H \"" + auth_header + "\"" if auth_header else ""} '
             f'-o {enc_file} '
-            f'https://github.com/liante0904/ssh-reports-scraper/releases/download/ls-keys-data/ls_existing_keys.enc',
+            f'https://github.com/liante0904/ssh-reports-scraper/releases/download/ls-keys-data/ls_keys.enc',
             shell=True, check=True, capture_output=True,
         )
     except subprocess.CalledProcessError:
