@@ -55,12 +55,15 @@ def fetch_existing_keys() -> tuple[set, dict, dict]:
     # curl로 GitHub Release API 직접 호출 (gh CLI 불필요)
     try:
         auth_header = f"Authorization: Bearer {gh_token}" if gh_token else ""
-        subprocess.run(
-            f'curl -fsSL {"-H \"" + auth_header + "\"" if auth_header else ""} '
-            f'-o {enc_file} '
-            f'https://github.com/liante0904/ssh-reports-scraper/releases/download/ls-keys-data/ls_keys.enc',
-            shell=True, check=True, capture_output=True,
-        )
+        cmd = ["curl", "-fsSL"]
+        if auth_header:
+            cmd.extend(["-H", auth_header])
+        cmd.extend([
+            "-o",
+            enc_file,
+            "https://github.com/liante0904/ssh-reports-scraper/releases/download/ls-keys-data/ls_keys.enc",
+        ])
+        subprocess.run(cmd, check=True, capture_output=True)
     except subprocess.CalledProcessError:
         print(f"[{NM}] WARN: Release download failed (release not created yet)", file=sys.stderr)
         return set(), {}, {}
