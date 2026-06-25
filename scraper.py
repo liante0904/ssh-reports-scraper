@@ -76,11 +76,14 @@ def _is_external_error(msg: str) -> bool:
 # {sec_firm_order: func} 매핑. PostgreSQL tbm_sec_firm_info.ga_enabled_yn='Y' 여부로 필터링.
 _GA_FIRMS_SYNC = {
     5: Samsung_checkNewArticle,       # 삼성증권
-    8: Miraeasset_checkNewArticle,    # 미래에셋증권
     9: Hmsec_checkNewArticle,         # 현대차증권
     15: TOSSinvest_checkNewArticle,    # 토스증권
-    26: Sks_checkNewArticle,          # SK증권
     28: Heungkuk_checkNewArticle,     # 흥국증권
+    # 아래 firm들은 GA standalone secret은 full_config지만, 서버 ConfigManager legacy secrets는
+    # URL list만 제공한다. 서버 full-scrape fallback에서 실행하면 health error로 scheduler가
+    # exit 1이 되므로 server config 정규화 전까지 GA 전용으로 둔다.
+    # 8: Miraeasset_checkNewArticle,  # 미래에셋증권: row_sel 필요
+    # 26: Sks_checkNewArticle,        # SK증권: list input 방어 전까지 제외
 }
 
 _GA_FIRMS_ASYNC = {
@@ -88,19 +91,21 @@ _GA_FIRMS_ASYNC = {
     3: HANA_checkNewArticle,          # 하나증권
     4: KB_checkNewArticle,            # KB증권
     6: Sangsanginib_checkNewArticle,  # 상상인증권
-    10: Kiwoom_checkNewArticle,        # 키움증권
-    14: DAOL_checkNewArticle,          # 다올투자증권
-    16: Leading_checkNewArticle,       # 리딩투자증권
     # IM증권은 현재 사이트 측 응답/수집 불가로 로컬 full-scrape fallback에서도 제외한다.
     # 수동 재검증은 run/standalone/imfn.py 또는 scrape-imfn workflow_dispatch로 수행.
     # 18: iMfnsec_checkNewArticle,     # IM증권
     19: DBfi_checkNewArticle,          # DB증권
     20: MERITZ_checkNewArticle,        # 메리츠증권
-    21: Hanwha_checkNewArticle,        # 한화투자증권
-    22: Hanyang_checkNewArticle,       # 한양증권
     24: Kyobo_checkNewArticle,         # 교보증권
     25: IBK_checkNewArticle,           # IBK투자증권
     27: Yuanta_checkNewArticle,        # 유안타증권
+    # 서버 legacy secrets가 URL list만 제공해 full_config 기반 core에서 오류/무효 reg_dt를 낸다.
+    # GA standalone은 유지하고, 서버 fallback은 config 정규화 후 재활성화한다.
+    # 10: Kiwoom_checkNewArticle,      # 키움증권: payload 필요
+    # 14: DAOL_checkNewArticle,        # 다올투자증권: path_tpl 필요
+    # 16: Leading_checkNewArticle,     # 리딩투자증권: reg_dt 미검출
+    # 21: Hanwha_checkNewArticle,      # 한화투자증권: xml_item_tag 필요
+    # 22: Hanyang_checkNewArticle,     # 한양증권: reg_dt 미검출
 }
 
 
