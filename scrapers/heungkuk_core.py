@@ -1,6 +1,7 @@
 import sys
 """Heungkuk Securities — config 기반 HTML 파싱."""
 import re, requests
+import urllib.request
 from datetime import datetime, timezone, timedelta
 from bs4 import BeautifulSoup
 from scrapers.config_guard import normalize_cfg
@@ -62,6 +63,61 @@ def _filter_duplicate_pdf_rows(rows: list[dict]) -> list[dict]:
     return safe
 
 
+def _content_disposition_matches(resp, analyst_key: str) -> bool:
+    disp = resp.getheader("Content-Disposition", "") or ""
+    if ".pdf" not in disp.lower():
+        return False
+    return not analyst_key or analyst_key in disp
+
+
+def _head_pdf_ok(url: str, headers: dict, analyst_key: str, timeout: float) -> bool:
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": headers.get("User-Agent", "Mozilla/5.0")},
+        method="HEAD",
+    )
+    resp = urllib.request.urlopen(req, timeout=timeout)
+    return resp.status == 200 and _content_disposition_matches(resp, analyst_key)
+
+
+def _resolve_pdf_download(base: str, view_key: int, analyst_key: str, cfg: dict) -> str | None:
+    """공식 PDF key를 검증하고, 명시적으로 허용된 경우에만 짧게 주변 탐색한다.
+
+    GA 기본값은 탐색 비활성화다. 잘못된 PDF를 전송하는 것보다 해당 row를 버리고
+    validator에서 실패시키는 편이 안전하다.
+    """
+    pk = eval(cfg["pdf_formula"].replace("{view_key}", str(view_key)))
+    dl = cfg["download_tpl"].replace("{base}", base).replace("{pdf_key}", str(pk))
+    timeout = float(cfg.get("pdf_head_timeout", 0.8))
+    try:
+        if _head_pdf_ok(dl, cfg["headers"], analyst_key, timeout):
+            return dl
+    except Exception as exc:
+        print(f"[heungkuk] WARN: formula PDF HEAD failed view_key={view_key}: {exc}", file=sys.stderr)
+
+    if not cfg.get("enable_pdf_probe", False):
+        print(f"[heungkuk] WARN: drop row with unresolved PDF view_key={view_key}", file=sys.stderr)
+        return None
+
+    max_delta = int(cfg.get("max_pdf_probe_delta", 3))
+    probe_timeout = float(cfg.get("pdf_probe_timeout", 0.5))
+    for delta in range(1, max_delta + 1):
+        for sign in [1, -1]:
+            candidate = pk + (delta * sign)
+            dl_cand = cfg["download_tpl"].replace("{base}", base).replace("{pdf_key}", str(candidate))
+            try:
+                if _head_pdf_ok(dl_cand, cfg["headers"], analyst_key, probe_timeout):
+                    return dl_cand
+            except Exception:
+                pass
+
+    print(
+        f"[heungkuk] WARN: drop row after bounded PDF probe view_key={view_key} max_delta={max_delta}",
+        file=sys.stderr,
+    )
+    return None
+
+
 def scrape_heungkuk(cfg: dict) -> list[dict]:
     cfg = normalize_cfg(cfg, firm_key="Heungkuk")
     cfg = {
@@ -73,6 +129,10 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
         "pdf_formula": "2 * {view_key} - 12039",
         "download_tpl": "{base}/download.do?type=Board&key={pdf_key}",
         "view_tpl": "{base}/research/{board_path}/view.do?key={view_key}",
+        "pdf_head_timeout": 0.8,
+        "pdf_probe_timeout": 0.5,
+        "max_pdf_probe_delta": 3,
+        "enable_pdf_probe": False,
         "sec_firm_order": 28,
         "firm_nm": "흥국증권",
         **cfg,
@@ -116,42 +176,9 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
                 if am:
                     analyst_key = am.group(1)
             rd = _norm_date(cells[3].get_text(" ",strip=True))
-            # auto-probe: formula → HEAD → 404면 ±20 probe with Content-Disposition 확인
-            import urllib.request
-            pk = eval(cfg["pdf_formula"].replace("{view_key}", str(vk)))
-            dl = cfg["download_tpl"].replace("{base}",base).replace("{pdf_key}",str(pk))
-            try:
-                req = urllib.request.Request(dl, headers={"User-Agent": cfg["headers"].get("User-Agent", "Mozilla/5.0")}, method="HEAD")
-                resp = urllib.request.urlopen(req, timeout=2)
-                if resp.status != 200:
-                    raise Exception("404")
-                # 200이면 Content-Disposition 확인 (.pdf 필수 + analyst_key 검증)
-                if analyst_key:
-                    disp = resp.getheader("Content-Disposition","")
-                    if ".pdf" not in disp.lower() or analyst_key not in disp:
-                        raise Exception("not pdf or wrong analyst")
-            except Exception:
-                for delta in range(1, 21):
-                    found = False
-                    for sign in [1, -1]:
-                        candidate = pk + (delta * sign)
-                        dl_cand = cfg["download_tpl"].replace("{base}",base).replace("{pdf_key}",str(candidate))
-                        try:
-                            req2 = urllib.request.Request(dl_cand, headers={"User-Agent": cfg["headers"].get("User-Agent", "Mozilla/5.0")}, method="HEAD")
-                            resp2 = urllib.request.urlopen(req2, timeout=1)
-                            if resp2.status == 200:
-                                if analyst_key:
-                                    disp = resp2.getheader("Content-Disposition","")
-                                    if ".pdf" not in disp.lower() or analyst_key not in disp:
-                                        continue
-                                pk = candidate
-                                found = True
-                                break
-                        except Exception:
-                            pass
-                    if found:
-                        break
-            dl = cfg["download_tpl"].replace("{base}",base).replace("{pdf_key}",str(pk))
+            dl = _resolve_pdf_download(base, vk, analyst_key, cfg)
+            if not dl:
+                continue
             au = cfg["view_tpl"].replace("{base}",base).replace("{board_path}",bp).replace("{view_key}",str(vk))
             result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=board_order,
                 firm_nm=cfg["firm_nm"],reg_dt=rd,download_url=dl,telegram_url=dl,pdf_url=dl,

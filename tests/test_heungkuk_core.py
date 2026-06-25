@@ -101,3 +101,76 @@ class TestHeungkukUniqueKeyPolicy:
         assert result[0]["report_unique_key"] == result[0]["article_url"]
         # key도 article_url이어야 함
         assert result[0]["key"] == result[0]["article_url"]
+
+
+class TestHeungkukPdfResolution:
+    """PDF HEAD 탐색이 bounded 동작을 하는지 검증."""
+
+    def _cfg(self, **overrides):
+        cfg = {
+            "headers": {"User-Agent": "test"},
+            "pdf_formula": "2 * {view_key} - 12039",
+            "download_tpl": "{base}/download.do?type=Board&key={pdf_key}",
+            "pdf_head_timeout": 0.8,
+            "pdf_probe_timeout": 0.5,
+            "max_pdf_probe_delta": 3,
+            "enable_pdf_probe": False,
+        }
+        cfg.update(overrides)
+        return cfg
+
+    def test_formula_hit_returns_download_url(self, monkeypatch):
+        from scrapers import heungkuk_core
+
+        calls = []
+
+        def fake_head_pdf_ok(url, headers, analyst_key, timeout):
+            calls.append(url)
+            return True
+
+        monkeypatch.setattr(heungkuk_core, "_head_pdf_ok", fake_head_pdf_ok)
+        url = heungkuk_core._resolve_pdf_download("https://host", 21204, "123", self._cfg())
+
+        assert url == "https://host/download.do?type=Board&key=30369"
+        assert calls == ["https://host/download.do?type=Board&key=30369"]
+
+    def test_probe_disabled_by_default_after_formula_miss(self, monkeypatch):
+        from scrapers import heungkuk_core
+
+        calls = []
+
+        def fake_head_pdf_ok(url, headers, analyst_key, timeout):
+            calls.append(url)
+            return False
+
+        monkeypatch.setattr(heungkuk_core, "_head_pdf_ok", fake_head_pdf_ok)
+        url = heungkuk_core._resolve_pdf_download("https://host", 21204, "123", self._cfg())
+
+        assert url is None
+        assert calls == ["https://host/download.do?type=Board&key=30369"]
+
+    def test_probe_enabled_is_bounded(self, monkeypatch):
+        from scrapers import heungkuk_core
+
+        calls = []
+
+        def fake_head_pdf_ok(url, headers, analyst_key, timeout):
+            calls.append(url)
+            return False
+
+        monkeypatch.setattr(heungkuk_core, "_head_pdf_ok", fake_head_pdf_ok)
+        url = heungkuk_core._resolve_pdf_download(
+            "https://host",
+            21204,
+            "123",
+            self._cfg(enable_pdf_probe=True, max_pdf_probe_delta=2),
+        )
+
+        assert url is None
+        assert calls == [
+            "https://host/download.do?type=Board&key=30369",
+            "https://host/download.do?type=Board&key=30370",
+            "https://host/download.do?type=Board&key=30368",
+            "https://host/download.do?type=Board&key=30371",
+            "https://host/download.do?type=Board&key=30367",
+        ]
