@@ -90,7 +90,9 @@ _GA_FIRMS_ASYNC = {
     Kiwoom_checkNewArticle,        # 키움증권 (sec_firm_order=10)
     DAOL_checkNewArticle,          # 다올투자증권 (sec_firm_order=14)
     Leading_checkNewArticle,       # 리딩투자증권 (sec_firm_order=16)
-    iMfnsec_checkNewArticle,       # IM증권 (sec_firm_order=18)
+    # IM증권은 현재 사이트 측 응답/수집 불가로 로컬 full-scrape fallback에서도 제외한다.
+    # 수동 재검증은 run/standalone/imfn.py 또는 scrape-imfn workflow_dispatch로 수행.
+    # iMfnsec_checkNewArticle,     # IM증권 (sec_firm_order=18)
     DBfi_checkNewArticle,          # DB증권 (sec_firm_order=19)
     MERITZ_checkNewArticle,        # 메리츠증권 (sec_firm_order=20)
     Hanwha_checkNewArticle,        # 한화투자증권 (sec_firm_order=21)
