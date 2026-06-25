@@ -18,6 +18,50 @@ def _norm_date(text):
     digits = re.sub(r"[^0-9]","",text)
     return digits[:8] if len(digits) >= 8 else ""
 
+def _filter_duplicate_pdf_rows(rows: list[dict]) -> list[dict]:
+    """같은 PDF URL이 서로 다른 article_url/제목에 연결된 행을 걸러낸다.
+    동일 PDF 공유 행은 모두 제거하고, 고유 PDF 행만 반환."""
+    if not rows:
+        return rows
+    # PDF URL → list of row indices
+    pdf_groups: dict[str, list[int]] = {}
+    for i, row in enumerate(rows):
+        pdf = row.get("telegram_url") or row.get("download_url") or ""
+        if not pdf:
+            continue
+        pdf_groups.setdefault(pdf, []).append(i)
+
+    dup_pdf_urls: set[str] = set()
+    for pdf_url, indices in pdf_groups.items():
+        if len(indices) < 2:
+            continue
+        # 서로 다른 article_url이 있는지 확인
+        article_urls = {rows[i].get("article_url", "") for i in indices}
+        if len(article_urls) > 1:
+            dup_pdf_urls.add(pdf_url)
+            titles = [rows[i].get("article_title", "")[:40] for i in indices]
+            urls = [rows[i].get("article_url", "") for i in indices]
+            print(
+                f"[heungkuk] WARN: duplicate PDF URL {pdf_url} "
+                f"shared by {len(indices)} articles: titles={titles}, urls={urls}",
+                file=sys.stderr,
+            )
+
+    if not dup_pdf_urls:
+        return rows
+
+    safe = [
+        row for row in rows
+        if (row.get("telegram_url") or row.get("download_url") or "") not in dup_pdf_urls
+    ]
+    print(
+        f"[heungkuk] duplicate guard: dropped {len(rows) - len(safe)}/{len(rows)} suspect rows, "
+        f"kept {len(safe)} rows",
+        file=sys.stderr,
+    )
+    return safe
+
+
 def scrape_heungkuk(cfg: dict) -> list[dict]:
     cfg = normalize_cfg(cfg, firm_key="Heungkuk")
     cfg = {
@@ -111,7 +155,8 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
             au = cfg["view_tpl"].replace("{base}",base).replace("{board_path}",bp).replace("{view_key}",str(vk))
             result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=board_order,
                 firm_nm=cfg["firm_nm"],reg_dt=rd,download_url=dl,telegram_url=dl,pdf_url=dl,
-                article_title=title,article_url=au,writer=writer,key=dl,report_unique_key=dl,
+                article_title=title,article_url=au,writer=writer,key=au,report_unique_key=au,
                 save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
-    print(f"[heungkuk] {len(result)} articles collected", file=sys.stderr)
+    print(f"[heungkuk] {len(result)} articles collected (pre-duplicate-guard)", file=sys.stderr)
+    result = _filter_duplicate_pdf_rows(result)
     return result
