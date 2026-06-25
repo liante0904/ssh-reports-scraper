@@ -23,6 +23,7 @@ class FirmInfo(metaclass=MetaFirmInfo):
     _firm_data = {}
     _board_data = {}
     _is_loaded = False
+    _metadata_source = None  # "postgres" | "sqlite" | "static" — signals DB reliability
 
     @classmethod
     def load_data_from_db(cls):
@@ -50,11 +51,12 @@ class FirmInfo(metaclass=MetaFirmInfo):
                 password=os.getenv("POSTGRES_PASSWORD", ""),
             )
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute('SELECT sec_firm_order, firm_nm, telegram_update_yn FROM tbm_sec_firm_info ORDER BY sec_firm_order')
+                cur.execute('SELECT sec_firm_order, firm_nm, telegram_update_yn, ga_enabled_yn FROM tbm_sec_firm_info ORDER BY sec_firm_order')
                 for row in cur.fetchall():
                     cls._firm_data[row['sec_firm_order']] = {
                         "name": row['firm_nm'],
-                        "update_required": row['telegram_update_yn'] == 'Y'
+                        "update_required": row['telegram_update_yn'] == 'Y',
+                        "ga_enabled": row.get('ga_enabled_yn', 'N') == 'Y',
                     }
                 cur.execute('SELECT sec_firm_order, article_board_order, board_nm, board_cd, label_nm FROM tbm_sec_firm_board_info')
                 for row in cur.fetchall():
@@ -65,6 +67,7 @@ class FirmInfo(metaclass=MetaFirmInfo):
                     }
             conn.close()
             cls._is_loaded = True
+            cls._metadata_source = "postgres"
             logger.debug("FirmInfo: Data successfully loaded from PostgreSQL.")
         except Exception as e:
             logger.error(f"FirmInfo Error: Failed to load data from PostgreSQL: {e}")
@@ -79,11 +82,30 @@ class FirmInfo(metaclass=MetaFirmInfo):
             cursor = conn.cursor()
 
             cursor.execute("SELECT sec_firm_order, firm_nm, telegram_update_yn FROM tbm_sec_firm_info ORDER BY sec_firm_order")
-            for row in cursor.fetchall():
-                cls._firm_data[row['sec_firm_order']] = {
-                    "name": row['firm_nm'],
-                    "update_required": row['telegram_update_yn'] == 'Y'
-                }
+            rows = cursor.fetchall()
+            # ga_enabled_yn은 SQLite 스키마에 없을 수 있으므로 graceful fallback
+            has_ga_col = False
+            try:
+                cursor.execute("SELECT ga_enabled_yn FROM tbm_sec_firm_info LIMIT 0")
+                has_ga_col = True
+            except sqlite3.OperationalError:
+                pass
+
+            if has_ga_col:
+                cursor.execute("SELECT sec_firm_order, firm_nm, telegram_update_yn, ga_enabled_yn FROM tbm_sec_firm_info ORDER BY sec_firm_order")
+                for row in cursor.fetchall():
+                    cls._firm_data[row['sec_firm_order']] = {
+                        "name": row['firm_nm'],
+                        "update_required": row['telegram_update_yn'] == 'Y',
+                        "ga_enabled": row['ga_enabled_yn'] == 'Y',
+                    }
+            else:
+                for row in rows:
+                    cls._firm_data[row['sec_firm_order']] = {
+                        "name": row['firm_nm'],
+                        "update_required": row['telegram_update_yn'] == 'Y',
+                        "ga_enabled": False,
+                    }
 
             cursor.execute("SELECT sec_firm_order, article_board_order, board_nm, board_cd, label_nm FROM tbm_sec_firm_board_info")
             for row in cursor.fetchall():
@@ -93,6 +115,7 @@ class FirmInfo(metaclass=MetaFirmInfo):
                     "label": row['label_nm'] or ""
                 }
             cls._is_loaded = True
+            cls._metadata_source = "sqlite"
             logger.debug(f"FirmInfo: Data successfully loaded from SQLite ({db_path}).")
             conn.close()
         except Exception as e:
@@ -113,8 +136,9 @@ class FirmInfo(metaclass=MetaFirmInfo):
             27: "유안타증권", 28: "흥국증권",
         }
         for o, name in FALLBACK_FIRMS.items():
-            cls._firm_data[o] = {"name": name, "update_required": False}
+            cls._firm_data[o] = {"name": name, "update_required": False, "ga_enabled": False}
         cls._is_loaded = True
+        cls._metadata_source = "static"
 
     def __init__(self, sec_firm_order=0, article_board_order=0, firm_info=None):
         if not self._is_loaded:
@@ -129,6 +153,7 @@ class FirmInfo(metaclass=MetaFirmInfo):
 
         firm_info_cached = self._firm_data.get(self.sec_firm_order, {})
         self.telegram_update_required = firm_info_cached.get("update_required", False)
+        self.ga_enabled = firm_info_cached.get("ga_enabled", False)
 
     def get_firm_name(self):
         return self._firm_data.get(self.sec_firm_order, {}).get("name", f"Unknown({self.sec_firm_order})")
@@ -147,7 +172,9 @@ class FirmInfo(metaclass=MetaFirmInfo):
 
     def set_sec_firm_order(self, sec_firm_order):
         self.sec_firm_order = sec_firm_order
-        self.telegram_update_required = self._firm_data.get(self.sec_firm_order, {}).get("update_required", False)
+        firm_data = self._firm_data.get(self.sec_firm_order, {})
+        self.telegram_update_required = firm_data.get("update_required", False)
+        self.ga_enabled = firm_data.get("ga_enabled", False)
 
     def set_article_board_order(self, article_board_order):
         self.article_board_order = article_board_order
@@ -159,7 +186,8 @@ class FirmInfo(metaclass=MetaFirmInfo):
             "FIRM_NAME": self.get_firm_name(),
             "BOARD_NAME": self.get_board_name(),
             "LABEL_NAME": self.get_label_name(),
-            "TELEGRAM_UPDATE_REQUIRED": self.telegram_update_required
+            "TELEGRAM_UPDATE_REQUIRED": self.telegram_update_required,
+            "GA_ENABLED": self.ga_enabled,
         }
 
 if __name__ == "__main__":

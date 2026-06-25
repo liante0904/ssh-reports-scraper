@@ -73,34 +73,51 @@ def _is_external_error(msg: str) -> bool:
     return any(re.search(pattern, msg) for pattern in _KNOWN_EXTERNAL_ERRORS)
 
 # GA 이관 증권사 — 평시(30분 간격)에는 GA standalone이 처리, 서버는 full-scrape 시간대에만 fallback 실행
+# {sec_firm_order: func} 매핑. PostgreSQL tbm_sec_firm_info.ga_enabled_yn='Y' 여부로 필터링.
 _GA_FIRMS_SYNC = {
-    Samsung_checkNewArticle,       # 삼성증권 (sec_firm_order=5)
-    Miraeasset_checkNewArticle,    # 미래에셋증권 (sec_firm_order=8)
-    Hmsec_checkNewArticle,         # 현대차증권 (sec_firm_order=9)
-    TOSSinvest_checkNewArticle,    # 토스증권 (sec_firm_order=15)
-    Heungkuk_checkNewArticle,      # 흥국증권 (sec_firm_order=28)
-    Sks_checkNewArticle,           # SK증권 (sec_firm_order=26)
+    5: Samsung_checkNewArticle,       # 삼성증권
+    8: Miraeasset_checkNewArticle,    # 미래에셋증권
+    9: Hmsec_checkNewArticle,         # 현대차증권
+    15: TOSSinvest_checkNewArticle,    # 토스증권
+    26: Sks_checkNewArticle,          # SK증권
+    28: Heungkuk_checkNewArticle,     # 흥국증권
 }
 
 _GA_FIRMS_ASYNC = {
-    NHQV_checkNewArticle,          # NH투자증권 (sec_firm_order=2)
-    HANA_checkNewArticle,          # 하나증권 (sec_firm_order=3)
-    KB_checkNewArticle,            # KB증권 (sec_firm_order=4)
-    Sangsanginib_checkNewArticle,  # 상상인증권 (sec_firm_order=6)
-    Kiwoom_checkNewArticle,        # 키움증권 (sec_firm_order=10)
-    DAOL_checkNewArticle,          # 다올투자증권 (sec_firm_order=14)
-    Leading_checkNewArticle,       # 리딩투자증권 (sec_firm_order=16)
+    2: NHQV_checkNewArticle,          # NH투자증권
+    3: HANA_checkNewArticle,          # 하나증권
+    4: KB_checkNewArticle,            # KB증권
+    6: Sangsanginib_checkNewArticle,  # 상상인증권
+    10: Kiwoom_checkNewArticle,        # 키움증권
+    14: DAOL_checkNewArticle,          # 다올투자증권
+    16: Leading_checkNewArticle,       # 리딩투자증권
     # IM증권은 현재 사이트 측 응답/수집 불가로 로컬 full-scrape fallback에서도 제외한다.
     # 수동 재검증은 run/standalone/imfn.py 또는 scrape-imfn workflow_dispatch로 수행.
-    # iMfnsec_checkNewArticle,     # IM증권 (sec_firm_order=18)
-    DBfi_checkNewArticle,          # DB증권 (sec_firm_order=19)
-    MERITZ_checkNewArticle,        # 메리츠증권 (sec_firm_order=20)
-    Hanwha_checkNewArticle,        # 한화투자증권 (sec_firm_order=21)
-    Hanyang_checkNewArticle,       # 한양증권 (sec_firm_order=22)
-    Kyobo_checkNewArticle,         # 교보증권 (sec_firm_order=24)
-    IBK_checkNewArticle,           # IBK투자증권 (sec_firm_order=25)
-    Yuanta_checkNewArticle,        # 유안타증권 (sec_firm_order=27)
+    # 18: iMfnsec_checkNewArticle,     # IM증권
+    19: DBfi_checkNewArticle,          # DB증권
+    20: MERITZ_checkNewArticle,        # 메리츠증권
+    21: Hanwha_checkNewArticle,        # 한화투자증권
+    22: Hanyang_checkNewArticle,       # 한양증권
+    24: Kyobo_checkNewArticle,         # 교보증권
+    25: IBK_checkNewArticle,           # IBK투자증권
+    27: Yuanta_checkNewArticle,        # 유안타증권
 }
+
+
+def _filter_ga_enabled(mapping: dict) -> dict:
+    """PostgreSQL tbm_sec_firm_info.ga_enabled_yn='Y'인 firm만 반환.
+    메타데이터 로드 실패, SQLite/static fallback, 또는 예외 발생 시
+    전체 mapping 반환 — GA fallback이 완전히 죽지 않도록 보호."""
+    try:
+        from models.firm_utils import ga_enabled_orders
+        enabled = ga_enabled_orders()
+        if enabled is None:
+            logger.info("GA metadata unavailable (not PostgreSQL), falling back to all candidates")
+            return dict(mapping)
+        return {order: func for order, func in mapping.items() if order in enabled}
+    except Exception:
+        logger.warning("ga_enabled lookup failed, falling back to all GA candidates")
+        return dict(mapping)
 
 # KST 1시, 7시, 13시, 21시 — GA 장애 대비 전체 증권사 스크래핑
 _FULL_SCRAPE_HOURS = frozenset({1, 7, 13, 21})
@@ -472,8 +489,8 @@ async def main(date_str=None):
         logger.warning("[Local] SKIP_BNK enabled; skipping BNK for urgent sync.")
 
     if is_full:
-        sync_funcs.extend(_GA_FIRMS_SYNC)
-        async_functions.extend(_GA_FIRMS_ASYNC)
+        sync_funcs.extend(_filter_ga_enabled(_GA_FIRMS_SYNC).values())
+        async_functions.extend(_filter_ga_enabled(_GA_FIRMS_ASYNC).values())
         logger.info(f"[Full-Scrape] sync={len(sync_funcs)}, async={len(async_functions)} total={len(sync_funcs) + len(async_functions)}")
 
     await run_sync_scrapers(sync_funcs, total_data)
