@@ -147,7 +147,8 @@ LS증권 · 신한투자증권 · NH투자증권 · 하나증권 · KB증권 · 
 
 전체 변천사 → [docs/changelog.md](docs/changelog.md)  
 설계 결정 배경 → [docs/architecture.md](docs/architecture.md)  
-PostgreSQL 스키마 규약 → [sql/create_tables.sql](sql/create_tables.sql)
+PostgreSQL 스키마 규약 → [sql/create_tables.sql](sql/create_tables.sql)  
+LLM 유지보수 통제 전략 → [docs/LLM_CONTROL_HARNESS.md](docs/LLM_CONTROL_HARNESS.md)
 
 ---
 

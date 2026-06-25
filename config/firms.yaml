@@ -1,0 +1,240 @@
+# Firm Manifest — SSoT for ssh-reports-scraper
+# =============================================
+# 각 증권사별 흩어진 정보(core, standalone, module, workflow, env, result file)를
+# 단일 manifest로 통합한다.
+#
+# Schema:
+#   firms:
+#     {key}:
+#       display_name: str       # 한글 증권사명
+#       sec_firm_order: int     # DB sec_firm_order
+#       mode: str               # ga | server | dual | ga_disabled | blocked
+#       core_module: str|null   # e.g. "scrapers.kb_core" or null
+#       standalone_path: str|null  # e.g. "run/standalone/kb.py" or null
+#       server_module: str      # e.g. "modules.KBsec_4"
+#       workflow_path: str|null # e.g. ".github/workflows/scrape-kb.yml" or null
+#       env_var: str|null       # workflow env 변수명 (e.g. "KB_URLS_JSON" or "urls")
+#       result_file: str        # JSON 결과 파일명
+#       config_shape: str       # url_list | full_config
+#       empty_policy: str       # require_non_empty | allow_empty | server_only
+#       notes: str              # 예외 사항
+#
+# 현재 대표/저위험 15개 firm 입력. 나머지는 evidence 검토 후 5개 단위로 추가 예정.
+
+firms:
+  # --- 정규 GA dual 패턴 (GA + server fallback) ---
+  kb:
+    display_name: KB증권
+    sec_firm_order: 4
+    mode: dual
+    core_module: scrapers.kb_core
+    standalone_path: run/standalone/kb.py
+    server_module: modules.KBsec_4
+    workflow_path: .github/workflows/scrape-kb.yml
+    env_var: KB_URLS_JSON
+    result_file: kb_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    notes: "13종 게시판 분류(pCategoryId). _runner.py 정규 패턴."
+
+  # --- GA disabled + server fallback ---
+  hana:
+    display_name: 하나증권
+    sec_firm_order: 3
+    mode: ga_disabled
+    core_module: scrapers.hana_core
+    standalone_path: run/standalone/hana.py
+    server_module: modules.HANA_3
+    workflow_path: .github/workflows/scrape-hana.yml
+    env_var: HANA_URLS_JSON
+    result_file: hana_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    notes: "GA 러너 IP(미국/유럽) 차단으로 schedule 비활성화(2026-06-22). 서버 scheduler가 직접 스크래핑. _runner.py 정규 패턴."
+
+  # --- LS 특수 패턴 (DB + WARP + 복수 standalone) ---
+  ls:
+    display_name: LS증권
+    sec_firm_order: 0
+    mode: ga
+    core_module: null
+    standalone_path: run/standalone/ls.py
+    server_module: modules.LS_0
+    workflow_path: .github/workflows/scrape-ls.yml
+    env_var: urls
+    result_file: ls_result.json
+    config_shape: url_list
+    empty_policy: require_non_empty
+    notes: "DB 의존(FirmInfo, get_db), WARP 프록시(SOCKS_PROXY), 전역 상태(skip_boards, USE_WARP_ONLY). _runner.py 미사용 — modules/LS_0.py의 LS_checkNewArticle() 직접 호출. v2 standalone(ls_v2.py)+workflow(scrape-ls-v2.yml)+scripts/standalone_ls_scraper.py 별도 존재."
+
+  # --- Selenium + non-core 패턴 ---
+  koreainvestment:
+    display_name: 한국투자증권
+    sec_firm_order: 13
+    mode: ga
+    core_module: null
+    standalone_path: run/standalone/koreainvestment.py
+    server_module: modules.Koreainvestment_13
+    workflow_path: .github/workflows/scrape-koreainvestment.yml
+    env_var: urls
+    result_file: ki_result.json
+    config_shape: url_list
+    empty_policy: require_non_empty
+    notes: "Selenium 의존(browser-actions/setup-chrome@v1). ChromeDriver ARM64/amd64 분기. _runner.py 미사용 — modules/Koreainvestment_13.py의 selenium 함수 직접 호출. core 정규 패턴(scrapers/koreainvestment_core.py) 미이관."
+
+  # --- IP 차단 / 비정규 standalone ---
+  bnk:
+    display_name: BNK투자증권
+    sec_firm_order: 23
+    mode: blocked
+    core_module: null
+    standalone_path: null
+    server_module: modules.BNKfn_23
+    workflow_path: .github/workflows/scrape-bnk.yml
+    env_var: null
+    result_file: /tmp/bnk_result.json
+    config_shape: url_list
+    empty_policy: allow_empty
+    notes: "IP 차단(BLOCKED_BY_SOURCE_IP). run/standalone/bnk.py 없음 — scripts/standalone_bnk_scraper.py 사용. workflow schedule 비활성(workflow_dispatch만). SCP 대신 artifact 업로드 방식."
+
+  # --- Batch 1: 정규 GA _runner 패턴 (2026-06-24) ---
+  daol:
+    display_name: 다올투자증권
+    sec_firm_order: 14
+    mode: ga
+    core_module: scrapers.daol_core
+    standalone_path: run/standalone/daol.py
+    server_module: modules.DAOL_14
+    workflow_path: .github/workflows/scrape-daol.yml
+    env_var: DAOL_URLS_JSON
+    result_file: daol_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    notes: "_runner.py 정규 패턴."
+
+  hanwha:
+    display_name: 한화투자증권
+    sec_firm_order: 21
+    mode: ga
+    core_module: scrapers.hanwha_core
+    standalone_path: run/standalone/hanwha.py
+    server_module: modules.Hanwhawm_21
+    workflow_path: .github/workflows/scrape-hanwha.yml
+    env_var: HANWHA_URLS_JSON
+    result_file: hanwha_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    notes: "_runner.py 정규 패턴."
+
+  hanyang:
+    display_name: 한양증권
+    sec_firm_order: 22
+    mode: ga
+    core_module: scrapers.hanyang_core
+    standalone_path: run/standalone/hanyang.py
+    server_module: modules.Hygood_22
+    workflow_path: .github/workflows/scrape-hanyang.yml
+    env_var: HANYANG_URLS_JSON
+    result_file: hanyang_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    notes: "_runner.py 정규 패턴."
+
+  heungkuk:
+    display_name: 흥국증권
+    sec_firm_order: 28
+    mode: ga
+    core_module: scrapers.heungkuk_core
+    standalone_path: run/standalone/heungkuk.py
+    server_module: modules.Heungkuk_28
+    workflow_path: .github/workflows/scrape-heungkuk.yml
+    env_var: HEUNGKUK_URLS_JSON
+    result_file: heungkuk_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    notes: "_runner.py 정규 패턴."
+
+  hmsec:
+    display_name: 현대차증권
+    sec_firm_order: 9
+    mode: ga
+    core_module: scrapers.hmsec_core
+    standalone_path: run/standalone/hmsec.py
+    server_module: modules.Hmsec_9
+    workflow_path: .github/workflows/scrape-hmsec.yml
+    env_var: HMSEC_URLS_JSON
+    result_file: hmsec_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    notes: "_runner.py 정규 패턴."
+
+  # --- Batch 2: 정규 GA _runner 패턴 (2026-06-24) ---
+  ibk:
+    display_name: IBK투자증권
+    sec_firm_order: 25
+    mode: ga
+    core_module: scrapers.ibk_core
+    standalone_path: run/standalone/ibk.py
+    server_module: modules.IBKs_25
+    workflow_path: .github/workflows/scrape-ibk.yml
+    env_var: IBK_URLS_JSON
+    result_file: ibk_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    notes: "_runner.py 정규 패턴."
+
+  kiwoom:
+    display_name: 키움증권
+    sec_firm_order: 10
+    mode: ga
+    core_module: scrapers.kiwoom_core
+    standalone_path: run/standalone/kiwoom.py
+    server_module: modules.Kiwoom_10
+    workflow_path: .github/workflows/scrape-kiwoom.yml
+    env_var: KIWOOM_URLS_JSON
+    result_file: kiwoom_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    notes: "_runner.py 정규 패턴."
+
+  kyobo:
+    display_name: 교보증권
+    sec_firm_order: 24
+    mode: ga
+    core_module: scrapers.kyobo_core
+    standalone_path: run/standalone/kyobo.py
+    server_module: modules.Kyobo_24
+    workflow_path: .github/workflows/scrape-kyobo.yml
+    env_var: KYOBO_URLS_JSON
+    result_file: kyobo_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    notes: "_runner.py 정규 패턴."
+
+  leading:
+    display_name: 리딩투자증권
+    sec_firm_order: 16
+    mode: ga
+    core_module: scrapers.leading_core
+    standalone_path: run/standalone/leading.py
+    server_module: modules.Leading_16
+    workflow_path: .github/workflows/scrape-leading.yml
+    env_var: LEADING_URLS_JSON
+    result_file: leading_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    notes: "_runner.py 정규 패턴."
+
+  meritz:
+    display_name: 메리츠증권
+    sec_firm_order: 20
+    mode: ga_disabled
+    core_module: scrapers.meritz_core
+    standalone_path: run/standalone/meritz.py
+    server_module: modules.MERITZ_20
+    workflow_path: .github/workflows/scrape-meritz.yml
+    env_var: MERITZ_URLS_JSON
+    result_file: meritz_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    notes: "GA IP 차단으로 schedule 제거(2026-06-23). workflow_dispatch 수동 실행만 유지. _runner.py 정규 패턴."
