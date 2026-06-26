@@ -480,18 +480,18 @@ async def main(date_str=None):
         ShinHanInvest_checkNewArticle,
         Koreainvestment_selenium_checkNewArticle,
         Daeshin_checkNewArticle,
-        BNK_checkNewArticle,
+        # BNK is temporarily disabled in local scheduler (2026-06-26).
+        # Server and GA IP currently blocked by source. Keep module for manual diagnostics.
+        # Re-enable only after source access is confirmed.
+        # BNK_checkNewArticle,
         # HANA, DAOL, iMfnsec, MERITZ → GA standalone
         # eugene_checkNewArticle # 세션 만료 및 제한 에러 (보류)
     ]
 
+    # BNK: always skipped for now. IP block confirmed on both GA and server side.
+    # Previously gated by SKIP_BNK env; no longer needed.
     if os.getenv("SKIP_BNK", "").lower() in ("1", "true", "yes"):
-        async_functions = [
-            ShinHanInvest_checkNewArticle,
-            Koreainvestment_selenium_checkNewArticle,
-            Daeshin_checkNewArticle,
-        ]
-        logger.warning("[Local] SKIP_BNK enabled; skipping BNK for urgent sync.")
+        logger.info("[Local] SKIP_BNK env set, but BNK is already disabled by default.")
 
     if is_full:
         sync_funcs.extend(_filter_ga_enabled(_GA_FIRMS_SYNC).values())
