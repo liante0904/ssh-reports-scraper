@@ -1,5 +1,7 @@
 """Scraper-specific PostgreSQL manager compatibility fixes."""
 
+from datetime import datetime, timedelta
+
 from loguru import logger
 import psycopg2.extras
 from ssh_library import SecReportsManager as LibrarySecReportsManager
@@ -7,6 +9,26 @@ from ssh_library import SecReportsManager as LibrarySecReportsManager
 
 class SecReportsManager(LibrarySecReportsManager):
     """Keep legacy ``key`` and canonical ``report_unique_key`` in sync."""
+
+    DBFI_READY_CONDITION = """
+        (
+            sec_firm_order != 19
+            OR (
+                sec_firm_order = 19
+                AND telegram_url LIKE 'https://whub.dbsec.co.kr/pv/gate%%'
+                AND pdf_url LIKE 'https://whub.dbsec.co.kr/streamdocs/v4/documents/%%'
+            )
+        )
+    """
+
+    @classmethod
+    def dbfi_ready_condition(cls, table_alias=None):
+        condition = cls.DBFI_READY_CONDITION.strip()
+        if not table_alias:
+            return condition
+        for column in ("sec_firm_order", "telegram_url", "pdf_url"):
+            condition = condition.replace(column, f"{table_alias}.{column}")
+        return condition
 
     def _reset_duplicate_send_yn(self, json_data_list, table_name):
         """Do not mutate send status during scraper upsert.
@@ -142,9 +164,9 @@ class SecReportsManager(LibrarySecReportsManager):
                     f"""
                     UPDATE {self.table_name}
                     SET telegram_sent = true
-                    WHERE telegram_url = %s
+                    WHERE report_id = %s OR telegram_url = %s
                     """,
-                    (telegram_url,),
+                    (row["report_id"], telegram_url),
                 )
             else:
                 self._execute(
@@ -156,6 +178,50 @@ class SecReportsManager(LibrarySecReportsManager):
                     (row["report_id"],),
                 )
         return {"status": "success"}
+
+    async def daily_select_data(self, date_str=None, type=None):
+        if date_str is None:
+            query_date = datetime.now().strftime("%Y-%m-%d")
+            query_reg_dt = (datetime.now() + timedelta(days=2)).strftime("%Y%m%d")
+        else:
+            query_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
+            query_reg_dt = (datetime.strptime(date_str, "%Y%m%d") + timedelta(days=2)).strftime("%Y%m%d")
+
+        three_days_ago = (datetime.now() - timedelta(days=3)).strftime("%Y%m%d")
+
+        if type == "send":
+            cond = f"""
+                (telegram_sent IS NOT true)
+                AND {self.dbfi_ready_condition()}
+                AND firm_nm NOT IN ('네이버', '조선비즈')
+            """
+        else:
+            cond = "telegram_sent IS true AND pdf_sync_status != 2"
+
+        sql = f"""
+        SELECT DISTINCT ON (
+            sec_firm_order,
+            article_title
+        )
+            report_id,sec_firm_order,article_board_order,firm_nm,reg_dt,
+            article_title,article_url,
+            download_url,writer,save_time,
+            CASE
+                WHEN sec_firm_order = 19 THEN pdf_url
+                ELSE telegram_url
+            END AS telegram_url
+        FROM   {self.table_name}
+        WHERE  LEFT(save_time, 10) >= (%s::date - 2)::text
+          AND  LEFT(save_time, 10) <= %s
+          AND  reg_dt >= %s
+          AND  reg_dt <= %s
+          AND  {cond}
+        ORDER BY
+            sec_firm_order,
+            article_title,
+            save_time
+        """
+        return self._fetchall(sql, (query_date, query_date, three_days_ago, query_reg_dt))
 
     async def daily_update_data(self, date_str=None, fetched_rows=None, type=None):
         """Mark sent status and mirror it to the legacy main channel flag."""
@@ -170,3 +236,54 @@ class SecReportsManager(LibrarySecReportsManager):
             )
 
         return self.mark_reports_sent(fetched_rows)
+
+    def fetch_keyword_reports(self, date: str, keyword: str, user_id: str):
+        """Fetch unsent keyword reports only after DBfi PDF URL is finalized."""
+        sql = f"""
+            SELECT r.report_id, r.firm_nm, r.article_title,
+                   CASE
+                       WHEN r.sec_firm_order = 19 THEN r.pdf_url
+                       ELSE COALESCE(NULLIF(r.telegram_url,''), NULLIF(r.download_url,''))
+                   END AS telegram_url,
+                   r.save_time
+            FROM {self.table_name} r
+            LEFT JOIN tbl_report_send_history h
+                   ON r.report_id = h.report_id AND h.user_id = %s
+            WHERE (r.article_title ILIKE %s OR r.writer ILIKE %s)
+              AND DATE(r.save_time) = %s
+              AND h.id IS NULL
+              AND {self.dbfi_ready_condition("r")}
+            ORDER BY r.save_time ASC, r.firm_nm ASC
+        """
+        keyword_param = f"%{keyword}%"
+        return self._fetchall(sql, (user_id, keyword_param, keyword_param, date))
+
+    def update_keyword_send_user(self, date: str, keyword: str, user_id: str):
+        """Record sent keyword reports using the same DBfi-ready predicate as fetch."""
+        fetch_sql = f"""
+            SELECT r.report_id
+            FROM {self.table_name} r
+            LEFT JOIN tbl_report_send_history h
+                   ON r.report_id = h.report_id AND h.user_id = %s
+            WHERE (r.article_title ILIKE %s OR r.writer ILIKE %s)
+              AND DATE(r.save_time) = %s
+              AND h.id IS NULL
+              AND {self.dbfi_ready_condition("r")}
+        """
+        keyword_param = f"%{keyword}%"
+        reports = self._fetchall(fetch_sql, (user_id, keyword_param, keyword_param, date))
+
+        inserted_count = 0
+        for report in reports:
+            insert_sql = """
+                INSERT INTO tbl_report_send_history (report_id, user_id, keyword)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (report_id, user_id) DO NOTHING
+            """
+            result = self._execute(insert_sql, (report["report_id"], user_id, keyword))
+            if result["affected_rows"] > 0:
+                inserted_count += result["affected_rows"]
+
+        if inserted_count > 0:
+            logger.info(f"[SSH-LIBRARY] tbl_report_send_history: {inserted_count} rows inserted for user {user_id}.")
+        return {"affected_rows": inserted_count}
