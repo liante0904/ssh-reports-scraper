@@ -99,7 +99,7 @@ def test_mark_reports_sent_marks_is_sent_and_legacy_main_channel_flag():
     assert len(calls) == 1
     assert "SET telegram_sent = true" in calls[0][0]
     assert "main_ch_send_yn" not in calls[0][0]
-    assert calls[0][1] == ("https://example.test/report.pdf",)
+    assert calls[0][1] == (1, "https://example.test/report.pdf")
 
 
 def test_daily_update_data_delegates_send_status_to_mark_reports_sent(monkeypatch):
@@ -114,6 +114,52 @@ def test_daily_update_data_delegates_send_status_to_mark_reports_sent(monkeypatc
 
     assert result == {"status": "success"}
     assert seen == [rows]
+
+
+def test_daily_select_data_requires_dbfi_streamdocs_pdf():
+    from models.SecReportsManager import SecReportsManager
+
+    manager = object.__new__(SecReportsManager)
+    manager.table_name = "tbl_sec_reports"
+    calls = []
+
+    def fake_fetchall(sql, params):
+        calls.append((sql, params))
+        return []
+
+    manager._fetchall = fake_fetchall
+
+    assert asyncio.run(manager.daily_select_data(date_str="20260626", type="send")) == []
+
+    sql, params = calls[0]
+    assert params[0] == "2026-06-26"
+    assert "sec_firm_order = 19" in sql
+    assert "telegram_url LIKE 'https://whub.dbsec.co.kr/pv/gate%%'" in sql
+    assert "pdf_url LIKE 'https://whub.dbsec.co.kr/streamdocs/v4/documents/%%'" in sql
+    assert "WHEN sec_firm_order = 19 THEN pdf_url" in sql
+
+
+def test_keyword_fetch_requires_dbfi_streamdocs_pdf():
+    from models.SecReportsManager import SecReportsManager
+
+    manager = object.__new__(SecReportsManager)
+    manager.table_name = "tbl_sec_reports"
+    calls = []
+
+    def fake_fetchall(sql, params):
+        calls.append((sql, params))
+        return []
+
+    manager._fetchall = fake_fetchall
+
+    assert manager.fetch_keyword_reports("2026-06-26", "방산", "123") == []
+
+    sql, params = calls[0]
+    assert params == ("123", "%방산%", "%방산%", "2026-06-26")
+    assert "r.sec_firm_order = 19" in sql
+    assert "r.telegram_url LIKE 'https://whub.dbsec.co.kr/pv/gate%%'" in sql
+    assert "r.pdf_url LIKE 'https://whub.dbsec.co.kr/streamdocs/v4/documents/%%'" in sql
+    assert "WHEN r.sec_firm_order = 19 THEN r.pdf_url" in sql
 
 
 def test_duplicate_reset_does_not_mutate_send_status():

@@ -136,3 +136,54 @@ def test_broadcast_ga_reports_partial_failure(monkeypatch):
 
     # 40개 중 실패한 청크에 들어 있던 리포트 ID들은 셋에 누락되어 있어야 함
     assert len(marked_report_ids) < len(mock_rows)
+
+
+def test_broadcast_ga_reports_filters_unresolved_dbfi(monkeypatch):
+    """DB증권은 streamdocs pdf_url 확정 전에는 GA 브로드캐스트 대상에서 제외된다."""
+    from scheduler import _broadcast_ga_reports
+
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET", "mock_token")
+    monkeypatch.setenv("TELEGRAM_CHANNEL_ID_REPORT_ALARM", "mock_chat_id")
+
+    keys = ["dbfi_unresolved", "dbfi_ready"]
+    mock_rows = [
+        {
+            "report_id": 1,
+            "sec_firm_order": 19,
+            "firm_nm": "DB증권",
+            "article_title": "미확정 DBFI",
+            "report_unique_key": "dbfi_unresolved",
+            "telegram_url": "https://whub.dbsec.co.kr/pv/gate?q=abc",
+            "pdf_url": "https://whub.dbsec.co.kr/pv/gate?q=abc",
+        },
+        {
+            "report_id": 2,
+            "sec_firm_order": 19,
+            "firm_nm": "DB증권",
+            "article_title": "확정 DBFI",
+            "report_unique_key": "dbfi_ready",
+            "telegram_url": "https://whub.dbsec.co.kr/pv/gate?q=def",
+            "pdf_url": "https://whub.dbsec.co.kr/streamdocs/v4/documents/doc-id",
+        },
+    ]
+
+    class FilteringMockDB(MockDB):
+        def _fetchall(self, sql, params):
+            assert "pdf_url LIKE 'https://whub.dbsec.co.kr/streamdocs/v4/documents/%%'" in sql
+            return [
+                r for r in self.rows
+                if (r.get("report_unique_key") or r.get("key")) in params
+                and r.get("pdf_url", "").startswith("https://whub.dbsec.co.kr/streamdocs/v4/documents/")
+            ]
+
+    db = FilteringMockDB(mock_rows)
+    sender = MockTelegramSender()
+    monkeypatch.setattr("utils.telegram_util.sendMarkDownText", sender.send_markdown)
+
+    _broadcast_ga_reports(db, keys)
+
+    assert len(sender.sent_messages) == 1
+    assert "확정 DBFI" in sender.sent_messages[0]
+    assert "미확정 DBFI" not in sender.sent_messages[0]
+    assert "https://whub.dbsec.co.kr/streamdocs/v4/documents/doc-id" in sender.sent_messages[0]
+    assert db.daily_update_calls[0][0][0]["report_id"] == 2
