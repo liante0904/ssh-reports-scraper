@@ -316,13 +316,17 @@ async def fetch_detailed_url(articles):
     return articles
 
 
-async def DBfi_detail(articles, firm_info=None, db=None):
+async def DBfi_enrich_and_persist_details(articles, firm_info=None, db=None):
     """
-    DB증권 enrichment 전용 함수 (WARP 대응).
-    기존 DB 레코드의 bad URL을 복구합니다.
-    - key URL → encoded_url → gate_url + pdf_url
-    - 건별 DB 업데이트 (db 파라미터 전달 시)
+    DB증권 enrichment + DB persistence (WARP 대응).
+    **이 함수는 DB update 부수효과가 있습니다.** dry-run/조회 용도로 호출하지 마십시오.
+
+    동작:
+    - Pass 1: key URL → gate URL 생성 + DB update (telegram_url/pdf_url)
+    - Pass 2: gate token → streamdocs pdf_url 추출 + DB update
     - 직접 접속 실패 시 WARP SOCKS5 프록시 fallback
+
+    Returns: 업데이트된 articles 리스트 (각 article에 pdf_url/GATE_URL/DOC_ID 추가됨)
     """
     if not articles:
         return []
@@ -539,6 +543,10 @@ async def DBfi_detail(articles, firm_info=None, db=None):
         logger.success(f"[DBfi][Pass2] 완료: {pass2_ok}건 pdf_url streamdocs로 갱신")
 
     return articles
+
+
+# Backward-compat alias. 새 코드는 DBfi_enrich_and_persist_details를 직접 import하십시오.
+DBfi_detail = DBfi_enrich_and_persist_details
 
 
 async def main():
