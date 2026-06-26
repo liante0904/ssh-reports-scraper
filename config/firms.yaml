@@ -95,7 +95,7 @@ firms:
     result_file: /tmp/bnk_result.json
     config_shape: url_list
     empty_policy: allow_empty
-    notes: "IP 차단(BLOCKED_BY_SOURCE_IP). run/standalone/bnk.py 없음 — scripts/standalone_bnk_scraper.py 사용. workflow schedule 비활성(workflow_dispatch만). SCP 대신 artifact 업로드 방식."
+    notes: "IP 차단(BLOCKED_BY_SOURCE_IP). GA schedule + local scheduler auto-call both disabled (2026-06-26). workflow_dispatch + manual diagnostic only. run/standalone/bnk.py 없음 — scripts/standalone_bnk_scraper.py 사용. SCP 대신 artifact 업로드 방식. Colab/external IP로 수동 진단 가능."
 
   # --- Batch 1: 정규 GA _runner 패턴 (2026-06-24) ---
   daol:

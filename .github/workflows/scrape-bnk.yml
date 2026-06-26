@@ -1,9 +1,11 @@
 name: BNK Scraper (GitHub Actions IP)
 
 on:
-  workflow_dispatch:  # 수동 실행 가능
+  # schedule disabled (2026-06-26): BNK blocks both GitHub Actions IP and server IP.
+  # Keep workflow_dispatch for manual IP diagnostics only.
+  # Re-enable schedule after source IP block is confirmed lifted.
+  workflow_dispatch:
   # schedule:
-  #   # 한국시간 평일 08:00, 14:00, 18:00 (UTC 기준)
   #   - cron: '0 23,5,9 * * 1-5'
 
 jobs:
