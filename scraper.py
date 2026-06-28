@@ -157,6 +157,27 @@ if _raw_overrides:
                 pass
 
 
+def _regular_sync_functions():
+    return [
+        Shinyoung_checkNewArticle, DS_checkNewArticle
+    ]
+
+
+def _regular_async_functions():
+    return [
+        ShinHanInvest_checkNewArticle,
+        Koreainvestment_selenium_checkNewArticle,
+        Daeshin_checkNewArticle,
+        HANA_checkNewArticle,               # 하나증권 — 서버 전용 (GA IP 차단)
+        # BNK is temporarily disabled in local scheduler (2026-06-26).
+        # Server and GA IP currently blocked by source. Keep module for manual diagnostics.
+        # Re-enable only after source access is confirmed.
+        # BNK_checkNewArticle,
+        # DAOL, iMfnsec, MERITZ → GA standalone
+        # eugene_checkNewArticle # 세션 만료 및 제한 에러 (보류)
+    ]
+
+
 def log_scraper_health(name, rows):
     if not isinstance(rows, list):
         msg = f"{name} returned non-list result: {type(rows)}"
@@ -477,21 +498,8 @@ async def main(date_str=None):
     else:
         logger.info("📡 REGULAR MODE: GA 미이관 증권사만 스크래핑 (GA standalone이 처리)")
 
-    sync_funcs = [
-        Shinyoung_checkNewArticle, DS_checkNewArticle
-    ]
-    async_functions = [
-        ShinHanInvest_checkNewArticle,
-        Koreainvestment_selenium_checkNewArticle,
-        Daeshin_checkNewArticle,
-        HANA_checkNewArticle,               # 하나증권 — 서버 전용 (GA IP 차단)
-        # BNK is temporarily disabled in local scheduler (2026-06-26).
-        # Server and GA IP currently blocked by source. Keep module for manual diagnostics.
-        # Re-enable only after source access is confirmed.
-        # BNK_checkNewArticle,
-        # DAOL, iMfnsec, MERITZ → GA standalone
-        # eugene_checkNewArticle # 세션 만료 및 제한 에러 (보류)
-    ]
+    sync_funcs = _regular_sync_functions()
+    async_functions = _regular_async_functions()
 
     # BNK: always skipped for now. IP block confirmed on both GA and server side.
     # Previously gated by SKIP_BNK env; no longer needed.

@@ -10,12 +10,13 @@ os.environ["DB_BACKEND"] = "sqlite"
 class TestHanaServerOnlyPath:
     """하나증권이 GA fallback이 아닌 regular server path에 있는지 검증."""
 
-    def test_hana_not_filtered_by_ga_policy(self):
-        """하나증권이 _GA_FIRMS_ASYNC에 없으므로 ga_enabled_yn='N' 필터에 걸리지 않는다.
-        이 테스트는 Hana가 GA fallback 경로가 아닌 regular server 경로에만 존재함을 입증한다."""
-        from scraper import _GA_FIRMS_ASYNC
-        assert 3 not in _GA_FIRMS_ASYNC, (
-            "Hana(3) must not be in _GA_FIRMS_ASYNC"
+    def test_hana_in_regular_async_functions(self):
+        """regular server path에 HANA_checkNewArticle이 포함되어야 한다."""
+        from modules.HANA_3 import HANA_checkNewArticle
+        from scraper import _regular_async_functions
+
+        assert HANA_checkNewArticle in _regular_async_functions(), (
+            "Hana must be scraped by the regular server scheduler path"
         )
 
     def test_hana_not_in_ga_firms_async(self):
