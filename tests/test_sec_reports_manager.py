@@ -99,7 +99,7 @@ def test_mark_reports_sent_marks_is_sent_and_legacy_main_channel_flag():
     assert len(calls) == 1
     assert "SET telegram_sent = true" in calls[0][0]
     assert "main_ch_send_yn" not in calls[0][0]
-    assert calls[0][1] == (1, "https://example.test/report.pdf")
+    assert calls[0][1] == (1,)  # default: report_id only, not match_by_url
 
 
 def test_daily_update_data_delegates_send_status_to_mark_reports_sent(monkeypatch):
