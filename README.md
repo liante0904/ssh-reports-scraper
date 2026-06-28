@@ -149,6 +149,11 @@ LS증권 · 신한투자증권 · NH투자증권 · 하나증권 · KB증권 · 
 설계 결정 배경 → [docs/architecture.md](docs/architecture.md)  
 PostgreSQL 스키마 규약 → [sql/create_tables.sql](sql/create_tables.sql)  
 LLM 유지보수 통제 전략 → [docs/LLM_CONTROL_HARNESS.md](docs/LLM_CONTROL_HARNESS.md)  
+LLM 운영 하네스 한 장 요약 → [docs/LLM_HARNESS_README.md](docs/LLM_HARNESS_README.md)
+하위 LLM 단계적 작업 프로토콜 → [docs/LLM_DELEGATION_PROTOCOL.md](docs/LLM_DELEGATION_PROTOCOL.md)
+LLM tmux 자동 송신 가이드 → [docs/LLM_DISPATCH_AUTOMATION.md](docs/LLM_DISPATCH_AUTOMATION.md)
+LLM 하네스 포팅 가이드 → [docs/LLM_HARNESS_PORTING_GUIDE.md](docs/LLM_HARNESS_PORTING_GUIDE.md)
+OCI 운영 로그 조회 헬퍼 → [docs/OPS_LOG_TAIL.md](docs/OPS_LOG_TAIL.md)
 뉴스 워크플로 책임 분리 감사 (Actions 비용 분석) → [docs/NEWS_WORKFLOW_SPLIT_AUDIT.md](docs/NEWS_WORKFLOW_SPLIT_AUDIT.md)
 
 ---

@@ -172,3 +172,4 @@ error_response.txt
 vendor/
 .aider*
 .env
+.agent_tasks/

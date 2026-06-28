@@ -365,6 +365,11 @@ DeepSeek 같은 저비용 LLM은 좁은 수정과 반복 작업에 쓰고, Codex
 - `.agent_tasks/deepseek_next.md` / `.agent_tasks/deepseek_result.md`
 - `.agent_tasks/gemini_agy_next.md` / `.agent_tasks/gemini_agy_result.md`
 
+### 운영 로그 조회 규칙
+- 운영 로그 확인은 사람이 긴 SSH 명령을 복붙하기 전에 `scripts/ops_tail_errors.sh`를 우선 사용한다.
+- 사용법과 안전 경계는 `docs/OPS_LOG_TAIL.md`를 따른다.
+- 이 스크립트는 읽기 전용이며, LLM은 로그 조회 결과를 근거로 코드 변경/배포/DB 수정이 필요한지 별도 제안만 한다.
+
 ### 응답 처리 방식 라벨
 - `처리 방식: Codex 직접 처리`
 - `처리 방식: 다른 LLM 위임`
