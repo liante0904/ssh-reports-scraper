@@ -137,9 +137,12 @@ LLM 효율 기준:
 bash scripts/ops_tail_errors.sh --since "09:00"
 bash scripts/ops_tail_errors.sh --docker-only --watchdog
 bash scripts/ops_tail_errors.sh --service ssh-reports-scraper-main-scraper-green
+bash scripts/ops_tail_errors.sh --firm-order 3 --firm-name 'HANA|하나|hana' --date-from 20260626 --date-to 20260629 --logs-only
 ```
 
 이 스크립트는 읽기 전용이다. restart, DB write, 파일 삭제를 넣지 않는다.
+
+특정 증권사 누락 조사는 긴 SSH 조합을 만들지 말고 `--firm-order`와 `--firm-name`으로 시작한다.
 
 ## 7. 로그 DB 저장 정책
 
