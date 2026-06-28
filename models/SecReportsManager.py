@@ -151,22 +151,25 @@ class SecReportsManager(LibrarySecReportsManager):
         )
         return inserted, updated
 
-    def mark_reports_sent(self, fetched_rows):
+    def mark_reports_sent(self, fetched_rows, match_by_url=False):
         """Mark Telegram delivery complete — telegram_sent only.
+
+        기본적으로 report_id만 마킹한다. match_by_url=True일 때만
+        같은 telegram_url을 가진 다른 row도 함께 마킹한다.
+        DBfi처럼 URL 기반 중복이 불가피한 케이스에만 True를 사용한다.
 
         모든 발송 상태는 telegram_sent 단일 컬럼으로 관리한다.
         select_reports_ready_for_telegram, _broadcast_ga_reports 모두 telegram_sent만 체크.
         """
         for row in fetched_rows or []:
-            telegram_url = row.get("telegram_url")
-            if telegram_url:
+            if match_by_url and row.get("telegram_url"):
                 self._execute(
                     f"""
                     UPDATE {self.table_name}
                     SET telegram_sent = true
                     WHERE report_id = %s OR telegram_url = %s
                     """,
-                    (row["report_id"], telegram_url),
+                    (row["report_id"], row["telegram_url"]),
                 )
             else:
                 self._execute(
@@ -199,6 +202,13 @@ class SecReportsManager(LibrarySecReportsManager):
                 (telegram_sent IS NOT true)
                 AND {self.dbfi_ready_condition()}
                 AND firm_nm NOT IN ('네이버', '조선비즈')
+                AND (
+                    sec_firm_order = 19
+                    OR COALESCE(telegram_url, '') <> ''
+                    OR COALESCE(pdf_url, '') <> ''
+                    OR COALESCE(download_url, '') <> ''
+                    OR COALESCE(article_url, '') <> ''
+                )
             """
         else:
             cond = "telegram_sent IS true AND pdf_sync_status != 2"

@@ -13,7 +13,7 @@ setup_logger("scraper")
 
 # --- 모듈 임포트 ---
 from utils.telegram_util import sendMarkDownText
-from utils.sqlite_util import convert_sql_to_telegram_messages
+from utils.sqlite_util import convert_sql_to_telegram_message_chunks
 from models.db_factory import get_db
 
 # business modules
@@ -323,21 +323,40 @@ async def enrich_data():
 async def daily_send_report(date_str=None):
     db = get_db()
     rows = await db.select_reports_ready_for_telegram(date_str=date_str, type='send')
-    if rows:
-        messages = convert_sql_to_telegram_messages(rows)
-        logger.info(f"Sending {len(messages)} messages...")
-        for i, msg in enumerate(messages):
-            logger.debug(f"Message {i+1} preview:\n{msg[:500]}...")
-        success = True
-        for msg in messages:
-            try:
-                await sendMarkDownText(token=token, chat_id=chat_id, sendMessageText=msg)
-            except Exception as e:
-                logger.error(f"Telegram error: {e}")
-                success = False
-        if success:
-            await db.daily_update_data(date_str=date_str, fetched_rows=rows, type='send')
-            logger.success("Daily report sent and DB updated.")
+    if not rows:
+        logger.info("No reports ready for Telegram send.")
+        return
+
+    report_ids = [r.get("report_id") for r in rows if r.get("report_id")]
+    logger.info(f"Send candidates: {len(rows)} reports, report_ids={report_ids[:5]}...")
+
+    chunks = convert_sql_to_telegram_message_chunks(rows)
+    logger.info(f"Sending {len(chunks)} message chunks...")
+
+    sent_count = 0
+    failed_count = 0
+    for i, chunk in enumerate(chunks, start=1):
+        msg = chunk["message"]
+        chunk_rows = [r for r in chunk["rows"] if r.get("report_id")]
+        chunk_ids = [r["report_id"] for r in chunk_rows]
+        logger.info(
+            f"Telegram chunk {i}/{len(chunks)} candidates={len(chunk_rows)} "
+            f"report_ids={chunk_ids[:5]}"
+        )
+        try:
+            await sendMarkDownText(token=token, chat_id=chat_id, sendMessageText=msg)
+            if chunk_rows:
+                await db.daily_update_data(fetched_rows=chunk_rows, type='send')
+                sent_count += len(chunk_rows)
+            logger.success(f"Telegram chunk {i}/{len(chunks)} sent and marked: {len(chunk_rows)} reports")
+        except Exception as e:
+            failed_count += len(chunk_rows)
+            logger.error(
+                f"Telegram chunk {i}/{len(chunks)} failed; "
+                f"not marking {len(chunk_rows)} reports sent: {e}"
+            )
+
+    logger.info(f"Daily report send complete: sent_marked={sent_count}, unmarked_failed={failed_count}")
 
 async def run_sync_scrapers(sync_funcs, total_data):
     for func in sync_funcs:
