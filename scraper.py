@@ -88,7 +88,11 @@ _GA_FIRMS_SYNC = {
 
 _GA_FIRMS_ASYNC = {
     2: NHQV_checkNewArticle,          # NH투자증권
-    3: HANA_checkNewArticle,          # 하나증권
+    # 하나증권(sec_firm_order=3)은 GA 러너 IP가 www.hanaw.com에서 차단되어
+    # GA로는 수집 불가. 서버 전용 regular async_functions에서 직접 호출한다.
+    # _GA_FIRMS_ASYNC에 넣으면 ga_enabled_yn='N'일 때 full-scrape에서도 제외되어
+    # 완전히 누락되므로 절대 GA fallback 목록에 포함시키지 않는다.
+    # 3: HANA_checkNewArticle,          # 하나증권 — 서버 전용
     4: KB_checkNewArticle,            # KB증권
     6: Sangsanginib_checkNewArticle,  # 상상인증권
     # IM증권은 현재 사이트 측 응답/수집 불가로 로컬 full-scrape fallback에서도 제외한다.
@@ -480,11 +484,12 @@ async def main(date_str=None):
         ShinHanInvest_checkNewArticle,
         Koreainvestment_selenium_checkNewArticle,
         Daeshin_checkNewArticle,
+        HANA_checkNewArticle,               # 하나증권 — 서버 전용 (GA IP 차단)
         # BNK is temporarily disabled in local scheduler (2026-06-26).
         # Server and GA IP currently blocked by source. Keep module for manual diagnostics.
         # Re-enable only after source access is confirmed.
         # BNK_checkNewArticle,
-        # HANA, DAOL, iMfnsec, MERITZ → GA standalone
+        # DAOL, iMfnsec, MERITZ → GA standalone
         # eugene_checkNewArticle # 세션 만료 및 제한 에러 (보류)
     ]
 

@@ -503,6 +503,7 @@ uv run python scripts/harness.py --check-manifest
 - `run/standalone/hana.py`는 존재하며 `_runner.py` + `scrapers/hana_core.py` 정규 패턴을 따른다. `workflow_dispatch`로 수동 실행은 가능하다.
 - 서버에서는 `modules/HANA_3.py` → `scrapers/hana_core.py`로 동작. `modules/HANA_3.py`는 `aiohttp` 직접 사용 (WebScraper 미사용).
 - workflow validate는 `--require-non-empty` 없이 실행 (default True이므로 실질 동일).
+- **중요 — 서버 전용 규칙**: 하나증권은 GA IP 차단으로 server-only다. `scraper.py`의 regular `async_functions`에 포함되어야 하며, **절대 `_GA_FIRMS_ASYNC`에 넣지 않는다**. `_GA_FIRMS_ASYNC` + `ga_enabled_yn='N'` 조합이면 `_filter_ga_enabled()`가 full-scrape에서도 제외하여 하나증권이 완전히 누락된다.
 
 ### 신한투자 (ShinHanInvest_1.py, sec_firm_order=1)
 
