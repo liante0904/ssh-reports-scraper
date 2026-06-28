@@ -140,7 +140,7 @@ async def post_process_all():
     db = get_db()
 
     # 1. DBfi: gate URL 복구 (m.db-sec.co.kr → whub.dbsec.co.kr/pv/gate)
-    from modules.DBfi_19 import DBfi_detail
+    from modules.DBfi_19 import DBfi_enrich_and_persist_details
     firm_info_19 = FirmInfo(sec_firm_order=19, article_board_order=0)
 
     records_19 = await db.fetch_all_empty_telegram_url_articles(
@@ -149,7 +149,7 @@ async def post_process_all():
     if records_19:
         logger.info(f"[DBfi] {len(records_19)} unresolved → gate URL 복구 시도...")
         try:
-            updated = await DBfi_detail(articles=records_19, firm_info=firm_info_19, db=db)
+            updated = await DBfi_enrich_and_persist_details(articles=records_19, firm_info=firm_info_19, db=db)
             success = sum(1 for r in updated if r.get("telegram_url", "").startswith("https://whub.dbsec.co.kr/pv/gate"))
             logger.success(f"[DBfi] {success}/{len(updated)} gate URL 복구 완료")
         except Exception as e:
