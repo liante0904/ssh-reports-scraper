@@ -6,10 +6,11 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TIMEOUT_SEC="${LLM_CYCLE_TIMEOUT_SEC:-1800}"
 SEND=true
+PARALLEL=false
 
 usage() {
     cat <<'HELP'
-Usage: bash scripts/llm_cycle.sh [--dry-run] [--timeout SEC]
+Usage: bash scripts/llm_cycle.sh [--dry-run] [--parallel] [--timeout SEC]
 
 Run the standard delegated LLM cycle:
   1. Send .agent_tasks/deepseek_next.md to DeepSeek.
@@ -31,6 +32,8 @@ Examples:
   bash scripts/llm_cycle.sh
 
   bash scripts/llm_cycle.sh --dry-run
+
+  bash scripts/llm_cycle.sh --parallel
 HELP
 }
 
@@ -38,6 +41,8 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run)
             SEND=false; shift ;;
+        --parallel)
+            PARALLEL=true; shift ;;
         --timeout)
             TIMEOUT_SEC="$2"; shift 2 ;;
         --help|-h)
@@ -51,18 +56,27 @@ done
 
 cd "$ROOT_DIR"
 
-echo "=== LLM cycle: DeepSeek ==="
-if $SEND; then
-    bash scripts/llm_dispatch.sh deepseek --send --wait --timeout "$TIMEOUT_SEC"
+if $PARALLEL; then
+    echo "=== LLM cycle: DeepSeek + Gemini/AGY parallel ==="
+    if $SEND; then
+        bash scripts/llm_dispatch.sh both --send --wait --parallel --timeout "$TIMEOUT_SEC"
+    else
+        bash scripts/llm_dispatch.sh both --parallel
+    fi
 else
-    bash scripts/llm_dispatch.sh deepseek
-fi
+    echo "=== LLM cycle: DeepSeek ==="
+    if $SEND; then
+        bash scripts/llm_dispatch.sh deepseek --send --wait --timeout "$TIMEOUT_SEC"
+    else
+        bash scripts/llm_dispatch.sh deepseek
+    fi
 
-echo "=== LLM cycle: Gemini/AGY ==="
-if $SEND; then
-    bash scripts/llm_dispatch.sh gemini --send --wait --timeout "$TIMEOUT_SEC"
-else
-    bash scripts/llm_dispatch.sh gemini
+    echo "=== LLM cycle: Gemini/AGY ==="
+    if $SEND; then
+        bash scripts/llm_dispatch.sh gemini --send --wait --timeout "$TIMEOUT_SEC"
+    else
+        bash scripts/llm_dispatch.sh gemini
+    fi
 fi
 
 echo "=== LLM cycle complete ==="

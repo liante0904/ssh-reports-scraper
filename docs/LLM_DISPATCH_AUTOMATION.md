@@ -41,6 +41,48 @@ tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_curr
 
 새 `_next.md`, `_result.md` 파일을 만들지 않는다.
 
+작업을 여러 개 나눌 때는 한 개 JSON 원장을 사용한다.
+
+```text
+.agent_tasks/llm_task_queue.json
+```
+
+초기 템플릿 생성:
+
+```bash
+python3 scripts/llm_task_queue.py --init
+```
+
+`status: "ready"`인 작업을 기존 `_next.md` 파일로 렌더링:
+
+```bash
+python3 scripts/llm_task_queue.py --render
+python3 scripts/llm_task_queue.py --render --agent deepseek
+```
+
+실제 next 파일을 덮지 않는 렌더링 테스트:
+
+```bash
+python3 scripts/llm_task_queue.py --queue /tmp/llm_task_queue.json --render --output-dir /tmp/agent_tasks
+```
+
+JSON 작업 필드 작성 기준:
+
+| 필드 | 목적 |
+|---|---|
+| `agent` | `deepseek` 또는 `gemini` |
+| `status` | 실행 대상이면 `ready`, 보류면 `blocked` |
+| `objective` | 한 문장 작업 목표 |
+| `max_scope` | 범위 확장 방지 문장 |
+| `allowed_files` | 수정 허용 파일 |
+| `forbidden_files` | 수정 금지 파일 |
+| `instructions` | 실행 순서 |
+| `validation` | 검증 명령 |
+| `acceptance_criteria` | 완료 판정 기준 |
+| `constraints` | DB write, 배포, git 금지 같은 안전 경계 |
+
+LLM에게 효율적인 작업은 "무엇을 고칠지"보다 "어디까지만 고칠지"가 명확한 작업이다. 그래서 `allowed_files`, `forbidden_files`, `acceptance_criteria`는 생략하지 않는다.
+
 ## Dry-Run
 
 기본은 전송하지 않고 보낼 문구만 출력한다.
@@ -98,6 +140,26 @@ DEEPSEEK_TMUX_TARGET='0:7.1' GEMINI_AGY_TMUX_TARGET='0:8.1' bash scripts/llm_cyc
 ```bash
 bash scripts/llm_dispatch.sh both --send
 ```
+
+## 병렬 실행
+
+DeepSeek 작업과 Gemini/AGY 작업이 서로 독립이면 병렬로 보낸다.
+
+```bash
+bash scripts/llm_dispatch.sh both --send --wait --parallel
+```
+
+같은 작업을 `llm_cycle.sh`로 실행:
+
+```bash
+bash scripts/llm_cycle.sh --parallel
+```
+
+주의:
+
+- `--parallel`은 `both --send --wait`에서 양쪽에 먼저 보낸 뒤 두 result 파일 갱신을 기다린다.
+- Gemini/AGY가 DeepSeek 결과를 읽어야 하는 작업이면 병렬 실행하지 않는다.
+- AGY 토큰이 없으면 JSON에서 Gemini 작업을 `status: "blocked"`로 두고 DeepSeek만 보낸다.
 
 ## 실패 조건
 

@@ -18,11 +18,12 @@ GEMINI_RESULT="$ROOT_DIR/.agent_tasks/gemini_agy_result.md"
 MODE="deepseek"
 SEND=false
 WAIT=false
+PARALLEL=false
 TIMEOUT_SEC=900
 
 usage() {
     cat <<'HELP'
-Usage: bash scripts/llm_dispatch.sh [deepseek|gemini|both] [--send] [--wait] [--timeout SEC]
+Usage: bash scripts/llm_dispatch.sh [deepseek|gemini|both] [--send] [--wait] [--parallel] [--timeout SEC]
 
 Dry-run by default. Prints the exact command that would be sent to each tmux
 session. Add --send to actually send it with tmux send-keys.
@@ -46,6 +47,7 @@ Examples:
   bash scripts/llm_dispatch.sh deepseek --send --wait
   bash scripts/llm_dispatch.sh gemini --send
   DEEPSEEK_TMUX_TARGET=ds GEMINI_AGY_TMUX_TARGET=0:8.1 bash scripts/llm_dispatch.sh both --send
+  bash scripts/llm_dispatch.sh both --send --wait --parallel
 HELP
 }
 
@@ -57,6 +59,8 @@ while [[ $# -gt 0 ]]; do
             SEND=true; shift ;;
         --wait)
             WAIT=true; shift ;;
+        --parallel)
+            PARALLEL=true; shift ;;
         --timeout)
             TIMEOUT_SEC="$2"; shift 2 ;;
         --help|-h)
@@ -178,7 +182,18 @@ case "$MODE" in
         dispatch_one "Gemini/AGY" "$GEMINI_TARGET" "$GEMINI_NEXT" "$GEMINI_RESULT"
         ;;
     both)
-        dispatch_one "DeepSeek" "$DEEPSEEK_TARGET" "$DEEPSEEK_NEXT" "$DEEPSEEK_RESULT"
-        dispatch_one "Gemini/AGY" "$GEMINI_TARGET" "$GEMINI_NEXT" "$GEMINI_RESULT"
+        if $PARALLEL && $WAIT && $SEND; then
+            deepseek_before="$(mtime "$DEEPSEEK_RESULT")"
+            gemini_before="$(mtime "$GEMINI_RESULT")"
+            WAIT=false
+            dispatch_one "DeepSeek" "$DEEPSEEK_TARGET" "$DEEPSEEK_NEXT" "$DEEPSEEK_RESULT"
+            dispatch_one "Gemini/AGY" "$GEMINI_TARGET" "$GEMINI_NEXT" "$GEMINI_RESULT"
+            WAIT=true
+            wait_for_result_update "DeepSeek" "$DEEPSEEK_RESULT" "$deepseek_before"
+            wait_for_result_update "Gemini/AGY" "$GEMINI_RESULT" "$gemini_before"
+        else
+            dispatch_one "DeepSeek" "$DEEPSEEK_TARGET" "$DEEPSEEK_NEXT" "$DEEPSEEK_RESULT"
+            dispatch_one "Gemini/AGY" "$GEMINI_TARGET" "$GEMINI_NEXT" "$GEMINI_RESULT"
+        fi
         ;;
 esac

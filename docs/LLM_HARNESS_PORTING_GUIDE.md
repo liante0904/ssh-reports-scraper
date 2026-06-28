@@ -44,6 +44,7 @@
 ```text
 scripts/llm_dispatch.sh
 scripts/llm_cycle.sh
+scripts/llm_task_queue.py
 docs/LLM_DELEGATION_PROTOCOL.md
 docs/LLM_DISPATCH_AUTOMATION.md
 docs/LLM_HARNESS_PORTING_GUIDE.md
@@ -57,6 +58,7 @@ deepseek_next.md
 deepseek_result.md
 gemini_agy_next.md
 gemini_agy_result.md
+llm_task_queue.json
 ```
 
 `.agent_tasks/`는 커밋하지 않는다.
@@ -73,6 +75,7 @@ mkdir -p scripts docs .agent_tasks
 
 cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/scripts/llm_dispatch.sh scripts/
 cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/scripts/llm_cycle.sh scripts/
+cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/scripts/llm_task_queue.py scripts/
 cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/docs/LLM_DELEGATION_PROTOCOL.md docs/
 cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/docs/LLM_DISPATCH_AUTOMATION.md docs/
 cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/docs/LLM_HARNESS_PORTING_GUIDE.md docs/
@@ -81,6 +84,7 @@ touch .agent_tasks/deepseek_next.md
 touch .agent_tasks/deepseek_result.md
 touch .agent_tasks/gemini_agy_next.md
 touch .agent_tasks/gemini_agy_result.md
+python3 scripts/llm_task_queue.py --init
 ```
 
 ## tmux 표준
@@ -124,6 +128,18 @@ dry-run:
 
 ```bash
 bash scripts/llm_cycle.sh --dry-run
+```
+
+JSON 원장 렌더링:
+
+```bash
+python3 scripts/llm_task_queue.py --render
+```
+
+독립 작업 병렬 실행:
+
+```bash
+bash scripts/llm_cycle.sh --parallel
 ```
 
 개별 실행:
