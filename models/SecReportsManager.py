@@ -155,7 +155,7 @@ class SecReportsManager(LibrarySecReportsManager):
         """Mark Telegram delivery complete — telegram_sent only.
 
         모든 발송 상태는 telegram_sent 단일 컬럼으로 관리한다.
-        daily_select_data, _broadcast_ga_reports 모두 telegram_sent만 체크.
+        select_reports_ready_for_telegram, _broadcast_ga_reports 모두 telegram_sent만 체크.
         """
         for row in fetched_rows or []:
             telegram_url = row.get("telegram_url")
@@ -179,7 +179,12 @@ class SecReportsManager(LibrarySecReportsManager):
                 )
         return {"status": "success"}
 
-    async def daily_select_data(self, date_str=None, type=None):
+    async def select_reports_ready_for_telegram(self, date_str=None, type=None):
+        """텔레그램 발송 대상 레포트 조회. DBfi streamdocs PDF 확정 완료 + 미발송 + 뉴스 제외.
+
+        type='send': 미발송 + DBfi-ready + 뉴스 제외
+        type='download': 발송 완료 + pdf_sync 미완료
+        """
         if date_str is None:
             query_date = datetime.now().strftime("%Y-%m-%d")
             query_reg_dt = (datetime.now() + timedelta(days=2)).strftime("%Y%m%d")
@@ -222,6 +227,9 @@ class SecReportsManager(LibrarySecReportsManager):
             save_time
         """
         return self._fetchall(sql, (query_date, query_date, three_days_ago, query_reg_dt))
+
+    # Backward-compat alias. 새 코드는 select_reports_ready_for_telegram 사용.
+    daily_select_data = select_reports_ready_for_telegram
 
     async def daily_update_data(self, date_str=None, fetched_rows=None, type=None):
         """Mark sent status and mirror it to the legacy main channel flag."""

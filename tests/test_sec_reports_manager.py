@@ -116,7 +116,7 @@ def test_daily_update_data_delegates_send_status_to_mark_reports_sent(monkeypatc
     assert seen == [rows]
 
 
-def test_daily_select_data_requires_dbfi_streamdocs_pdf():
+def test_select_reports_ready_for_telegram_requires_dbfi_streamdocs_pdf():
     from models.SecReportsManager import SecReportsManager
 
     manager = object.__new__(SecReportsManager)
@@ -129,7 +129,7 @@ def test_daily_select_data_requires_dbfi_streamdocs_pdf():
 
     manager._fetchall = fake_fetchall
 
-    assert asyncio.run(manager.daily_select_data(date_str="20260626", type="send")) == []
+    assert asyncio.run(manager.select_reports_ready_for_telegram(date_str="20260626", type="send")) == []
 
     sql, params = calls[0]
     assert params[0] == "2026-06-26"

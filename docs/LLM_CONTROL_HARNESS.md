@@ -197,6 +197,17 @@ LLM 작업 결과에는 반드시 아래가 있어야 한다.
 - 실행한 검증 명령과 결과
 - 남은 리스크
 
+### 변경된 함수명 참고
+
+아래 legacy alias가 존재하지만, LLM은 항상 새 이름을 우선 사용한다.
+
+| Legacy alias | 새 이름 (canonical) | 파일 |
+|------|------|------|
+| `daily_select_data` | `select_reports_ready_for_telegram` | `models/SecReportsManager.py`, `models/SQLiteManager.py` |
+| `DBfi_detail` | `DBfi_enrich_and_persist_details` | `modules/DBfi_19.py` |
+
+새 코드 작성 시 legacy alias를 사용하지 않는다. 기존 호출자가 alias를 통해 동작하는 것은 허용된다.
+
 ## DeepSeek용 기본 명령 프롬프트
 
 아래 프롬프트를 그대로 붙여 넣고 `{...}`만 바꿔서 사용한다.

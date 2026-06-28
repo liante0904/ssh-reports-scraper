@@ -297,7 +297,7 @@ async def enrich_data():
 
 async def daily_send_report(date_str=None):
     db = get_db()
-    rows = await db.daily_select_data(date_str=date_str, type='send')
+    rows = await db.select_reports_ready_for_telegram(date_str=date_str, type='send')
     if rows:
         messages = convert_sql_to_telegram_messages(rows)
         logger.info(f"Sending {len(messages)} messages...")
