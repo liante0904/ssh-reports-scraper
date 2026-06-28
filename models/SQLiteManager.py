@@ -315,9 +315,9 @@ class SQLiteManager:
                         await conn.close()
         return result
     
-    async def daily_select_data(self, date_str=None, type=None):
-        """{self.main_table_name} 테이블에서 지정된 날짜 또는 당일 데이터를 조회합니다."""
-        logger.debug(f"daily_select_data called with date_str: {date_str}, type: {type}")
+    async def select_reports_ready_for_telegram(self, date_str=None, type=None):
+        """텔레그램 발송 대상 레포트 조회 (SQLite). type='send': 미발송 + DBfi-ready, type='download': 발송완료."""
+        logger.debug(f"select_reports_ready_for_telegram called with date_str: {date_str}, type: {type}")
         
         # 'type' 파라미터가 필수임을 확인
         if type not in ['send', 'download']:
@@ -359,6 +359,9 @@ class SQLiteManager:
         """
         
         return await self.execute_query(query)
+
+    # Backward-compat alias. 새 코드는 select_reports_ready_for_telegram 사용.
+    daily_select_data = select_reports_ready_for_telegram
 
     async def daily_update_data(self, date_str=None, fetched_rows=None, type=None):
         """데이터를 업데이트합니다. type에 따라 업데이트 쿼리가 달라집니다."""
@@ -444,7 +447,7 @@ class SQLiteManager:
 if __name__ == "__main__":
     async def main():
         db = SQLiteManager()
-        rows = await db.daily_select_data(type='send')
+        rows = await db.select_reports_ready_for_telegram(type='send')
         logger.info(f"Fetched {len(rows)} rows for sending.")
         if rows:
             r = await db.daily_update_data(fetched_rows=rows, type='send')
