@@ -36,7 +36,7 @@ from modules.TOSSinvest_15 import TOSSinvest_checkNewArticle   # GA 이관됨 (f
 from modules.Leading_16 import Leading_checkNewArticle          # GA 이관됨 (full-scrape fallback)
 from modules.Daeshin_17 import Daeshin_checkNewArticle
 from modules.iMfnsec_18 import iMfnsec_checkNewArticle
-from modules.DBfi_19 import DBfi_checkNewArticle, DBfi_detail
+from modules.DBfi_19 import DBfi_checkNewArticle, DBfi_enrich_and_persist_details
 from modules.MERITZ_20 import MERITZ_checkNewArticle
 from modules.Hanwhawm_21 import Hanwha_checkNewArticle         # GA 이관됨 (full-scrape fallback)
 from modules.Hygood_22 import Hanyang_checkNewArticle           # GA 이관됨 (full-scrape fallback)
@@ -219,8 +219,8 @@ async def enrich_data():
             logger.info(f"[{firm_name}] Found {len(records)} records for enrichment (최근 3일).")
             try:
                 if sec_firm_order == 19:  # DB증권
-                    update_records = await DBfi_detail(articles=records, firm_info=firm_info, db=db)
-                    # DBfi_detail 내부에서 건별 DB 업데이트를 이미 수행함
+                    update_records = await DBfi_enrich_and_persist_details(articles=records, firm_info=firm_info, db=db)
+                    # DBfi_enrich_and_persist_details 내부에서 건별 DB 업데이트를 이미 수행함
                     success_count = sum(1 for r in update_records if r.get('telegram_url', '').startswith('https://whub.dbsec.co.kr/pv/gate'))
                     if success_count:
                         logger.success(f"[DBfi] {success_count}/{len(update_records)}건 gate URL 복구 완료")
@@ -240,7 +240,7 @@ async def enrich_data():
                         ''')
                         if backlog:
                             logger.info(f"[DBfi][유휴] 전체 backlog {len(backlog)}건 재처리...")
-                            fixed = await DBfi_detail(articles=backlog, firm_info=firm_info, db=db)
+                            fixed = await DBfi_enrich_and_persist_details(articles=backlog, firm_info=firm_info, db=db)
                             fixed_count = sum(1 for r in fixed if r.get('telegram_url', '').startswith('https://whub.dbsec.co.kr/pv/gate'))
                             logger.success(f"[DBfi][유휴] {fixed_count}/{len(backlog)}건 gate URL 복구 완료")
                 elif sec_firm_order == 0:  # LS
