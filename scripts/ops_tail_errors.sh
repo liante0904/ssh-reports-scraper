@@ -12,6 +12,10 @@ WATCHDOG=false
 SCRAPER=false
 LOGS_ONLY=false
 DOCKER_ONLY=false
+FIRM_ORDER=""
+FIRM_NAME=""
+DATE_FROM=""
+DATE_TO=""
 
 usage() {
     cat <<'HELP'
@@ -28,6 +32,10 @@ Options:
   --scraper                   Limit Docker section to ssh-reports-scraper containers.
   --logs-only                 Skip Docker logs.
   --docker-only               Skip file logs.
+  --firm-order N              Query DB for firm metadata + latest 10 rows.
+  --firm-name PATTERN         grep -E pattern for firm logs (e.g. 'HANA|하나|hana').
+  --date-from YYYYMMDD        Start date for firm log scan.
+  --date-to YYYYMMDD          End date for firm log scan.
   --help                      Show this help.
 
 Examples:
@@ -36,6 +44,7 @@ Examples:
   bash scripts/ops_tail_errors.sh --docker-only --watchdog
   bash scripts/ops_tail_errors.sh --docker-only --scraper
   bash scripts/ops_tail_errors.sh --service ssh-reports-scraper-main-scraper-green
+  bash scripts/ops_tail_errors.sh --firm-order 3 --firm-name 'HANA|하나|hana' --date-from 20260626 --date-to 20260629 --logs-only
 
 Safety:
   This script is read-only. It must not write DB rows, edit files, restart
@@ -59,6 +68,14 @@ while [[ $# -gt 0 ]]; do
             LOGS_ONLY=true; shift ;;
         --docker-only)
             DOCKER_ONLY=true; shift ;;
+        --firm-order)
+            FIRM_ORDER="$2"; shift 2 ;;
+        --firm-name)
+            FIRM_NAME="$2"; shift 2 ;;
+        --date-from)
+            DATE_FROM="$2"; shift 2 ;;
+        --date-to)
+            DATE_TO="$2"; shift 2 ;;
         --help|-h)
             usage; exit 0 ;;
         *)
@@ -67,6 +84,38 @@ while [[ $# -gt 0 ]]; do
             exit 2 ;;
     esac
 done
+
+if [[ -n "$FIRM_ORDER" && ! "$FIRM_ORDER" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: --firm-order must be numeric" >&2
+    exit 2
+fi
+
+if [[ -n "$DATE" && ! "$DATE" =~ ^[0-9]{8}$ ]]; then
+    echo "ERROR: --date must be YYYYMMDD" >&2
+    exit 2
+fi
+
+if [[ -n "$DATE_FROM" && ! "$DATE_FROM" =~ ^[0-9]{8}$ ]]; then
+    echo "ERROR: --date-from must be YYYYMMDD" >&2
+    exit 2
+fi
+
+if [[ -n "$DATE_TO" && ! "$DATE_TO" =~ ^[0-9]{8}$ ]]; then
+    echo "ERROR: --date-to must be YYYYMMDD" >&2
+    exit 2
+fi
+
+case "$FIRM_NAME" in
+    *[\`\'\"\;\&\<\>\$\(\)\{\}\[\]\\]*)
+        echo "ERROR: --firm-name allows plain text and simple regex chars only; avoid shell metacharacters" >&2
+        exit 2
+        ;;
+esac
+
+FIRM_NAME_B64=""
+if [[ -n "$FIRM_NAME" ]]; then
+    FIRM_NAME_B64="$(printf '%s' "$FIRM_NAME" | base64 | tr -d '\n')"
+fi
 
 if [[ "$SINCE" =~ ^[0-9]{2}:[0-9]{2}$ ]]; then
     SINCE_DATETIME="${DATE:0:4}-${DATE:4:2}-${DATE:6:2} ${SINCE}"
@@ -97,6 +146,66 @@ if ! $LOGS_ONLY; then
     echo ""
     echo "=== Docker Containers ==="
     "${OCI[@]}" "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' 2>/dev/null" || echo "(docker ps failed)"
+fi
+
+# ── Firm diagnostics ──
+if [[ -n "$FIRM_NAME" || -n "$FIRM_ORDER" ]]; then
+    echo ""
+    echo "=== Firm Diagnostics ==="
+
+    # Auto-detect scraper container name (green/blue)
+    SCRAPER_CONTAINER="$("${OCI[@]}" "docker ps --format '{{.Names}}' 2>/dev/null | grep 'ssh-reports-scraper-main-scraper' | head -1" || echo "")"
+
+    # Date range
+    from="${DATE_FROM:-$DATE}"
+    to="${DATE_TO:-$DATE}"
+
+    if [[ -n "$FIRM_ORDER" ]]; then
+        echo "--- Firm Metadata (order=$FIRM_ORDER) ---"
+        "${OCI[@]}" "docker exec main-postgres psql -U ssh_reports_hub -d ssh_reports_hub -c \"
+            SELECT sec_firm_order, firm_nm, telegram_update_yn, ga_enabled_yn
+            FROM tbm_sec_firm_info WHERE sec_firm_order = $FIRM_ORDER\" 2>/dev/null" || echo "(DB query failed)"
+
+        echo "--- Latest 10 Rows ---"
+        "${OCI[@]}" "docker exec main-postgres psql -U ssh_reports_hub -d ssh_reports_hub -c \"
+            SELECT reg_dt, article_title, save_time
+            FROM tbl_sec_reports WHERE sec_firm_order = $FIRM_ORDER
+            ORDER BY save_time DESC LIMIT 10\" 2>/dev/null" || echo "(DB query failed)"
+    fi
+
+    if [[ -n "$FIRM_NAME" ]]; then
+        echo "--- Log Scan: $FIRM_NAME ($from ~ $to) ---"
+        # Iterate date range
+        d="$from"
+        while [[ "$d" -le "$to" ]]; do
+            LOG_DIR="/home/ubuntu/logs/$d"
+            echo "  Date: $d"
+            if "${OCI[@]}" "test -d $LOG_DIR" 2>/dev/null; then
+                # Count FULL-SCRAPE / REGULAR lines
+                full_count="$("${OCI[@]}" "find $LOG_DIR -name '*.log' -type f -exec grep -ch 'FULL-SCRAPE MODE' {} + 2>/dev/null | awk '{s+=\$1}END{print s+0}'" || echo "0")"
+                reg_count="$("${OCI[@]}" "find $LOG_DIR -name '*.log' -type f -exec grep -ch 'REGULAR MODE' {} + 2>/dev/null | awk '{s+=\$1}END{print s+0}'" || echo "0")"
+                echo "    FULL-SCRAPE=$full_count REGULAR=$reg_count"
+
+                hits="$("${OCI[@]}" "PATTERN=\$(printf %s '$FIRM_NAME_B64' | base64 -d); find $LOG_DIR -name '*.log' -type f -exec grep -chE \"\$PATTERN\" {} + 2>/dev/null | awk '{s+=\$1}END{print s+0}'" || echo "0")"
+                echo "    firm hits=$hits"
+
+                # Sample firm lines (up to 3)
+                if [[ "$hits" -gt 0 ]]; then
+                    "${OCI[@]}" "PATTERN=\$(printf %s '$FIRM_NAME_B64' | base64 -d); find $LOG_DIR -name '*.log' -type f -exec grep -hE \"\$PATTERN\" {} + 2>/dev/null | tail -3" || true
+                fi
+            else
+                echo "    (no log dir)"
+            fi
+            # Increment date by 1 day (POSIX-safe)
+            d="$(date -d "$d +1 day" +%Y%m%d 2>/dev/null)" || break
+        done
+    fi
+
+    # Scraper container firm log tail
+    if [[ -n "$SCRAPER_CONTAINER" && -n "$FIRM_NAME" ]]; then
+        echo "--- Scraper Container ($SCRAPER_CONTAINER) Firm Lines ---"
+        "${OCI[@]}" "PATTERN=\$(printf %s '$FIRM_NAME_B64' | base64 -d); docker logs '$SCRAPER_CONTAINER' 2>&1 | grep -E \"\$PATTERN\" | tail -20" 2>/dev/null || echo "(no matching lines)"
+    fi
 fi
 
 if ! $DOCKER_ONLY; then
@@ -139,7 +248,7 @@ if ! $LOGS_ONLY; then
                 if $WATCHDOG && [[ "$c" != *"watchdog"* ]]; then
                     continue
                 fi
-                if $SCRAPER && [[ "$c" != *"ssh-reports-scraper"* ]]; then
+                if $SCRAPER && [[ "$c" != *"ssh-reports-scraper-main-scraper"* ]]; then
                     continue
                 fi
                 echo "--- $c ---"

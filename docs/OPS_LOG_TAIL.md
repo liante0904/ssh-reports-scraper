@@ -26,7 +26,26 @@ bash scripts/ops_tail_errors.sh --docker-only --watchdog
 bash scripts/ops_tail_errors.sh --docker-only --scraper
 bash scripts/ops_tail_errors.sh --service ssh-reports-scraper-main-scraper-green
 bash scripts/ops_tail_errors.sh --date 20260625 --logs-only
+bash scripts/ops_tail_errors.sh --firm-order 3 --firm-name 'HANA|하나|hana' --date-from 20260626 --date-to 20260629 --logs-only
 ```
+
+## 회사별 누락 조사
+
+특정 증권사가 운영에서 호출되지 않았는지 확인할 때는 `--firm-order`와 `--firm-name`을 같이 쓴다.
+
+예시: 하나증권 주말 누락 조사
+
+```bash
+bash scripts/ops_tail_errors.sh --firm-order 3 --firm-name 'HANA|하나|hana' --date-from 20260626 --date-to 20260629 --logs-only
+```
+
+출력에서 먼저 본다:
+
+- `Firm Metadata`: `telegram_update_yn`, `ga_enabled_yn`
+- `Latest 10 Rows`: `tbl_sec_reports` 최신 저장 시각
+- `Log Scan`: 일자별 `FULL-SCRAPE`, `REGULAR`, firm keyword hit 수
+
+`firm hits=0`이고 최신 row가 오래됐다면 스케줄러/GA policy/regular path에서 제외됐을 가능성이 높다.
 
 ## LLM 사용 규칙
 
@@ -37,7 +56,8 @@ LLM은 운영 로그 확인 요청을 받으면, 사용자가 로그를 복붙�
 1. `bash scripts/ops_tail_errors.sh --help`
 2. `bash scripts/ops_tail_errors.sh --since "06:00"`
 3. 필요한 경우 `--scraper`, `--watchdog`, `--service`로 범위를 좁힌다.
-4. 결과에서 시간, 서비스명, 에러 패턴, 영향 범위를 요약한다.
+4. 특정 회사 누락 조사라면 `--firm-order`, `--firm-name`, `--date-from`, `--date-to`를 먼저 사용한다.
+5. 결과에서 시간, 서비스명, 에러 패턴, 영향 범위를 요약한다.
 
 ## 안전 경계
 
