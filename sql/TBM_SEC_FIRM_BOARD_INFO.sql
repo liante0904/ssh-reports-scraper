@@ -22,8 +22,8 @@ SET default_table_access_method = heap;
 --
 
 CREATE TABLE public.tbm_sec_firm_board_info (
-    sec_firm_order integer NOT NULL,
-    article_board_order integer NOT NULL,
+    firm_id integer NOT NULL,
+    board_id integer NOT NULL,
     board_nm text,
     board_cd text,
     label_nm text
@@ -35,12 +35,12 @@ CREATE TABLE public.tbm_sec_firm_board_info (
 --
 
 ALTER TABLE ONLY public.tbm_sec_firm_board_info
-    ADD CONSTRAINT tbm_sec_firm_board_info_pkey PRIMARY KEY (sec_firm_order, article_board_order);
+    ADD CONSTRAINT tbm_sec_firm_board_info_pkey PRIMARY KEY (firm_id, board_id);
 
 
 --
--- Name: tbm_sec_firm_board_info tbm_sec_firm_board_info_sec_firm_order_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: tbm_sec_firm_board_info tbm_sec_firm_board_info_firm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.tbm_sec_firm_board_info
-    ADD CONSTRAINT tbm_sec_firm_board_info_sec_firm_order_fkey FOREIGN KEY (sec_firm_order) REFERENCES public.tbm_sec_firm_info(sec_firm_order);
+    ADD CONSTRAINT tbm_sec_firm_board_info_firm_id_fkey FOREIGN KEY (firm_id) REFERENCES public.tbm_sec_firm_info(firm_id);

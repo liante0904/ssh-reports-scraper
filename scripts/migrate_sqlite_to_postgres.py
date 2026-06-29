@@ -49,25 +49,25 @@ def migrate_firm_info():
     # FIRM_INFO
     psycopg2.extras.execute_values(
         cur,
-        '''INSERT INTO tbm_sec_firm_info (sec_firm_order, firm_nm, telegram_update_yn)
+        '''INSERT INTO tbm_sec_firm_info (firm_id, firm_nm, telegram_update_yn)
            VALUES %s
-           ON CONFLICT (sec_firm_order) DO UPDATE SET
+           ON CONFLICT (firm_id) DO UPDATE SET
                firm_nm=EXCLUDED.firm_nm,
                telegram_update_yn=EXCLUDED.telegram_update_yn''',
-        [(r["sec_firm_order"], r["firm_nm"], r.get("telegram_update_yn") or r.get("TELEGRAM_UPDATE_YN")) for r in firms],
+        [(r["firm_id"], r["firm_nm"], r.get("telegram_update_yn") or r.get("TELEGRAM_UPDATE_YN")) for r in firms],
     )
 
     # BOARD_INFO
     psycopg2.extras.execute_values(
         cur,
         '''INSERT INTO tbm_sec_firm_board_info
-               (sec_firm_order, article_board_order, board_nm, board_cd, label_nm)
+               (firm_id, board_id, board_nm, board_cd, label_nm)
            VALUES %s
-           ON CONFLICT (sec_firm_order, article_board_order) DO UPDATE SET
+           ON CONFLICT (firm_id, board_id) DO UPDATE SET
                board_nm=EXCLUDED.board_nm,
                board_cd=EXCLUDED.board_cd,
                label_nm=EXCLUDED.label_nm''',
-        [(r["sec_firm_order"], r["article_board_order"], 
+        [(r["firm_id"], r["board_id"], 
           r.get("board_nm") or r.get("BOARD_NM"), 
           r.get("board_cd") or r.get("BOARD_CD"), 
           r.get("label_nm") or r.get("LABEL_NM"))
@@ -105,7 +105,7 @@ def migrate_main(batch_size=5000, truncate=False):
     offset = 0
     sq_cur = sq.cursor()
     sq_cur.execute(
-        "SELECT report_id,sec_firm_order,article_board_order,firm_nm,"
+        "SELECT report_id,firm_id,board_id,firm_nm,"
         "article_title,article_url,main_ch_send_yn,download_status_yn,"
         "download_url,save_time,reg_dt,writer,key,telegram_url,mkt_tp,"
         "gemini_summary,summary_time,summary_model,archive_status,"
@@ -120,7 +120,7 @@ def migrate_main(batch_size=5000, truncate=False):
 
         records = [
             (
-                r["report_id"], r["sec_firm_order"], r["article_board_order"],
+                r["report_id"], r["firm_id"], r["board_id"],
                 _clean(r["firm_nm"]), _clean(r["article_title"]),
                 _clean(r["article_url"]),
                 _clean(r["download_url"]), _clean(r["save_time"]),
@@ -138,7 +138,7 @@ def migrate_main(batch_size=5000, truncate=False):
         psycopg2.extras.execute_values(
             cur,
             '''INSERT INTO tbl_sec_reports (
-                report_id, sec_firm_order, article_board_order, firm_nm,
+                report_id, firm_id, board_id, firm_nm,
                 article_title, article_url,
                 download_url, save_time, reg_dt, writer, key, telegram_url, mkt_tp,
                 gemini_summary, summary_time, summary_model, archive_status,
@@ -178,7 +178,7 @@ def migrate_aux_table(table_name):
     sq.row_factory = sqlite3.Row
 
     rows = [dict(r) for r in sq.execute(
-        f"SELECT sec_firm_order,article_board_order,firm_nm,pdf_url,"
+        f"SELECT firm_id,board_id,firm_nm,pdf_url,"
         f"article_title,send_user,main_ch_send_yn,save_time,article_url,download_url,writer"
         f" FROM {table_name}"
     ).fetchall()]
@@ -193,12 +193,12 @@ def migrate_aux_table(table_name):
     psycopg2.extras.execute_values(
         cur,
         f'''INSERT INTO {table_name}
-               (sec_firm_order, article_board_order, firm_nm, pdf_url,
+               (firm_id, board_id, firm_nm, pdf_url,
                 article_title, send_user, telegram_sent, save_time,
                 article_url, download_url, writer)
            VALUES %s
            ON CONFLICT (pdf_url) DO NOTHING''',
-        [(r["sec_firm_order"], r["article_board_order"], r["firm_nm"], r["pdf_url"],
+        [(r["firm_id"], r["board_id"], r["firm_nm"], r["pdf_url"],
           r["article_title"], r.get("send_user") or r.get("SEND_USER"), 
           True if r["main_ch_send_yn"] == 'Y' else False, r["save_time"],
           r["article_url"], r["download_url"], r["writer"] or '') for r in rows],

@@ -11,10 +11,10 @@ db = get_db()
 conn = db.get_connection()
 cur = conn.cursor()
 cur.execute("""
-    SELECT sec_firm_order, firm_nm, COUNT(*) as total,
+    SELECT firm_id, firm_nm, COUNT(*) as total,
            MAX(reg_dt) as last_reg_dt, MAX(save_time::date) as last_save
-    FROM tbl_sec_reports WHERE sec_firm_order IS NOT NULL
-    GROUP BY sec_firm_order, firm_nm ORDER BY sec_firm_order
+    FROM tbl_sec_reports WHERE firm_id IS NOT NULL
+    GROUP BY firm_id, firm_nm ORDER BY firm_id
 """)
 
 today = date.today()

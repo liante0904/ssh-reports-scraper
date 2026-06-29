@@ -166,7 +166,7 @@ async def fix_dbfi_urls():
     query = """
     SELECT report_id, "key", "telegram_url", "pdf_url", pdf_sync_status
     FROM "tbl_sec_reports"
-    WHERE sec_firm_order = 19
+    WHERE firm_id = 19
       AND (
           "telegram_url" NOT LIKE 'https://whub.dbsec.co.kr/pv/gate%%'
           OR pdf_sync_status != 2

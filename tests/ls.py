@@ -28,7 +28,7 @@ async def fetch_html(session, url):
 async def LS_checkNewArticle():
     db_manager = SQLiteManager()
     json_data_list = []
-    sec_firm_order = 0
+    firm_id = 0
     firm_nm = "LS증권"
 
     TARGET_URLS = config.get_urls("LS_0")
@@ -36,16 +36,16 @@ async def LS_checkNewArticle():
         raise RuntimeError("Missing LS_0 URLs. Populate ~/secrets/ssh-reports-scraper/secrets.json first.")
 
     async with aiohttp.ClientSession() as session:
-        for article_board_order, base_url in enumerate(TARGET_URLS):
+        for board_id, base_url in enumerate(TARGET_URLS):
             firm_info = FirmInfo(
-                sec_firm_order=sec_firm_order,
-                article_board_order=article_board_order
+                firm_id=firm_id,
+                board_id=board_id
             )
 
             page = 1
             while True:
-                if article_board_order == 0:
-                    print(f"{article_board_order}는 이제 그만함")
+                if board_id == 0:
+                    print(f"{board_id}는 이제 그만함")
                     break
                 if page == 20:
                     break

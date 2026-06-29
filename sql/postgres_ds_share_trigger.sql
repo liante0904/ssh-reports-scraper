@@ -3,7 +3,7 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    IF NEW.sec_firm_order = 11
+    IF NEW.firm_id = 11
        AND (NEW.telegram_url IS NULL OR NEW.telegram_url = '') THEN
         NEW.telegram_url := 'https://ssh-oci.netlify.app/share?id=' || NEW.report_id::text;
     END IF;

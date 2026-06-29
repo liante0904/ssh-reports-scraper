@@ -22,7 +22,7 @@ from models.ConfigManager import config
 
 
 async def Koreainvestment_selenium_checkNewArticle():
-    sec_firm_order      = 13
+    firm_id      = 13
     json_data_list = []
 
     requests.packages.urllib3.disable_warnings()
@@ -86,8 +86,8 @@ async def Koreainvestment_selenium_checkNewArticle():
 
     try:
         for cat in CATEGORIES:
-            article_board_order = cat["board_order"]
-            firm_info = FirmInfo(sec_firm_order, article_board_order)
+            board_id = cat["board_order"]
+            firm_info = FirmInfo(firm_id, board_id)
             logger.debug(f"KoreaInvestment Scraper: Processing [{cat['name']}]")
 
             driver.get(TARGET_URL_0)
@@ -122,8 +122,8 @@ async def Koreainvestment_selenium_checkNewArticle():
                     LIST_ARTICLE_URL = Koreainvestment_GET_LIST_ARTICLE_URL(LIST_ARTICLE_URL_RAW)
                     
                     json_data_list.append({
-                        "sec_firm_order":sec_firm_order,
-                        "article_board_order":article_board_order,
+                        "firm_id":firm_id,
+                        "board_id":board_id,
                         "firm_nm":firm_info.get_firm_name(),
                         "reg_dt":re.sub(r"[-./]", "", article_info_str[1]),
                         "download_url": LIST_ARTICLE_URL,

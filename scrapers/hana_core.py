@@ -28,7 +28,7 @@ def scrape_hana(cfg: dict) -> list[dict]:
     cfg.setdefault("writer_sel", "li.mb7.m-info span.m-name")
     cfg.setdefault("time_sel", "li.mb7.m-info span.r-side-bar")
     cfg.setdefault("base_url", "https://www.hanaw.com")
-    cfg.setdefault("sec_firm_order", 3)
+    cfg.setdefault("firm_id", 3)
     cfg.setdefault("firm_nm", "하나증권")
     cfg.setdefault("global_boards", [])
     cfg.setdefault("request_timeout", 15)  # GA 환경 빠른 실패를 위해 축소
@@ -77,7 +77,7 @@ def scrape_hana(cfg: dict) -> list[dict]:
                     ts = times[i].get_text(strip=True) if i < len(times) else ""
                     article_text = contns[i].get_text(strip=True) if i < len(contns) else ""
                     mkt = "GLOBAL" if board_order in cfg.get("global_boards",[]) else "KR"
-                    result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=board_order,
+                    result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
                         firm_nm=cfg["firm_nm"],reg_dt=_adjust_date(rd,ts),download_url=dl,
                         telegram_url=dl,pdf_url=dl,article_title=title,writer=writer,
                         article_text=article_text,
