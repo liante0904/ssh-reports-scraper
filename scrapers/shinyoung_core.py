@@ -77,7 +77,7 @@ def scrape_shinyoung(cfg: dict) -> list[dict]:
 
             # 2026.06.21 fix: GA Import 중복제거 및 DB 업서트 시 식별값으로 사용될 key, report_unique_key 설정 추가
             result.append({
-                "sec_firm_order": 7, "article_board_order": 0, "firm_nm": cfg.get("firm_nm", "신영증권"),
+                "firm_id": 7, "board_id": 0, "firm_nm": cfg.get("firm_nm", "신영증권"),
                 "reg_dt": re.sub(r"[-./]", "", item[item_keys["reg_dt"]]),
                 "writer": item.get(item_keys["writer"], ""),
                 "article_title": title, "telegram_url": dl, "download_url": dl,

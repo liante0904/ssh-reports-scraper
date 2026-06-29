@@ -45,7 +45,7 @@
 | 2 | `"key:"` 오타 (ShinHanInvest_1) | `"key:"` → `"key"` |
 | 3 | 상상인 하드코딩 쿠키 | env var로 분리 |
 | 4 | scheduler.py dead code | 61줄 제거 |
-| 5 | KB article_board_order=0 | 13종 게시판 분류 + 8,142건 백필 |
+| 5 | KB board_id=0 | 13종 게시판 분류 + 8,142건 백필 |
 | 6 | DB 타입 불일치 (Pain 17.2) | `saved_at`(timestamptz), `report_date`(date), `telegram_sent`(bool) |
 | 7 | DB 33컬럼 짬뽕 테이블 (Pain 17.1) | 4종 정규화 테이블 분리 + `v_sec_reports_full` 뷰 |
 | 8 | FnGuide 매칭 성능 | `report_date`+`writer`+`board` 인덱스, `v_fnguide_authors` 뷰 |
@@ -85,9 +85,9 @@
 - `HANA_3.py` — 하나증권이지만 Hana → HANA (대문자)
 - `eugenefn_12.py` — 유진투자증권인데 `eugenefn` (eugene + fn?)
 - `Hygood_22.py` — 한양증권인데 Hygood? (옛날 한양증권 영문명)
-- 숫자가 `sec_firm_order`인데 일부는 언더스코어(`_`)로 구분, 일부는 그냥 붙여씀
+- 숫자가 `firm_id`인데 일부는 언더스코어(`_`)로 구분, 일부는 그냥 붙여씀
 
-**권장**: `firm_01_shinhan.py`, `firm_04_kb.py` 같은 통일된 네이밍. 또는 파일명에 `sec_firm_order`를 포함하지 말고 `firm_nm`만 사용.
+**권장**: `firm_01_shinhan.py`, `firm_04_kb.py` 같은 통일된 네이밍. 또는 파일명에 `firm_id`를 포함하지 말고 `firm_nm`만 사용.
 
 ---
 
@@ -104,7 +104,7 @@ class FirmInfo(metaclass=MetaFirmInfo):  # ← 싱글톤 데이터 + 인스턴�
 
 **LLM 혼란 포인트**:
 - **메타클래스**는 Python에서도 rare 패턴. LLM은 메타클래스 코드를 이해하는 데 토큰을 많이 소모함.
-- `FirmInfo(sec_firm_order, article_board_order)` — 인스턴스를 매번 생성하는데 실제로는 싱글톤 `_firm_data`를 참조. 생성자 비용 낭비.
+- `FirmInfo(firm_id, board_id)` — 인스턴스를 매번 생성하는데 실제로는 싱글톤 `_firm_data`를 참조. 생성자 비용 낭비.
 - `FirmInfo.firm_names` → 클래스 프로퍼티지만 메타클래스로 구현되어 있어 추적 어려움.
 - `load_data_from_db()` → 클래스 메서드지만 첫 호출 시점을 예측할 수 없음 (lazy init).
 
@@ -113,8 +113,8 @@ class FirmInfo(metaclass=MetaFirmInfo):  # ← 싱글톤 데이터 + 인스턴�
 # 단순한 데이터 클래스 + 모듈 레벨 함수로 충분
 _firm_data: dict[int, str] = {}
 
-def get_firm_name(sec_firm_order: int) -> str: ...
-def get_board_name(sec_firm_order: int, article_board_order: int) -> str: ...
+def get_firm_name(firm_id: int) -> str: ...
+def get_board_name(firm_id: int, board_id: int) -> str: ...
 ```
 
 ---
@@ -205,8 +205,8 @@ _GA_FIRMS_ASYNC = {NHQV_checkNewArticle, KB_checkNewArticle, ...}
 
 | 필드 | KBsec | HANA | NHQV | Shinyoung | Leading | DAOL |
 |------|:---:|:---:|:---:|:---:|:---:|:---:|
-| `sec_firm_order` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `article_board_order` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `firm_id` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `board_id` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `firm_nm` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `reg_dt` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `article_title` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -266,14 +266,14 @@ else:
 
 ---
 
-## 10. article_board_order = 0 관행 (⭐⭐)
+## 10. board_id = 0 관행 (⭐⭐)
 
-대부분의 증권사가 `article_board_order = 0`을 하드코딩:
+대부분의 증권사가 `board_id = 0`을 하드코딩:
 - KB증권: 13개 카테고리가 있지만 최근까지 전부 0으로 저장
 - Leading, Daeshin, DAOL, MERITZ 등: 실제로 여러 게시판을 순회하면서도 board_order는 URL 인덱스만 사용
 
 **LLM 혼란 포인트**:
-- `article_board_order`가 무엇을 의미하는지 모듈마다 다름
+- `board_id`가 무엇을 의미하는지 모듈마다 다름
   - HANA: URL_TUPLE의 enumerate index
   - KB: pCategoryid 매핑 (이제 수정됨)
   - Shinyoung: 무조건 0

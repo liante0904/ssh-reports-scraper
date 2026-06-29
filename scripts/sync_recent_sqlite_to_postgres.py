@@ -23,8 +23,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 ROOT = Path(__file__).resolve().parents[1]
 SQLITE_COLUMNS = [
     "report_id",
-    "sec_firm_order",
-    "article_board_order",
+    "firm_id",
+    "board_id",
     "firm_nm",
     "article_title",
     "article_url",
@@ -46,8 +46,8 @@ SQLITE_COLUMNS = [
 
 PG_COLUMNS = [
     "report_id",
-    '"sec_firm_order"',
-    '"article_board_order"',
+    '"firm_id"',
+    '"board_id"',
     '"firm_nm"',
     '"article_title"',
     '"article_url"',

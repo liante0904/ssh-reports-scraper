@@ -68,7 +68,7 @@ def scrape_nhqv(cfg: dict, target_date: str = None) -> list[dict]:
         for a in _jp(cfg["list_path"]):
             u = a.get(ik["pdf_url"])
             if not u: continue
-            result.append(dict(sec_firm_order=2,article_board_order=0,firm_nm="NH투자증권",
+            result.append(dict(firm_id=2,board_id=0,firm_nm="NH투자증권",
                 reg_dt=a[ik["reg_dt"]].replace(".",""),writer=a.get(ik["writer"],""),
                 telegram_url=u,pdf_url=u,article_title=a[ik["title"]],
                 key=u,report_unique_key=u,save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))

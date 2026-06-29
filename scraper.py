@@ -73,7 +73,7 @@ def _is_external_error(msg: str) -> bool:
     return any(re.search(pattern, msg) for pattern in _KNOWN_EXTERNAL_ERRORS)
 
 # GA 이관 증권사 — 평시(30분 간격)에는 GA standalone이 처리, 서버는 full-scrape 시간대에만 fallback 실행
-# {sec_firm_order: func} 매핑. PostgreSQL tbm_sec_firm_info.ga_enabled_yn='Y' 여부로 필터링.
+# {firm_id: func} 매핑. PostgreSQL tbm_sec_firm_info.ga_enabled_yn='Y' 여부로 필터링.
 _GA_FIRMS_SYNC = {
     5: Samsung_checkNewArticle,       # 삼성증권
     9: Hmsec_checkNewArticle,         # 현대차증권
@@ -88,7 +88,7 @@ _GA_FIRMS_SYNC = {
 
 _GA_FIRMS_ASYNC = {
     2: NHQV_checkNewArticle,          # NH투자증권
-    # 하나증권(sec_firm_order=3)은 GA 러너 IP가 www.hanaw.com에서 차단되어
+    # 하나증권(firm_id=3)은 GA 러너 IP가 www.hanaw.com에서 차단되어
     # GA로는 수집 불가. 서버 전용 regular async_functions에서 직접 호출한다.
     # _GA_FIRMS_ASYNC에 넣으면 ga_enabled_yn='N'일 때 full-scrape에서도 제외되어
     # 완전히 누락되므로 절대 GA fallback 목록에 포함시키지 않는다.
@@ -232,8 +232,8 @@ async def enrich_data():
     kst_hour = datetime.now(pytz.timezone('Asia/Seoul')).hour
     is_idle_time = kst_hour >= 20 or kst_hour < 6
 
-    for sec_firm_order in range(len(FirmInfo.firm_names)):
-        firm_info = FirmInfo(sec_firm_order=sec_firm_order, article_board_order=0)
+    for firm_id in range(len(FirmInfo.firm_names)):
+        firm_info = FirmInfo(firm_id=firm_id, board_id=0)
         firm_name = firm_info.get_firm_name()
 
         if firm_name and firm_info.telegram_update_required:
@@ -243,7 +243,7 @@ async def enrich_data():
 
             logger.info(f"[{firm_name}] Found {len(records)} records for enrichment (최근 3일).")
             try:
-                if sec_firm_order == 19:  # DB증권
+                if firm_id == 19:  # DB증권
                     update_records = await DBfi_enrich_and_persist_details(articles=records, firm_info=firm_info, db=db)
                     # DBfi_enrich_and_persist_details 내부에서 건별 DB 업데이트를 이미 수행함
                     success_count = sum(1 for r in update_records if r.get('telegram_url', '').startswith('https://whub.dbsec.co.kr/pv/gate'))
@@ -256,7 +256,7 @@ async def enrich_data():
                             SELECT report_id, article_title, writer, telegram_url,
                                    report_date AS reg_dt, key
                             FROM tbl_sec_reports
-                            WHERE sec_firm_order = 19
+                            WHERE firm_id = 19
                               AND (telegram_url IS NULL OR telegram_url = ''
                                    OR telegram_url NOT LIKE 'https://whub.dbsec.co.kr/pv/gate%%')
                               AND key IS NOT NULL AND key != ''
@@ -268,7 +268,7 @@ async def enrich_data():
                             fixed = await DBfi_enrich_and_persist_details(articles=backlog, firm_info=firm_info, db=db)
                             fixed_count = sum(1 for r in fixed if r.get('telegram_url', '').startswith('https://whub.dbsec.co.kr/pv/gate'))
                             logger.success(f"[DBfi][유휴] {fixed_count}/{len(backlog)}건 gate URL 복구 완료")
-                elif sec_firm_order == 0:  # LS
+                elif firm_id == 0:  # LS
                     update_records = await LS_detail(articles=records, firm_info=firm_info)
                     tasks = [db.update_telegram_url(r['report_id'], r['telegram_url'], r.get('article_title'), pdf_url=r.get('pdf_url') or r['telegram_url']) for r in update_records if r.get('telegram_url')]
                     if tasks: await asyncio.gather(*tasks)
@@ -278,7 +278,7 @@ async def enrich_data():
                         SELECT report_id, article_title, writer, telegram_url,
                                report_date AS reg_dt, key
                         FROM tbl_sec_reports
-                        WHERE sec_firm_order = 0
+                        WHERE firm_id = 0
                           AND telegram_url LIKE 'https://www.ls-sec.co.kr/upload/%%'
                           AND saved_at >= NOW() - INTERVAL '1 day'
                           AND key IS NOT NULL AND key != ''
@@ -299,7 +299,7 @@ async def enrich_data():
                             SELECT report_id, article_title, writer, telegram_url,
                                    report_date AS reg_dt, key
                             FROM tbl_sec_reports
-                            WHERE sec_firm_order = 0
+                            WHERE firm_id = 0
                               AND (telegram_url IS NULL OR telegram_url = ''
                                    OR telegram_url NOT LIKE 'https://msg.ls-sec.co.kr/%%')
                               AND key IS NOT NULL AND key != ''
@@ -313,7 +313,7 @@ async def enrich_data():
                             if fix_tasks:
                                 await asyncio.gather(*fix_tasks)
                                 logger.success(f"[LS][유휴] {len(fix_tasks)}건 msg URL 복구 완료")
-                elif sec_firm_order == 11:  # DS
+                elif firm_id == 11:  # DS
                     pass
                 logger.success(f"[{firm_name}] Enrichment completed.")
             except Exception as e:

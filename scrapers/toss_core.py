@@ -35,7 +35,7 @@ def scrape_toss(cfg: dict) -> list[dict]:
                     if not dl: dl = item.get("contentImage", "")
                     cat = item.get(ik.get("category",""), {}).get("categoryName", "")
                     mkt = "GLOBAL" if cfg.get("global_keyword","") in cat.lower() else "KR"
-                    result.append(dict(sec_firm_order=15,article_board_order=board_order,firm_nm="토스증권",
+                    result.append(dict(firm_id=15,board_id=board_order,firm_nm="토스증권",
                         reg_dt=re.sub(r"[-./]","",reg_dt),download_url=dl,telegram_url=dl,
                         article_title=title,writer=writer,mkt_tp=mkt,key=dl,report_unique_key=dl,
                         save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))

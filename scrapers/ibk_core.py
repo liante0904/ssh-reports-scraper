@@ -73,8 +73,8 @@ def scrape_ibk(cfg: dict) -> list[dict]:
                             "https://download.ibks.com/emsdata/tradeinfo/{path}/{file}")\
                             .replace("{path}",path).replace("{file}",fn)
                     result.append(dict(
-                        sec_firm_order=cfg.get("sec_firm_order",25),
-                        article_board_order=board_idx,
+                        firm_id=cfg.get("firm_id",25),
+                        board_id=board_idx,
                         firm_nm=cfg.get("firm_nm","IBK투자증권"),
                         reg_dt=rdt, article_title=title, writer=writer,
                         download_url=dl, telegram_url=dl, pdf_url=dl,

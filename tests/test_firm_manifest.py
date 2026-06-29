@@ -12,7 +12,7 @@ VALID_MODES = {"ga", "server", "dual", "ga_disabled", "blocked"}
 VALID_CONFIG_SHAPES = {"url_list", "full_config"}
 VALID_EMPTY_POLICIES = {"require_non_empty", "allow_empty", "server_only"}
 REQUIRED_FIELDS = {
-    "display_name", "sec_firm_order", "mode", "core_module",
+    "display_name", "firm_id", "mode", "core_module",
     "standalone_path", "server_module", "workflow_path",
     "env_var", "result_file", "config_shape", "empty_policy",
 }
@@ -69,14 +69,14 @@ def test_empty_policy_enum():
         )
 
 
-def test_sec_firm_order_uniqueness():
-    """sec_firm_order가 중복되지 않았는지 확인."""
+def test_firm_id_uniqueness():
+    """firm_id가 중복되지 않았는지 확인."""
     data = _load_manifest()
     orders = {}
     for key, firm in data["firms"].items():
-        o = firm["sec_firm_order"]
+        o = firm["firm_id"]
         assert o not in orders, (
-            f"{key}: duplicate sec_firm_order={o} (already used by {orders[o]})"
+            f"{key}: duplicate firm_id={o} (already used by {orders[o]})"
         )
         orders[o] = key
 

@@ -133,7 +133,7 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
         "pdf_probe_timeout": 0.5,
         "max_pdf_probe_delta": 3,
         "enable_pdf_probe": False,
-        "sec_firm_order": 28,
+        "firm_id": 28,
         "firm_nm": "흥국증권",
         **cfg,
     }
@@ -180,7 +180,7 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
             if not dl:
                 continue
             au = cfg["view_tpl"].replace("{base}",base).replace("{board_path}",bp).replace("{view_key}",str(vk))
-            result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=board_order,
+            result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
                 firm_nm=cfg["firm_nm"],reg_dt=rd,download_url=dl,telegram_url=dl,pdf_url=dl,
                 article_title=title,article_url=au,writer=writer,key=au,report_unique_key=au,
                 save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))

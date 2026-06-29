@@ -23,8 +23,8 @@ SET default_table_access_method = heap;
 
 CREATE TABLE public.tbl_sec_reports (
     report_id bigint NOT NULL,
-    sec_firm_order integer,
-    article_board_order integer,
+    firm_id integer,
+    board_id integer,
     firm_nm text,
     article_title text,
     article_url text,
@@ -108,7 +108,7 @@ CREATE INDEX idx_tb_sec_reports_reg_dt ON public.tbl_sec_reports USING btree (re
 -- Name: idx_tb_sec_reports_reg_dt_sec_firm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_tb_sec_reports_reg_dt_sec_firm ON public.tbl_sec_reports USING btree (reg_dt DESC, sec_firm_order);
+CREATE INDEX idx_tb_sec_reports_reg_dt_sec_firm ON public.tbl_sec_reports USING btree (reg_dt DESC, firm_id);
 
 
 --
@@ -134,7 +134,7 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    IF NEW.sec_firm_order = 11
+    IF NEW.firm_id = 11
        AND (NEW.telegram_url IS NULL OR NEW.telegram_url = '') THEN
         NEW.telegram_url := 'https://ssh-oci.netlify.app/share?id=' || NEW.report_id::text;
     END IF;

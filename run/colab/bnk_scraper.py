@@ -16,7 +16,7 @@ import requests
 from datetime import datetime
 from bs4 import BeautifulSoup
 
-SEC_FIRM_ORDER = 23
+firm_id = 23
 FIRM_NM = "BNK투자증권"
 URLS_ENV_KEY = "BNK_URLS_JSON"
 
@@ -38,22 +38,22 @@ def scrape_bnk(urls: list[str]) -> list[dict]:
     }
     result = []
 
-    for article_board_order, target_url in enumerate(urls):
+    for board_id, target_url in enumerate(urls):
         try:
             resp = requests.get(target_url, headers=headers, verify=False, timeout=30)
             resp.raise_for_status()
         except Exception as e:
-            print(f"[{FIRM_NM}] board {article_board_order} fetch failed: {e}", file=sys.stderr)
+            print(f"[{FIRM_NM}] board {board_id} fetch failed: {e}", file=sys.stderr)
             continue
 
         soup = BeautifulSoup(resp.text, "html.parser")
         table = soup.find("table", class_="table01")
         if not table:
-            print(f"[{FIRM_NM}] board {article_board_order}: table.table01 not found", file=sys.stderr)
+            print(f"[{FIRM_NM}] board {board_id}: table.table01 not found", file=sys.stderr)
             continue
 
         rows = table.select("tbody tr")
-        print(f"[{FIRM_NM}] board {article_board_order}: {len(rows)} rows", file=sys.stderr)
+        print(f"[{FIRM_NM}] board {board_id}: {len(rows)} rows", file=sys.stderr)
 
         for row in rows:
             try:
@@ -77,8 +77,8 @@ def scrape_bnk(urls: list[str]) -> list[dict]:
                     article_url = f"https://www.bnkfn.co.kr{m.group(1)}/{m.group(2)}"
 
                 result.append({
-                    "sec_firm_order": SEC_FIRM_ORDER,
-                    "article_board_order": article_board_order,
+                    "firm_id": firm_id,
+                    "board_id": board_id,
                     "firm_nm": FIRM_NM,
                     "reg_dt": re.sub(r"[-./]", "", reg_dt),
                     "article_title": title,

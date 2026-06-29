@@ -65,7 +65,7 @@ LLM은 이 중 일부만 보고 수정하는 경향이 강하다. 그래서 테�
 firms:
   kb:
     display_name: KB증권
-    sec_firm_order: 4
+    firm_id: 4
     mode: ga_dual
     core_module: scrapers.kb_core
     standalone: run/standalone/kb.py
@@ -100,7 +100,7 @@ firms:
 manifest가 담당할 것:
 
 - firm key
-- sec_firm_order
+- firm_id
 - 서버 모듈
 - core 모듈
 - standalone 파일
@@ -483,7 +483,7 @@ uv run python scripts/harness.py --check-manifest
 
 이 규칙은 "대부분의 firm이 core → standalone → workflow 패턴을 따른다"는 전제에서 **벗어나는 firm**만 기술한다. LS에 "standalone이 없다" 또는 "GA workflow가 없다"고 쓰지 않도록 주의한다. LS에는 `run/standalone/ls.py`, `run/standalone/ls_v2.py`, `scripts/standalone_ls_scraper.py` 3종 standalone과 `scrape-ls.yml`(cron 활성), `scrape-ls-v2.yml` 2종 workflow가 존재한다.
 
-### LS (LS_0.py, sec_firm_order=0)
+### LS (LS_0.py, firm_id=0)
 
 - `run/standalone/ls.py`는 `modules/LS_0.py`의 `LS_checkNewArticle()`을 직접 호출하는 동기 함수다. `run/standalone/_runner.py`를 사용하지 않는다.
 - `modules/LS_0.py`는 DB 의존성(`FirmInfo`, `get_db`), WARP 프록시(`SOCKS_PROXY`, `USE_WARP_ONLY`), 전역 상태(`skip_boards`)를 갖는다. 일반 `scrapers/*_core.py`처럼 독립 함수로 분리되어 있지 않다.
@@ -492,12 +492,12 @@ uv run python scripts/harness.py --check-manifest
 - `scripts/standalone_ls_scraper.py`는 DB 의존성 없이 순수 HTTP 크롤링만 수행하는 GA 전용 스크래퍼다.
 - **금지**: LS에 일반 core import 패턴을 강제하지 마라. LS 수정 시 `modules/LS_0.py` + `run/standalone/ls.py` + `run/standalone/ls_v2.py` + `scripts/standalone_ls_scraper.py` + `scrape-ls.yml` + `scrape-ls-v2.yml` 6개 파일을 함께 확인한다.
 
-### DBfi (DBfi_19.py, sec_firm_order=19)
+### DBfi (DBfi_19.py, firm_id=19)
 
 - PDF URL 추출 로직이 2벌 존재: async `extract_dbfi_pdf_url()` + sync `DBfi_detail()`. 수정 시 양쪽 모두 확인.
 - standalone은 `_runner.py` + `scrapers/dbfi_core.py` 정규 패턴을 따른다.
 
-### 하나증권 (HANA_3.py, sec_firm_order=3)
+### 하나증권 (HANA_3.py, firm_id=3)
 
 - GA workflow(schedule) 비활성화 (2026-06-22). GA 러너 IP(미국/유럽)가 `www.hanaw.com`에서 차단되어 17개 URL 전부 timeout.
 - `run/standalone/hana.py`는 존재하며 `_runner.py` + `scrapers/hana_core.py` 정규 패턴을 따른다. `workflow_dispatch`로 수동 실행은 가능하다.
@@ -505,32 +505,32 @@ uv run python scripts/harness.py --check-manifest
 - workflow validate는 `--require-non-empty` 없이 실행 (default True이므로 실질 동일).
 - **중요 — 서버 전용 규칙**: 하나증권은 GA IP 차단으로 server-only다. `scraper.py`의 regular `async_functions`에 포함되어야 하며, **절대 `_GA_FIRMS_ASYNC`에 넣지 않는다**. `_GA_FIRMS_ASYNC` + `ga_enabled_yn='N'` 조합이면 `_filter_ga_enabled()`가 full-scrape에서도 제외하여 하나증권이 완전히 누락된다.
 
-### 신한투자 (ShinHanInvest_1.py, sec_firm_order=1)
+### 신한투자 (ShinHanInvest_1.py, firm_id=1)
 
 - 서버 전용 (GA standalone 미해당). `scrapers/shinhan_core.py`로 delegate.
 - `SyncWebScraper` + `aiohttp` 직접 사용 혼합. `_back` 함수는 dead code (비활성, 삭제 금지 — rollback 대비).
 - env 이름으로 `urls` 사용.
 
-### NH투자 (NHQV_2.py, sec_firm_order=2)
+### NH투자 (NHQV_2.py, firm_id=2)
 
 - GA + 서버 듀얼모드. `run/standalone/nhqv.py` + `scrapers/nhqv_core.py` 정규 패턴.
 - `modules/NHQV_2.py`는 `aiohttp` 직접 사용 (WebScraper 미사용). core delegate 구조다.
 - core는 JSON POST 기반. `page_size=11`, `item_keys`로 응답 필드 매핑.
 
-### 한국투자 (Koreainvestment_13.py, sec_firm_order=13)
+### 한국투자 (Koreainvestment_13.py, firm_id=13)
 
 - **Selenium 의존**: `run/standalone/koreainvestment.py`가 `modules/Koreainvestment_13.py`의 `Koreainvestment_selenium_checkNewArticle()`을 직접 호출한다. `_runner.py` 미사용.
 - `scrapers/koreainvestment_core.py`는 **존재하지 않는다** — core 정규 패턴으로 이관되지 않음.
 - GA workflow에 `browser-actions/setup-chrome@v1` 스텝이 필수다. ARM64/amd64 ChromeDriver 경로 분기 있음.
 - 서버 전용 (GA_STATUS 기준). env 이름으로 `urls` 사용.
 
-### BNK (BNKfn_23.py, sec_firm_order=23)
+### BNK (BNKfn_23.py, firm_id=23)
 
 - `run/standalone/bnk.py` **없음** — `scripts/standalone_bnk_scraper.py`를 사용하는 비정규 패턴.
 - GA workflow cron 비활성화 (IP 차단, `BLOCKED_BY_SOURCE_IP`). `workflow_dispatch`만 가능.
 - **주의**: IP 차단은 코드 문제가 아니다. BNK 모듈을 수정하기 전에 IP 차단 해제 여부를 먼저 확인한다.
 
-### IM (iMfnsec_18.py, sec_firm_order=18)
+### IM (iMfnsec_18.py, firm_id=18)
 
 - `run/standalone/imfn.py`는 `_runner.py` + `scrapers/imfn_core.py` 정규 패턴.
 - GA workflow cron 활성 (`0 * * * 1-5`). `IMFN_URLS_JSON` env 사용.
