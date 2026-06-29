@@ -133,10 +133,16 @@ def test_select_reports_ready_for_telegram_requires_dbfi_streamdocs_pdf():
 
     sql, params = calls[0]
     assert params[0] == "2026-06-26"
-    assert "sec_firm_order = 19" in sql
+    assert "FROM   public.v_sec_reports_canonical" in sql
+    assert "firm_id AS sec_firm_order" in sql
+    assert "board_id AS article_board_order" in sql
+    assert "report_unique_key" in sql
+    assert "report_key" not in sql
+    assert "notification_sent" not in sql
+    assert "firm_id = 19" in sql
     assert "telegram_url LIKE 'https://whub.dbsec.co.kr/pv/gate%%'" in sql
     assert "pdf_url LIKE 'https://whub.dbsec.co.kr/streamdocs/v4/documents/%%'" in sql
-    assert "WHEN sec_firm_order = 19 THEN pdf_url" in sql
+    assert "WHEN firm_id = 19 THEN pdf_url" in sql
 
 
 def test_keyword_fetch_requires_dbfi_streamdocs_pdf():

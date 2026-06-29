@@ -158,13 +158,18 @@ Use `sql/canonical_sec_reports_view.sql` as the read/API/analysis transition lay
 CREATE OR REPLACE VIEW public.v_sec_reports_canonical AS
 SELECT
     r.*,
-    COALESCE(NULLIF(r.report_unique_key, ''), NULLIF(r.key, '')) AS report_key,
-    COALESCE(r.save_at, save_time_fallback) AS scraped_at,
-    (COALESCE(r.is_sent, false) OR r.main_ch_send_yn = 'Y') AS notification_sent
+    r.sec_firm_order AS firm_id,
+    r.article_board_order AS board_id,
+    COALESCE(r.save_at, save_time_fallback) AS scraped_at
 FROM public.tbl_sec_reports r;
 ```
 
-This view makes readers consume one canonical name without forcing all writers and old scripts to change at the same time.
+This view makes readers consume clearer read-only names for firm/board/time without forcing all writers and old scripts to change at the same time.
+
+Do not introduce these aliases in new read paths:
+
+- `report_key`: report identity stays `report_unique_key`.
+- `notification_sent`: report channel delivery state stays `telegram_sent`.
 
 The view is not a substitute for base-table uniqueness. Keep unique indexes on `key` and `report_unique_key` until legacy writes are gone; then keep the unique guarantee on `report_unique_key` or a generated canonical key.
 

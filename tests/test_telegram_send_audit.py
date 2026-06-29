@@ -103,7 +103,12 @@ class TestSelectReportsReadyForTelegram:
 
         sql, _ = calls[0]
         assert "(telegram_sent IS NOT true)" in sql
-        assert "sec_firm_order = 19" in sql
+        assert "FROM   public.v_sec_reports_canonical" in sql
+        assert "firm_id AS sec_firm_order" in sql
+        assert "board_id AS article_board_order" in sql
+        assert "report_key" not in sql
+        assert "notification_sent" not in sql
+        assert "firm_id = 19" in sql
         assert "OR COALESCE(telegram_url, '') <> ''" in sql
 
 

@@ -10,6 +10,8 @@ from ssh_library import SecReportsManager as LibrarySecReportsManager
 class SecReportsManager(LibrarySecReportsManager):
     """Keep legacy ``key`` and canonical ``report_unique_key`` in sync."""
 
+    REPORTS_READ_VIEW = "public.v_sec_reports_canonical"
+
     DBFI_READY_CONDITION = """
         (
             sec_firm_order != 19
@@ -29,6 +31,10 @@ class SecReportsManager(LibrarySecReportsManager):
         for column in ("sec_firm_order", "telegram_url", "pdf_url"):
             condition = condition.replace(column, f"{table_alias}.{column}")
         return condition
+
+    @classmethod
+    def dbfi_ready_condition_for_read_view(cls):
+        return cls.dbfi_ready_condition().replace("sec_firm_order", "firm_id")
 
     def _reset_duplicate_send_yn(self, json_data_list, table_name):
         """Do not mutate send status during scraper upsert.
@@ -200,10 +206,10 @@ class SecReportsManager(LibrarySecReportsManager):
         if type == "send":
             cond = f"""
                 (telegram_sent IS NOT true)
-                AND {self.dbfi_ready_condition()}
+                AND {self.dbfi_ready_condition_for_read_view()}
                 AND firm_nm NOT IN ('네이버', '조선비즈')
                 AND (
-                    sec_firm_order = 19
+                    firm_id = 19
                     OR COALESCE(telegram_url, '') <> ''
                     OR COALESCE(pdf_url, '') <> ''
                     OR COALESCE(download_url, '') <> ''
@@ -215,24 +221,28 @@ class SecReportsManager(LibrarySecReportsManager):
 
         sql = f"""
         SELECT DISTINCT ON (
-            sec_firm_order,
+            firm_id,
             article_title
         )
-            report_id,sec_firm_order,article_board_order,firm_nm,reg_dt,
+            report_id,
+            firm_id AS sec_firm_order,
+            board_id AS article_board_order,
+            firm_nm,reg_dt,
             article_title,article_url,
-            download_url,writer,save_time,
+            download_url,writer,save_time,scraped_at,
+            report_unique_key,
             CASE
-                WHEN sec_firm_order = 19 THEN pdf_url
+                WHEN firm_id = 19 THEN pdf_url
                 ELSE telegram_url
             END AS telegram_url
-        FROM   {self.table_name}
+        FROM   {self.REPORTS_READ_VIEW}
         WHERE  LEFT(save_time, 10) >= (%s::date - 2)::text
           AND  LEFT(save_time, 10) <= %s
           AND  reg_dt >= %s
           AND  reg_dt <= %s
           AND  {cond}
         ORDER BY
-            sec_firm_order,
+            firm_id,
             article_title,
             save_time
         """
