@@ -10,8 +10,8 @@ IBK투자증권 리포트 다운로드 URL 후처리 스크립트
   이로 인해 구버전 수집 데이터는 경로가 틀릴 수 있음.
 
 전략:
-  1. firm_id=25(IBK) 레코드 조회
-  2. board_id 값으로 올바른 path_name 결정
+  1. sec_firm_order=25(IBK) 레코드 조회
+  2. article_board_order 값으로 올바른 path_name 결정
   3. 현재 URL의 경로가 올바른지 비교
   4. 경로가 틀렸으면 올바른 경로로 URL 재조립 + HEAD 검증
   5. DB 업데이트
@@ -106,10 +106,10 @@ async def fix_ibk_urls():
 
     # 1. IBK 레코드 조회 (download.ibks.com URL 만)
     records = await db.execute_query("""
-        SELECT report_id, "board_id", "telegram_url", "pdf_url",
+        SELECT report_id, "article_board_order", "telegram_url", "pdf_url",
                "download_url", "article_title", "writer"
         FROM "tbl_sec_reports"
-        WHERE "firm_id" = 25
+        WHERE "sec_firm_order" = 25
           AND "telegram_url" LIKE 'https://download.ibks.com/%%'
         ORDER BY "report_id" DESC
     """)
@@ -124,7 +124,7 @@ async def fix_ibk_urls():
     # 2. board_idx 별 통계
     board_stats = {}
     for r in records:
-        bidx = r["board_id"]
+        bidx = r["article_board_order"]
         board_stats[bidx] = board_stats.get(bidx, 0) + 1
 
     logger.info("[IBK] 게시판별 분포:")
@@ -142,7 +142,7 @@ async def fix_ibk_urls():
 
     for idx, r in enumerate(records, 1):
         report_id = r["report_id"]
-        board_idx = r["board_id"]
+        board_idx = r["article_board_order"]
         old_tg = r["telegram_url"] or ""
 
         new_tg = correct_url(old_tg, board_idx)

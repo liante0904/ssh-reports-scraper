@@ -1,12 +1,12 @@
 --
--- KB증권 백필: 기존 레코드(board_id=0) → pCategoryid 기반 재분류
+-- KB증권 백필: 기존 레코드(article_board_order=0) → pCategoryid 기반 재분류
 -- 2026-06-11
 --
 -- ※ KB API의 pCategoryid가 DB에 저장되지 않았으므로, 타이틀 패턴으로 역추정
 -- ※ CASE WHEN은 첫 매칭 우선 — 특정 브랜드명 → 해외 → 중소형주 → 기업분석 순
 
 UPDATE tbl_sec_reports
-SET board_id = CASE
+SET article_board_order = CASE
 
   -- 1) KB Macro (pCategoryid=8 → board_order=1)
   WHEN article_title ~* '(^KB Macro|^KB 매크로)' THEN 1
@@ -48,10 +48,10 @@ SET board_id = CASE
   -- 0) 기업분석 (pCategoryid=37 → board_order=0) — fallback (종목명 + 코드 패턴)
   ELSE 0
 END
-WHERE firm_id = 4
-  AND board_id = 0;
+WHERE sec_firm_order = 4
+  AND article_board_order = 0;
 
 -- 검증 쿼리
--- SELECT board_id, count(*)
--- FROM tbl_sec_reports WHERE firm_id = 4
--- GROUP BY board_id ORDER BY board_id;
+-- SELECT article_board_order, count(*)
+-- FROM tbl_sec_reports WHERE sec_firm_order = 4
+-- GROUP BY article_board_order ORDER BY article_board_order;

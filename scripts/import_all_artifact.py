@@ -141,7 +141,7 @@ async def post_process_all():
 
     # 1. DBfi: gate URL 복구 (m.db-sec.co.kr → whub.dbsec.co.kr/pv/gate)
     from modules.DBfi_19 import DBfi_enrich_and_persist_details
-    firm_info_19 = FirmInfo(firm_id=19, board_id=0)
+    firm_info_19 = FirmInfo(sec_firm_order=19, article_board_order=0)
 
     records_19 = await db.fetch_all_empty_telegram_url_articles(
         firm_info=firm_info_19, days_limit=3

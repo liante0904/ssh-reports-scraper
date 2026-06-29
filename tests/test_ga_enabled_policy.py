@@ -65,7 +65,7 @@ class TestGaFirmsMapping:
         assert isinstance(_GA_FIRMS_ASYNC, dict), "_GA_FIRMS_ASYNC must be dict"
 
     def test_ga_firms_keys_are_ints(self):
-        """모든 key가 int(firm_id)인지 확인."""
+        """모든 key가 int(sec_firm_order)인지 확인."""
         from scraper import _GA_FIRMS_SYNC, _GA_FIRMS_ASYNC
         for order in _GA_FIRMS_SYNC:
             assert isinstance(order, int), f"key {order} is not int"
@@ -81,7 +81,7 @@ class TestGaFirmsMapping:
             assert callable(func)
 
     def test_ga_firms_no_overlap(self):
-        """SYNC와 ASYNC에 중복된 firm_id 없음."""
+        """SYNC와 ASYNC에 중복된 sec_firm_order 없음."""
         from scraper import _GA_FIRMS_SYNC, _GA_FIRMS_ASYNC
         overlap = set(_GA_FIRMS_SYNC) & set(_GA_FIRMS_ASYNC)
         assert not overlap, f"overlap: {overlap}"

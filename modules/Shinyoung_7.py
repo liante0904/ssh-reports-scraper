@@ -16,8 +16,8 @@ from models.ConfigManager import config
 
 
 def Shinyoung_checkNewArticle():
-    firm_id      = 7
-    board_id = 0
+    sec_firm_order      = 7
+    article_board_order = 0
     json_data_list = []
 
     requests.packages.urllib3.disable_warnings()
@@ -29,8 +29,8 @@ def Shinyoung_checkNewArticle():
     TARGET_URL = urls[0]
     
     firm_info = FirmInfo(
-        firm_id=firm_id,
-        board_id=board_id
+        sec_firm_order=sec_firm_order,
+        article_board_order=article_board_order
     )
 
     # POST 요청을 보낼 데이터
@@ -54,15 +54,15 @@ def Shinyoung_checkNewArticle():
         mkt_tp              = "KR"    
         reg_dt              = re.sub(r"[-./]", "", list['APPDATE'])
         writer              = list['EMPNM']
-        # logger.debug('NT_NO=',list['NT_NO'], 'CMS_CD=',cmsCd[board_id])
+        # logger.debug('NT_NO=',list['NT_NO'], 'CMS_CD=',cmsCd[article_board_order])
         LIST_ARTICLE_URL = Shinyoung_detail(SEQ=list['SEQ'], BBSNO=list['BBSNO'])
         LIST_ARTICLE_TITLE = list['TITLE']
         if "해외주식" in LIST_ARTICLE_TITLE :
             mkt_tp = "GLOBAL"
         download_url = LIST_ARTICLE_URL
         json_data_list.append({
-            "firm_id":firm_id,
-            "board_id":board_id,
+            "sec_firm_order":sec_firm_order,
+            "article_board_order":article_board_order,
             "firm_nm":firm_info.get_firm_name(),
             "article_title":LIST_ARTICLE_TITLE,
             "reg_dt":reg_dt,

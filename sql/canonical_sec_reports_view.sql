@@ -2,15 +2,15 @@
 --
 -- Canonical columns:
 --   scraped_at        : save_at first, legacy save_time fallback
---   firm_id           : firm_id read-only alias
---   board_id          : board_id read-only alias
+--   firm_id           : sec_firm_order read-only alias
+--   board_id          : article_board_order read-only alias
 --
 
 CREATE OR REPLACE VIEW public.v_sec_reports_canonical AS
 SELECT
     r.*,
-    r.firm_id AS firm_id,
-    r.board_id AS board_id,
+    r.sec_firm_order AS firm_id,
+    r.article_board_order AS board_id,
     COALESCE(
         r.save_at,
         CASE

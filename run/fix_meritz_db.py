@@ -9,7 +9,7 @@
   fallback 되어 저장된 케이스들이 있음.
 
 전략:
-  1. DB에서 firm_id=20(메리츠) 이면서
+  1. DB에서 sec_firm_order=20(메리츠) 이면서
      telegram_url에 "WorkFlow" 경로가 없는 레코드들을 조회
   2. 각 레코드의 article_url(상세 페이지)를 재방문하여
      <a[title]> 태그에서 PDF 파일명 추출
@@ -30,7 +30,7 @@ from models.db_factory import get_db
 
 # ── 상수 ──────────────────────────────────────────────────────────────────────
 
-firm_id = 20
+SEC_FIRM_ORDER = 20
 FIRM_NAME = "메리츠증권"
 WORKFLOW_BASE = "https://home.imeritz.com/include/resource/research/WorkFlow"
 
@@ -118,14 +118,14 @@ async def fix_meritz_urls():
     db = get_db()
 
     # 1. 대상 데이터 조회
-    #    - firm_id=20 (메리츠)
+    #    - sec_firm_order=20 (메리츠)
     #    - telegram_url이 WorkFlow 경로가 아닌 경우 (fallback 상태)
     #    - 또는 telegram_url이 NULL/빈 문자열인 경우
     query = """
         SELECT report_id, "article_title", "article_url", "telegram_url", "pdf_url",
                "download_url", "writer", "reg_dt", "key"
         FROM "tbl_sec_reports"
-        WHERE "firm_id" = %s
+        WHERE "sec_firm_order" = %s
           AND (
               "telegram_url" NOT LIKE '%%/WorkFlow/%%'
               OR "telegram_url" IS NULL
@@ -135,7 +135,7 @@ async def fix_meritz_urls():
           AND "article_url" != ''
         ORDER BY "report_id" DESC
     """
-    records = await db.execute_query(query, (firm_id,))
+    records = await db.execute_query(query, (SEC_FIRM_ORDER,))
 
     if not records:
         logger.info(f"[{FIRM_NAME}] 복구할 데이터가 없습니다.")

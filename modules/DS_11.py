@@ -15,7 +15,7 @@ from models.ConfigManager import config
 
 
 def DS_checkNewArticle(full_scan=False):
-    firm_id = 11  # DS투자증권 고유 식별자
+    sec_firm_order = 11  # DS투자증권 고유 식별자
     requests.packages.urllib3.disable_warnings()
 
     TARGET_URL_TUPLE = config.get_urls("DS_11")
@@ -23,12 +23,12 @@ def DS_checkNewArticle(full_scan=False):
     json_data_list = []
     current_time_suffix = datetime.now().strftime("T%H:%M:%S")
 
-    for board_id, BASE_URL in enumerate(TARGET_URL_TUPLE):
+    for article_board_order, BASE_URL in enumerate(TARGET_URL_TUPLE):
         firm_info = FirmInfo(
-            firm_id=firm_id,
-            board_id=board_id
+            sec_firm_order=sec_firm_order,
+            article_board_order=article_board_order
         )
-        logger.debug(f"DS Scraper Start: {firm_info.get_firm_name()} Board {board_id} (Full Scan: {full_scan})")
+        logger.debug(f"DS Scraper Start: {firm_info.get_firm_name()} Board {article_board_order} (Full Scan: {full_scan})")
 
         page = 1
         while True:
@@ -91,8 +91,8 @@ def DS_checkNewArticle(full_scan=False):
 
                     # JSON 데이터 구성
                     json_data_list.append({
-                        "firm_id": firm_id,
-                        "board_id": board_id,
+                        "sec_firm_order": sec_firm_order,
+                        "article_board_order": article_board_order,
                         "firm_nm": firm_info.get_firm_name(),
                         "article_title": title,
                         "article_url": article_url,

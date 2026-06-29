@@ -23,7 +23,7 @@ def scrape_hmsec(cfg: dict) -> list[dict]:
                     ik = cfg["item_keys"]; fn = item[ik["file"]]
                     dl = cfg["url_tpl"].replace("{file}", fn)
                     vu = cfg.get("viewer_tpl", dl).replace("{url}", dl)
-                    result.append(dict(firm_id=9,board_id=board_order,firm_nm="현대차증권",
+                    result.append(dict(sec_firm_order=9,article_board_order=board_order,firm_nm="현대차증권",
                         reg_dt=(item.get(ik["reg_dt"],"")).strip(),article_title=item[ik["title"]],
                         writer=(item.get(ik["writer"],"")).strip(),article_url=vu,pdf_url=dl,
                         download_url=dl,telegram_url=vu,key=vu,report_unique_key=vu,

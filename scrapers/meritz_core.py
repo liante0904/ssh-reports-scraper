@@ -11,7 +11,7 @@ def scrape_meritz(cfg: dict) -> list[dict]:
     cfg.setdefault("head_sel", "thead th")
     cfg.setdefault("row_sel", "tbody tr")
     cfg.setdefault("base_url", "https://home.imeritz.com")
-    cfg.setdefault("firm_id", 20)
+    cfg.setdefault("sec_firm_order", 20)
     cfg.setdefault("firm_nm", "메리츠증권")
     cfg.setdefault("detail_sel", "a[href$='.pdf']")  # 2026.06: .fileArea 사라짐, a에 직접 PDF href
     requests.packages.urllib3.disable_warnings()
@@ -54,7 +54,7 @@ def scrape_meritz(cfg: dict) -> list[dict]:
                             dl = article_url
                     except Exception:
                         dl = article_url
-                    result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
+                    result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=board_order,
                         firm_nm=cfg["firm_nm"],reg_dt=rd,article_url=article_url,
                         download_url=dl,telegram_url=dl,article_title=title,writer=writer,
                         key=dl,report_unique_key=dl,save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))

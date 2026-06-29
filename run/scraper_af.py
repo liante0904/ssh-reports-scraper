@@ -26,11 +26,11 @@ async def update_firm_telegram_url(date_str=None, target_firm_order=None):
     db = SQLiteManager()
     
     # firm_names 배열의 모든 인덱스를 순회
-    for firm_id in range(len(FirmInfo.firm_names)):
-        if target_firm_order is not None and firm_id != target_firm_order:
+    for sec_firm_order in range(len(FirmInfo.firm_names)):
+        if target_firm_order is not None and sec_firm_order != target_firm_order:
             continue
 
-        firm_info = FirmInfo(firm_id=firm_id, board_id=0)
+        firm_info = FirmInfo(sec_firm_order=sec_firm_order, article_board_order=0)
         firm_name = firm_info.get_firm_name()
 
         # 회사 이름이 있고, telegram_update_required가 True인 경우만 처리
@@ -49,7 +49,7 @@ async def update_firm_telegram_url(date_str=None, target_firm_order=None):
             logger.info(f"[{firm_name}] Found {len(records)} records for enrichment.")
 
             try:
-                if firm_id == 19:  # DB증권
+                if sec_firm_order == 19:  # DB증권
                     # 데이터가 너무 많을 경우를 대비한 안전장치 (필요 시 조절)
                     if len(records) > 50:
                         logger.warning(f"[{firm_name}] Too many records ({len(records)}). Processing top 50.")
@@ -65,7 +65,7 @@ async def update_firm_telegram_url(date_str=None, target_firm_order=None):
                             )
                             logger.info(f"[{firm_name}] Updated URL for ID {record['report_id']}")
                 
-                elif firm_id == 0:  # LS증권
+                elif sec_firm_order == 0:  # LS증권
                     for record in records:
                         # LS_detail은 단건 또는 리스트 처리가 가능하므로 맞춰서 호출
                         res_list = await LS_detail(articles=[record], firm_info=firm_info)

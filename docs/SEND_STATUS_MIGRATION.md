@@ -158,8 +158,8 @@ Use `sql/canonical_sec_reports_view.sql` as the read/API/analysis transition lay
 CREATE OR REPLACE VIEW public.v_sec_reports_canonical AS
 SELECT
     r.*,
-    r.firm_id AS firm_id,
-    r.board_id AS board_id,
+    r.sec_firm_order AS firm_id,
+    r.article_board_order AS board_id,
     COALESCE(r.save_at, save_time_fallback) AS scraped_at
 FROM public.tbl_sec_reports r;
 ```

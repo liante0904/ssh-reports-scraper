@@ -61,8 +61,8 @@ def test_insert_includes_legacy_and_canonical_keys(monkeypatch):
     )
 
     inserted, updated = manager.insert_json_data_list([{
-        "firm_id": 7,
-        "board_id": 0,
+        "sec_firm_order": 7,
+        "article_board_order": 0,
         "firm_nm": "신영증권",
         "article_title": "테스트",
         "key": "https://example.test/report.pdf",
@@ -134,8 +134,8 @@ def test_select_reports_ready_for_telegram_requires_dbfi_streamdocs_pdf():
     sql, params = calls[0]
     assert params[0] == "2026-06-26"
     assert "FROM   public.v_sec_reports_canonical" in sql
-    assert "firm_id AS firm_id" in sql
-    assert "board_id AS board_id" in sql
+    assert "firm_id AS sec_firm_order" in sql
+    assert "board_id AS article_board_order" in sql
     assert "report_unique_key" in sql
     assert "report_key" not in sql
     assert "notification_sent" not in sql
@@ -162,10 +162,10 @@ def test_keyword_fetch_requires_dbfi_streamdocs_pdf():
 
     sql, params = calls[0]
     assert params == ("123", "%방산%", "%방산%", "2026-06-26")
-    assert "r.firm_id = 19" in sql
+    assert "r.sec_firm_order = 19" in sql
     assert "r.telegram_url LIKE 'https://whub.dbsec.co.kr/pv/gate%%'" in sql
     assert "r.pdf_url LIKE 'https://whub.dbsec.co.kr/streamdocs/v4/documents/%%'" in sql
-    assert "WHEN r.firm_id = 19 THEN r.pdf_url" in sql
+    assert "WHEN r.sec_firm_order = 19 THEN r.pdf_url" in sql
 
 
 def test_duplicate_reset_does_not_mutate_send_status():

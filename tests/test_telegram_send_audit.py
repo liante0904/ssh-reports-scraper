@@ -104,8 +104,8 @@ class TestSelectReportsReadyForTelegram:
         sql, _ = calls[0]
         assert "(telegram_sent IS NOT true)" in sql
         assert "FROM   public.v_sec_reports_canonical" in sql
-        assert "firm_id AS firm_id" in sql
-        assert "board_id AS board_id" in sql
+        assert "firm_id AS sec_firm_order" in sql
+        assert "board_id AS article_board_order" in sql
         assert "report_key" not in sql
         assert "notification_sent" not in sql
         assert "firm_id = 19" in sql
@@ -119,14 +119,14 @@ class TestTelegramMessageChunks:
         rows = [
             {
                 "report_id": 1,
-                "firm_id": 3,
+                "sec_firm_order": 3,
                 "firm_nm": "하나증권",
                 "article_title": "A",
                 "telegram_url": "https://example.test/a.pdf",
             },
             {
                 "report_id": 2,
-                "firm_id": 3,
+                "sec_firm_order": 3,
                 "firm_nm": "하나증권",
                 "article_title": "B",
                 "telegram_url": "https://example.test/b.pdf",
@@ -146,14 +146,14 @@ class TestTelegramMessageChunks:
         rows = [
             {
                 "report_id": 1,
-                "firm_id": 3,
+                "sec_firm_order": 3,
                 "firm_nm": "하나증권",
                 "article_title": "A" * 60,
                 "telegram_url": "https://example.test/a.pdf",
             },
             {
                 "report_id": 2,
-                "firm_id": 3,
+                "sec_firm_order": 3,
                 "firm_nm": "하나증권",
                 "article_title": "B" * 60,
                 "telegram_url": "https://example.test/b.pdf",
@@ -173,14 +173,14 @@ def test_daily_send_report_marks_only_successful_chunks(monkeypatch):
     rows = [
         {
             "report_id": 1,
-            "firm_id": 3,
+            "sec_firm_order": 3,
             "firm_nm": "하나증권",
             "article_title": "A" * 60,
             "telegram_url": "https://example.test/a.pdf",
         },
         {
             "report_id": 2,
-            "firm_id": 3,
+            "sec_firm_order": 3,
             "firm_nm": "하나증권",
             "article_title": "B" * 60,
             "telegram_url": "https://example.test/b.pdf",

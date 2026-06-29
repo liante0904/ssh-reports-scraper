@@ -163,13 +163,13 @@ if [[ -n "$FIRM_NAME" || -n "$FIRM_ORDER" ]]; then
     if [[ -n "$FIRM_ORDER" ]]; then
         echo "--- Firm Metadata (order=$FIRM_ORDER) ---"
         "${OCI[@]}" "docker exec main-postgres psql -U ssh_reports_hub -d ssh_reports_hub -c \"
-            SELECT firm_id, firm_nm, telegram_update_yn, ga_enabled_yn
-            FROM tbm_sec_firm_info WHERE firm_id = $FIRM_ORDER\" 2>/dev/null" || echo "(DB query failed)"
+            SELECT sec_firm_order, firm_nm, telegram_update_yn, ga_enabled_yn
+            FROM tbm_sec_firm_info WHERE sec_firm_order = $FIRM_ORDER\" 2>/dev/null" || echo "(DB query failed)"
 
         echo "--- Latest 10 Rows ---"
         "${OCI[@]}" "docker exec main-postgres psql -U ssh_reports_hub -d ssh_reports_hub -c \"
             SELECT reg_dt, article_title, save_time
-            FROM tbl_sec_reports WHERE firm_id = $FIRM_ORDER
+            FROM tbl_sec_reports WHERE sec_firm_order = $FIRM_ORDER
             ORDER BY save_time DESC LIMIT 10\" 2>/dev/null" || echo "(DB query failed)"
     fi
 

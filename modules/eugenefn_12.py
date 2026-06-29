@@ -12,7 +12,7 @@ from models.FirmInfo import FirmInfo
 from models.WebScraper import AsyncWebScraper
 from models.ConfigManager import config
 
-firm_id = 12
+sec_firm_order = 12
 
 BASE_URLS = config.get_urls("eugenefn_12")
 
@@ -52,7 +52,7 @@ def get_eugene_headers():
             
     return headers
 
-async def parse_article_list(html_text, board_id):
+async def parse_article_list(html_text, article_board_order):
     articles = []
     if html_text:
         soup = BeautifulSoup(html_text, 'html.parser')
@@ -84,13 +84,13 @@ async def parse_article_list(html_text, board_id):
                 writer = writer_tag.text.strip() if writer_tag else ''
                 
                 firm_info = FirmInfo(
-                    firm_id=firm_id,
-                    board_id=board_id
+                    sec_firm_order=sec_firm_order,
+                    article_board_order=article_board_order
                 )
 
                 articles.append({
-                    "firm_id": firm_id,
-                    "board_id": board_id,
+                    "sec_firm_order": sec_firm_order,
+                    "article_board_order": article_board_order,
                     "firm_nm": firm_info.get_firm_name(),
                     "reg_dt": reg_dt,
                     "writer": writer,
@@ -110,10 +110,10 @@ async def eugene_checkNewArticle():
     all_articles = []
     headers = get_eugene_headers()
     
-    for board_id, base_url in enumerate(BASE_URLS):
+    for article_board_order, base_url in enumerate(BASE_URLS):
         referer_url = base_url.replace('Add.do', '.do')
-        firm_info = FirmInfo(firm_id, board_id)
-        logger.debug(f"Eugene Scraper Start: {firm_info.get_firm_name()} Board {board_id}")
+        firm_info = FirmInfo(sec_firm_order, article_board_order)
+        logger.debug(f"Eugene Scraper Start: {firm_info.get_firm_name()} Board {article_board_order}")
         
         # 각 요청마다 Referer 헤더 업데이트
         current_headers = headers.copy()
@@ -131,7 +131,7 @@ async def eugene_checkNewArticle():
                         break
                         
                     html_text = str(response_soup)
-                    articles = await parse_article_list(html_text, board_id)
+                    articles = await parse_article_list(html_text, article_board_order)
                     all_articles.extend(articles)
                     logger.info(f"Eugene Scraper: Found {len(articles)} articles on page {page_no}")
                 else:

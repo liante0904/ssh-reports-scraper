@@ -29,7 +29,7 @@ def scrape_eugene(url: str) -> list[dict]:
         reg_dt = re.sub(r"[-./]","",cells[3].get_text(strip=True))
         writer = cells[4].get_text(strip=True) if len(cells) > 4 else ""
         # 2026.06.21 fix: GA Import 중복제거 및 DB 업서트 시 식별값으로 사용될 key, report_unique_key 설정 추가
-        result.append({"firm_id":12,"board_id":0,
+        result.append({"sec_firm_order":12,"article_board_order":0,
             "firm_nm":"유진투자증권","reg_dt":reg_dt,"article_title":title,
             "download_url":article_url,"telegram_url":article_url,
             "key":article_url,"report_unique_key":article_url,

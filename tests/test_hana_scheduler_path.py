@@ -20,7 +20,7 @@ class TestHanaServerOnlyPath:
         )
 
     def test_hana_not_in_ga_firms_async(self):
-        """하나증권(firm_id=3)이 _GA_FIRMS_ASYNC에 없어야 한다."""
+        """하나증권(sec_firm_order=3)이 _GA_FIRMS_ASYNC에 없어야 한다."""
         from scraper import _GA_FIRMS_ASYNC
         assert 3 not in _GA_FIRMS_ASYNC, (
             "Hana(3) must not be in _GA_FIRMS_ASYNC. "

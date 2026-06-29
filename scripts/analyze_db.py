@@ -101,7 +101,7 @@ def analyze_database():
                         if table == "tbl_sec_reports":
                             # 최신 리포트 정보 3개 및 최종 수집 시간
                             cur.execute("""
-                                SELECT firm_id, firm_nm, article_title, writer, reg_dt, save_time
+                                SELECT sec_firm_order, firm_nm, article_title, writer, reg_dt, save_time
                                 FROM tbl_sec_reports
                                 ORDER BY save_time DESC NULLS LAST
                                 LIMIT 3;
@@ -109,7 +109,7 @@ def analyze_database():
                             latest_rows = cur.fetchall()
                             table_info["latest_samples"] = [
                                 {
-                                    "firm_id": r[0],
+                                    "sec_firm_order": r[0],
                                     "firm_nm": r[1],
                                     "article_title": r[2],
                                     "writer": r[3],
@@ -120,14 +120,14 @@ def analyze_database():
                         elif table == "tbm_sec_firm_info":
                             # 등록된 증권사 정보 요약
                             cur.execute("""
-                                SELECT firm_id, firm_nm, telegram_update_yn
+                                SELECT sec_firm_order, firm_nm, telegram_update_yn
                                 FROM tbm_sec_firm_info
-                                ORDER BY firm_id;
+                                ORDER BY sec_firm_order;
                             """)
                             firms = cur.fetchall()
                             table_info["firms_summary"] = [
                                 {
-                                    "firm_id": f[0],
+                                    "sec_firm_order": f[0],
                                     "firm_nm": f[1],
                                     "telegram_update_yn": f[2]
                                 } for f in firms
@@ -135,16 +135,16 @@ def analyze_database():
                         elif table == "tbm_sec_firm_board_info":
                             # 게시판 정보 개수 및 샘플 5개
                             cur.execute("""
-                                SELECT firm_id, board_id, board_nm, board_cd
+                                SELECT sec_firm_order, article_board_order, board_nm, board_cd
                                 FROM tbm_sec_firm_board_info
-                                ORDER BY firm_id, board_id
+                                ORDER BY sec_firm_order, article_board_order
                                 LIMIT 5;
                             """)
                             boards = cur.fetchall()
                             table_info["boards_sample"] = [
                                 {
-                                    "firm_id": b[0],
-                                    "board_id": b[1],
+                                    "sec_firm_order": b[0],
+                                    "article_board_order": b[1],
                                     "board_nm": b[2],
                                     "board_cd": b[3]
                                 } for b in boards

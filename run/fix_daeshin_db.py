@@ -23,7 +23,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from models.db_factory import get_db
 
 
-firm_id = 17
+SEC_FIRM_ORDER = 17
 FIRM_NAME = "대신증권"
 
 HEADERS = {
@@ -65,9 +65,9 @@ async def fix_daeshin_urls():
         SELECT report_id, "telegram_url", "pdf_url", "article_url",
                "article_title", "writer"
         FROM "tbl_sec_reports"
-        WHERE "firm_id" = %s
+        WHERE "sec_firm_order" = %s
         ORDER BY "report_id" DESC
-    """, (firm_id,))
+    """, (SEC_FIRM_ORDER,))
 
     if not records:
         logger.info(f"[{FIRM_NAME}] 처리할 레코드가 없습니다.")

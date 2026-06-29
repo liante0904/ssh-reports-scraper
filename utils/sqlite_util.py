@@ -6,7 +6,7 @@ EMOJI_PICK = u'\U0001F449'
 
 
 def _telegram_link_for_row(row):
-    if row.get('firm_id') == 11:
+    if row.get('sec_firm_order') == 11:
         return row.get('telegram_url') if row.get('telegram_url') else "링크없음"
     return row.get('telegram_url') or row.get('download_url') or row.get('article_url') or ""
 

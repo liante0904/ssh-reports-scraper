@@ -13,7 +13,7 @@ def scrape_hanwha(cfg: dict) -> list[dict]:
     cfg.setdefault("url_tpl", "")
     cfg.setdefault("max_pages", 50)
     cfg.setdefault("page_size", 100)
-    cfg.setdefault("firm_id", 21)
+    cfg.setdefault("sec_firm_order", 21)
     cfg.setdefault("firm_nm", "한화투자증권")
     requests.packages.urllib3.disable_warnings()
     result = []
@@ -45,7 +45,7 @@ def scrape_hanwha(cfg: dict) -> list[dict]:
                     dl = cfg["url_tpl"].replace("{file}",urllib.parse.quote(fn)).replace("{store}",urllib.parse.quote(sn)).replace("{dir}",urllib.parse.quote(dp))
                 if not dl:
                     continue
-                result.append(dict(firm_id=cfg["firm_id"],board_id=0,
+                result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=0,
                     firm_nm=cfg["firm_nm"],reg_dt=re.sub(r"[-./]","",rd),download_url=dl,
                     article_title=title,writer=writer,mkt_tp=mkt,key=dl,report_unique_key=dl,
                     telegram_url=dl,pdf_url=dl,save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))

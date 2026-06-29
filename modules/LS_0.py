@@ -71,7 +71,7 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
     max_pages: 스크래핑할 페이지 수 (기본 2페이지까지 긁음)
     """
     global USE_WARP_ONLY
-    firm_id = 0
+    sec_firm_order = 0
     json_data_list = []
     requests.packages.urllib3.disable_warnings()
 
@@ -105,12 +105,12 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
 
         page_has_articles = False
 
-        for board_id, TARGET_URL in enumerate(TARGET_URL_TUPLE):
-            if board_id in skip_boards:
+        for article_board_order, TARGET_URL in enumerate(TARGET_URL_TUPLE):
+            if article_board_order in skip_boards:
                 continue
             # 템플릿 URL(K_{filename})은 실제 게시판이 아니므로 건너뜀
             if "K_{filename}" in TARGET_URL:
-                skip_boards.add(board_id)
+                skip_boards.add(article_board_order)
                 continue
 
             soupList = []
@@ -120,8 +120,8 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
             time.sleep(random.uniform(LS_LIST_DELAY_MIN, LS_LIST_DELAY_MAX))
 
             firm_info = FirmInfo(
-                firm_id=firm_id,
-                board_id=board_id
+                sec_firm_order=sec_firm_order,
+                article_board_order=article_board_order
             )
 
             # 1차 시도: 직접 접속
@@ -151,7 +151,7 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
                 if soup:
                     soupList = soup.select('#contents > table > tbody > tr')
                 else:
-                    skip_boards.add(board_id)
+                    skip_boards.add(article_board_order)
 
             logger.info(f"{firm_info.get_firm_name()}의 {firm_info.get_board_name()} 게시판 p.{p}... (Found {len(soupList)} articles)")
 
@@ -175,8 +175,8 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
                     LIST_ARTICLE_TITLE = title_text[title_text.find("]")+1:].strip()
 
                     json_data_list.append({
-                        "firm_id": firm_id,
-                        "board_id": board_id,
+                        "sec_firm_order": sec_firm_order,
+                        "article_board_order": article_board_order,
                         "firm_nm": firm_info.get_firm_name(),
                         "reg_dt": re.sub(r"[-./]", "", str_date),
                         "article_url": '',
@@ -202,7 +202,7 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
     if json_data_list:
         try:
             db = get_db()
-            existing_keys = db.fetch_existing_keys(firm_id=firm_id, days_limit=None)
+            existing_keys = db.fetch_existing_keys(sec_firm_order=sec_firm_order, days_limit=None)
             new_articles = [a for a in json_data_list if a.get("key") and a["key"] not in existing_keys]
             skipped = len(json_data_list) - len(new_articles)
             if skipped:
@@ -561,7 +561,7 @@ async def reconstruct_msg_url_from_db(article, headers):
         rows = db._fetchall("""
             SELECT telegram_url
             FROM tbl_sec_reports
-            WHERE firm_id = 0
+            WHERE sec_firm_order = 0
               AND writer = %s
               AND telegram_url LIKE 'https://msg.ls-sec.co.kr/eum/K_%%'
             ORDER BY save_time DESC
@@ -588,7 +588,7 @@ async def reconstruct_msg_url_from_db(article, headers):
         all_urls = db._fetchall("""
             SELECT telegram_url, reg_dt
             FROM tbl_sec_reports
-            WHERE firm_id = 0
+            WHERE sec_firm_order = 0
               AND telegram_url LIKE 'https://msg.ls-sec.co.kr/eum/K_%%'
               AND telegram_url LIKE '%%' || %s || '_%%'
             ORDER BY telegram_url DESC

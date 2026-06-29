@@ -110,7 +110,7 @@ def import_to_db(data: dict) -> tuple[int, int]:
     db = get_db()
 
     # LS증권 기존 key 조회 (최근 30일)
-    existing_keys = db.fetch_existing_keys(firm_id=0, days_limit=30)
+    existing_keys = db.fetch_existing_keys(sec_firm_order=0, days_limit=30)
 
     # 신규 기사만 필터
     new_articles = [a for a in articles if a.get("key") and a["key"] not in existing_keys]
@@ -136,7 +136,7 @@ async def post_process_unresolved():
 
     # unresolved LS articles (telegram_url 없는 것)
     records = await db.fetch_all_empty_telegram_url_articles(
-        firm_info=FirmInfo(firm_id=0, board_id=0),
+        firm_info=FirmInfo(sec_firm_order=0, article_board_order=0),
         days_limit=3,
     )
 

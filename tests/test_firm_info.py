@@ -38,8 +38,8 @@ class TestFirmInfoGaEnabled:
         assert "GA_ENABLED" in state
         assert isinstance(state["GA_ENABLED"], bool)
 
-    def test_ga_enabled_persists_after_set_firm_id(self):
-        """set_firm_id() 호출 후에도 ga_enabled가 갱신된다."""
+    def test_ga_enabled_persists_after_set_sec_firm_order(self):
+        """set_sec_firm_order() 호출 후에도 ga_enabled가 갱신된다."""
         from models.FirmInfo import FirmInfo
         FirmInfo._is_loaded = False
         FirmInfo._firm_data = {}
@@ -47,7 +47,7 @@ class TestFirmInfoGaEnabled:
 
         fi = FirmInfo(0)
         assert fi.ga_enabled is False
-        fi.set_firm_id(4)
+        fi.set_sec_firm_order(4)
         assert fi.ga_enabled is False  # fallback always False
 
 
@@ -87,10 +87,10 @@ class TestFirmInfoPostgresGaEnabled:
             def execute(self, query, *args, **kwargs): pass
             def fetchall(self):
                 return [
-                    {"firm_id": 2, "firm_nm": "NH", "telegram_update_yn": "Y", "ga_enabled_yn": "Y"},
-                    {"firm_id": 4, "firm_nm": "KB", "telegram_update_yn": "N", "ga_enabled_yn": "N"},
-                    {"firm_id": 5, "firm_nm": "Samsung", "telegram_update_yn": "Y", "ga_enabled_yn": None},
-                    {"firm_id": 8, "firm_nm": "Mirae", "telegram_update_yn": "N", "ga_enabled_yn": ""},
+                    {"sec_firm_order": 2, "firm_nm": "NH", "telegram_update_yn": "Y", "ga_enabled_yn": "Y"},
+                    {"sec_firm_order": 4, "firm_nm": "KB", "telegram_update_yn": "N", "ga_enabled_yn": "N"},
+                    {"sec_firm_order": 5, "firm_nm": "Samsung", "telegram_update_yn": "Y", "ga_enabled_yn": None},
+                    {"sec_firm_order": 8, "firm_nm": "Mirae", "telegram_update_yn": "N", "ga_enabled_yn": ""},
                 ]
             def __enter__(self): return self
             def __exit__(self, *args): pass
@@ -119,7 +119,7 @@ class TestFirmInfoPostgresGaEnabled:
         class FakeCursor:
             def execute(self, query, *args, **kwargs): pass
             def fetchall(self):
-                return [{"firm_id": 4, "firm_nm": "KB", "telegram_update_yn": "N", "ga_enabled_yn": "Y"}]
+                return [{"sec_firm_order": 4, "firm_nm": "KB", "telegram_update_yn": "N", "ga_enabled_yn": "Y"}]
             def __enter__(self): return self
             def __exit__(self, *args): pass
 
@@ -170,9 +170,9 @@ class TestGaEnabledOrders:
         import psycopg2
 
         _firm_rows = [
-            {"firm_id": 2, "firm_nm": "NH", "telegram_update_yn": "Y", "ga_enabled_yn": "Y"},
-            {"firm_id": 4, "firm_nm": "KB", "telegram_update_yn": "N", "ga_enabled_yn": "N"},
-            {"firm_id": 5, "firm_nm": "Samsung", "telegram_update_yn": "Y", "ga_enabled_yn": "Y"},
+            {"sec_firm_order": 2, "firm_nm": "NH", "telegram_update_yn": "Y", "ga_enabled_yn": "Y"},
+            {"sec_firm_order": 4, "firm_nm": "KB", "telegram_update_yn": "N", "ga_enabled_yn": "N"},
+            {"sec_firm_order": 5, "firm_nm": "Samsung", "telegram_update_yn": "Y", "ga_enabled_yn": "Y"},
         ]
 
         class FakeCursor:

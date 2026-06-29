@@ -27,7 +27,7 @@ def scrape_miraeasset(cfg: dict) -> list[dict]:
                 if attach:
                     m = re.search(cfg["attach_pattern"], attach["href"])
                     if m: dl = m.group(1)
-                result.append(dict(firm_id=cfg["firm_id"],board_id=idx,
+                result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=idx,
                     firm_nm=cfg["firm_nm"],reg_dt=rdt,writer=writer,download_url=dl,telegram_url=dl,
                     article_title=title,save_time=datetime.now(timezone(timedelta(hours=9))).isoformat(),key=dl,report_unique_key=dl))
             except Exception: continue

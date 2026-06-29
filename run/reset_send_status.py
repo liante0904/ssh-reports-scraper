@@ -35,11 +35,11 @@ async def reset_and_send(firm_order, date_str, board_order=None, do_send=False):
         
         # 해당 업체/날짜의 데이터를 다시 읽어옴 (PostgreSQLManager 표준 인터페이스 사용)
         select_query = f"""
-        "report_id", "firm_id", "board_id", "firm_nm", "reg_dt",
+        "report_id", "sec_firm_order", "article_board_order", "firm_nm", "reg_dt",
         "article_title", "article_url", "telegram_sent",
         "download_url", "writer", "save_time", "telegram_url"
         FROM "tbl_sec_reports" 
-        WHERE "firm_id" = %s AND DATE("save_time") = %s AND "telegram_sent" = false
+        WHERE "sec_firm_order" = %s AND DATE("save_time") = %s AND "telegram_sent" = false
         """
         rows = await db.execute_query(select_query, [firm_order, date_str])
         

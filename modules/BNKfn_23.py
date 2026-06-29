@@ -58,7 +58,7 @@ def _fetch_url_with_retry(url, headers):
 
 
 def BNK_checkNewArticle():
-    firm_id = 23
+    sec_firm_order = 23
     TARGET_URL_TUPLE = config.get_urls("BNKfn_23")
     json_data_list = []
 
@@ -70,7 +70,7 @@ def BNK_checkNewArticle():
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
     }
 
-    for board_id, url in enumerate(TARGET_URL_TUPLE):
+    for article_board_order, url in enumerate(TARGET_URL_TUPLE):
         try:
             html = _fetch_url_with_retry(url, headers)
             if not html:
@@ -88,8 +88,8 @@ def BNK_checkNewArticle():
             logger.info(f"BNK: {url} → {len(rows)}개 행 발견")
 
             firm_info = FirmInfo(
-                firm_id=firm_id,
-                board_id=board_id
+                sec_firm_order=sec_firm_order,
+                article_board_order=article_board_order
             )
 
             for row in rows:
@@ -115,8 +115,8 @@ def BNK_checkNewArticle():
                 reg_dt = cells[4].get_text(strip=True)
 
                 json_data_list.append({
-                    "firm_id": firm_id,
-                    "board_id": board_id,
+                    "sec_firm_order": sec_firm_order,
+                    "article_board_order": article_board_order,
                     "firm_nm": firm_info.get_firm_name(),
                     "reg_dt": re.sub(r"[-./]", "", reg_dt),
                     "article_title": article_title,

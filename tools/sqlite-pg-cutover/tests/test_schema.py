@@ -5,7 +5,7 @@ from sqlite_pg_cutover.schema import inspect_tables, normalize_identifier, rende
 
 def test_normalize_identifier():
     assert normalize_identifier("Report ID") == "report_id"
-    assert normalize_identifier("firm_id") == "firm_id"
+    assert normalize_identifier("SEC_FIRM_ORDER") == "sec_firm_order"
     assert normalize_identifier("123abc") == "_123abc"
 
 

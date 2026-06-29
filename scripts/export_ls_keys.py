@@ -15,13 +15,13 @@ from models.db_factory import get_db
 
 
 def export_ls_keys(output_path: str = None) -> dict:
-    """LS증권(firm_id=0)의 모든 key + writer + article_title 조회"""
+    """LS증권(sec_firm_order=0)의 모든 key + writer + article_title 조회"""
     db = get_db()
 
     rows = db._fetchall("""
         SELECT key, writer, article_title
         FROM tbl_sec_reports
-        WHERE firm_id = 0 AND key IS NOT NULL AND key != ''
+        WHERE sec_firm_order = 0 AND key IS NOT NULL AND key != ''
         ORDER BY key
     """)
 
@@ -41,7 +41,7 @@ def export_ls_keys(output_path: str = None) -> dict:
         SELECT DISTINCT writer,
                SUBSTRING(telegram_url FROM 'eum/K_\\d{8}_(.+)_\\d+\\.pdf$') AS emp_id
         FROM tbl_sec_reports
-        WHERE firm_id = 0
+        WHERE sec_firm_order = 0
           AND telegram_url LIKE 'https://msg.ls-sec.co.kr/eum/K_%'
           AND writer IS NOT NULL AND writer != ''
     """)

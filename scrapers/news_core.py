@@ -45,8 +45,8 @@ async def scrape_chosun_biz(session) -> list[dict]:
         link = item['url']
         
         articles.append({
-            "firm_id": 100,
-            "board_id": 0,
+            "sec_firm_order": 100,
+            "article_board_order": 0,
             "board_name": "조선비즈",
             "firm_nm": "조선비즈",
             "reg_dt": today_str,
@@ -79,8 +79,8 @@ async def scrape_naver_flash(session) -> list[dict]:
         unique_key = f"naver_flash_{item['oid']}_{item['aid']}"
         
         articles.append({
-            "firm_id": 101,
-            "board_id": 0,
+            "sec_firm_order": 101,
+            "article_board_order": 0,
             "board_name": "네이버 실시간",
             "firm_nm": "네이버",
             "reg_dt": today_str,
@@ -113,8 +113,8 @@ async def scrape_naver_rank(session) -> list[dict]:
         unique_key = f"naver_rank_{item['oid']}_{item['aid']}"
         
         articles.append({
-            "firm_id": 101,
-            "board_id": 1,
+            "sec_firm_order": 101,
+            "article_board_order": 1,
             "board_name": "네이버 랭킹",
             "firm_nm": "네이버",
             "reg_dt": today_str,

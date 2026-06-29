@@ -59,7 +59,7 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
                 dl = canonical_shinhan_url(item.get("attachment_url") or "")
                 if not dl.startswith("http"): continue
                 board = BOARD_MAP.get(bbs_name, 99)
-                result.append({"firm_id":1,"board_id":board,
+                result.append({"sec_firm_order":1,"article_board_order":board,
                     "firm_nm":"신한증권","reg_dt":reg_dt,"download_url":dl,"telegram_url":dl,
                     "article_title":item.get("title","").strip(),"writer":item.get("nickname","").strip(),
                     "key":dl,"report_unique_key":dl,
@@ -90,7 +90,7 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
                 dl = canonical_shinhan_url(item.get(u_key, ""))
                 if not dl.startswith("http"): continue
                 board = BOARD_MAP.get(board_name, 99)
-                result.append({"firm_id":1,"board_id":board,
+                result.append({"sec_firm_order":1,"article_board_order":board,
                     "firm_nm":"신한증권","reg_dt":reg_dt,"download_url":dl,"telegram_url":dl,
                     "article_title":item.get(t_key,"").strip(),"writer":item.get(w_key,"").strip(),
                     "key":dl,"report_unique_key":dl,

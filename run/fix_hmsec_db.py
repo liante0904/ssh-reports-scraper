@@ -9,7 +9,7 @@
   (https://www.hmsec.com/documents/research/...)
 
 전략:
-  1. firm_id=9(현대차증권) 레코드 조회
+  1. sec_firm_order=9(현대차증권) 레코드 조회
   2. telegram_url이 SynapDocViewServer URL인 경우, pdf_url로 교체
   3. HEAD 검증 후 DB 업데이트
 """
@@ -23,7 +23,7 @@ from loguru import logger
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from models.db_factory import get_db
 
-firm_id = 9
+SEC_FIRM_ORDER = 9
 FIRM_NAME = "현대차증권"
 
 HEADERS = {
@@ -48,9 +48,9 @@ async def fix_hmsec_urls():
         SELECT report_id, "telegram_url", "pdf_url", "download_url",
                "article_title", "writer", "key"
         FROM "tbl_sec_reports"
-        WHERE "firm_id" = %s
+        WHERE "sec_firm_order" = %s
         ORDER BY "report_id" DESC
-    """, (firm_id,))
+    """, (SEC_FIRM_ORDER,))
 
     if not records:
         logger.info(f"[{FIRM_NAME}] 처리할 레코드가 없습니다.")

@@ -2,7 +2,7 @@
 LS 증권 telegram_url 실태 진단 스크립트
 
 목적:
-  - tbl_sec_reports에서 LS 증권(firm_id=0) 레코드 중
+  - tbl_sec_reports에서 LS 증권(sec_firm_order=0) 레코드 중
     telegram_url이 https://msg.ls-sec.co.kr/ 로 시작하지 않는
     레코드들의 현황을 분석하고 재처리 가능성을 진단한다.
 
@@ -50,7 +50,7 @@ def classify_url(url: str) -> str:
 def count_all(db) -> dict:
     """LS 증권 전체 레코드 통계"""
     total = db._fetchall(
-        "SELECT COUNT(*) AS cnt FROM tbl_sec_reports WHERE firm_id = 0"
+        "SELECT COUNT(*) AS cnt FROM tbl_sec_reports WHERE sec_firm_order = 0"
     )
     by_url = db._fetchall("""
         SELECT
@@ -62,7 +62,7 @@ def count_all(db) -> dict:
             END AS url_type,
             COUNT(*) AS cnt
         FROM tbl_sec_reports
-        WHERE firm_id = 0
+        WHERE sec_firm_order = 0
         GROUP BY url_type
         ORDER BY cnt DESC
     """)
@@ -72,11 +72,11 @@ def count_all(db) -> dict:
 def get_failed_records(db, limit: int = None) -> list:
     """telegram_url이 비정상인 LS 레코드 조회"""
     query = """
-        SELECT report_id, firm_id, board_id, firm_nm,
+        SELECT report_id, sec_firm_order, article_board_order, firm_nm,
                reg_dt, article_title, article_url, telegram_url,
                download_url, key, save_time, writer
         FROM tbl_sec_reports
-        WHERE firm_id = 0
+        WHERE sec_firm_order = 0
           AND (telegram_url IS NULL
                OR telegram_url = ''
                OR telegram_url NOT LIKE 'https://msg.ls-sec.co.kr/%%')

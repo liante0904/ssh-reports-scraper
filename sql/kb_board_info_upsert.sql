@@ -1,9 +1,9 @@
 --
--- KB증권 게시판 정보 (firm_id=4)
--- pCategoryid → board_id 매핑 (2026-06-11 확정)
+-- KB증권 게시판 정보 (sec_firm_order=4)
+-- pCategoryid → article_board_order 매핑 (2026-06-11 확정)
 --
 
-INSERT INTO public.tbm_sec_firm_board_info (firm_id, board_id, board_nm, label_nm) VALUES
+INSERT INTO public.tbm_sec_firm_board_info (sec_firm_order, article_board_order, board_nm, label_nm) VALUES
   (4, 0,  '기업분석',       'KB 기업분석'),        -- pCategoryid=37
   (4, 1,  'KB Macro',       'KB Macro'),            -- pCategoryid=8
   (4, 2,  'KB Bond',        'KB Bond'),             -- pCategoryid=9
@@ -17,6 +17,6 @@ INSERT INTO public.tbm_sec_firm_board_info (firm_id, board_id, board_nm, label_n
   (4, 10, 'Core View',      'KB Core View'),        -- pCategoryid=12
   (4, 11, 'Asia Headline',  'KB Asia Headline'),    -- pCategoryid=39
   (4, 12, '이슈 플러스',     'KB 이슈 플러스')       -- pCategoryid=189
-ON CONFLICT (firm_id, board_id) DO UPDATE SET
+ON CONFLICT (sec_firm_order, article_board_order) DO UPDATE SET
   board_nm = EXCLUDED.board_nm,
   label_nm = EXCLUDED.label_nm;

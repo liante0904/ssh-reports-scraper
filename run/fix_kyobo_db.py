@@ -8,7 +8,7 @@
   article_url이 저장되어 있지 않아 재방문 불가.
 
 전략:
-  1. firm_id=24(교보증권) 레코드 조회
+  1. sec_firm_order=24(교보증권) 레코드 조회
   2. telegram_url HEAD 검증
   3. HTTP→HTTPS 변환 시도
   4. 통계 보고
@@ -23,7 +23,7 @@ from loguru import logger
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from models.db_factory import get_db
 
-firm_id = 24
+SEC_FIRM_ORDER = 24
 FIRM_NAME = "교보증권"
 
 HEADERS = {
@@ -48,9 +48,9 @@ async def fix_kyobo_urls():
         SELECT report_id, "telegram_url", "pdf_url",
                "article_title", "writer", "key"
         FROM "tbl_sec_reports"
-        WHERE "firm_id" = %s
+        WHERE "sec_firm_order" = %s
         ORDER BY "report_id" DESC
-    """, (firm_id,))
+    """, (SEC_FIRM_ORDER,))
 
     if not records:
         logger.info(f"[{FIRM_NAME}] 처리할 레코드가 없습니다.")
