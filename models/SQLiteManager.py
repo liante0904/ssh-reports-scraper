@@ -70,12 +70,12 @@ class SQLiteManager:
         rows = self.cursor.fetchall()
         return [dict(row) for row in rows]
 
-    def fetch_existing_keys(self, sec_firm_order: int, days_limit: int = 7) -> set:
+    def fetch_existing_keys(self, firm_id: int, days_limit: int = 7) -> set:
         """특정 증권사의 key 목록을 조회하여 반환 (중복 방지용)"""
         self.open_connection()
         try:
-            sql = f"SELECT key FROM {self.main_table_name} WHERE sec_firm_order = ?"
-            params = [sec_firm_order]
+            sql = f"SELECT key FROM {self.main_table_name} WHERE firm_id = ?"
+            params = [firm_id]
             
             if days_limit is not None:
                 cutoff = (datetime.now() - timedelta(days=days_limit)).strftime("%Y-%m-%d %H:%M:%S")
@@ -104,7 +104,7 @@ class SQLiteManager:
             for entry in json_data_list:
                 self.cursor.execute(f'''
                     INSERT INTO {table_name} (
-                        sec_firm_order, article_board_order, firm_nm, reg_dt,
+                        firm_id, board_id, firm_nm, reg_dt,
                         article_title, article_url, telegram_sent,
                         download_url, telegram_url, pdf_url, writer, mkt_tp, key, save_time
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -128,8 +128,8 @@ class SQLiteManager:
                             ELSE pdf_url -- 기존 값을 유지
                         END
                 ''', (
-                    entry["sec_firm_order"],
-                    entry["article_board_order"],
+                    entry.get("firm_id"),
+                    entry.get("board_id"),
                     entry["firm_nm"],
                     entry.get("reg_dt", ''),
                     entry["article_title"],
@@ -175,7 +175,7 @@ class SQLiteManager:
         logger.debug(f"Fetching daily articles for firm order: {firmInfo['sec_firm_order']}")
         query = f"""
         SELECT 
-            report_id, sec_firm_order, article_board_order, firm_nm, reg_dt,
+            report_id, firm_id, board_id, firm_nm, reg_dt,
             article_title, article_url, telegram_sent, 
             download_url, writer, save_time, telegram_url, key, pdf_url
         FROM 
@@ -183,10 +183,10 @@ class SQLiteManager:
         WHERE 
             reg_dt BETWEEN strftime('%Y%m%d', date(substr('{query_date}', 1, 4) || '-' || substr('{query_date}', 5, 2) || '-' || substr('{query_date}', 7, 2), '-3 days'))
                     AND strftime('%Y%m%d', date(substr('{query_date}', 1, 4) || '-' || substr('{query_date}', 5, 2) || '-' || substr('{query_date}', 7, 2), '+2 days'))
-            AND sec_firm_order = '{firmInfo["sec_firm_order"]}'
+            AND firm_id = '{firmInfo["sec_firm_order"]}'
             AND key IS NOT NULL
             AND telegram_url  = ''
-        ORDER BY sec_firm_order, article_board_order, save_time
+        ORDER BY firm_id, board_id, save_time
         """
 
         self.cursor.execute(query)
@@ -212,13 +212,13 @@ class SQLiteManager:
         
         query = f"""
         SELECT 
-            report_id, sec_firm_order, article_board_order, firm_nm, reg_dt,
+            report_id, firm_id, board_id, firm_nm, reg_dt,
             article_title, article_url, telegram_sent, 
             download_url, writer, save_time, telegram_url, key, pdf_url
         FROM 
             {self.main_table_name}
         WHERE 
-            sec_firm_order = '{firmInfo["sec_firm_order"]}'
+            firm_id = '{firmInfo["sec_firm_order"]}'
             AND key IS NOT NULL
             AND (telegram_url IS NULL OR telegram_url = '')
         """
@@ -240,13 +240,13 @@ class SQLiteManager:
         """
         query = f"""
         SELECT 
-            report_id, sec_firm_order, article_board_order, firm_nm, reg_dt,
+            report_id, firm_id, board_id, firm_nm, reg_dt,
             pdf_url, article_title, article_url, telegram_sent, 
             download_url, writer, save_time, telegram_url, key
         FROM 
             {self.main_table_name}
         WHERE 
-            sec_firm_order = 0
+            firm_id = 0
             AND (telegram_url NOT LIKE '%.pdf' OR telegram_url IS NULL OR telegram_url = '')
         """
         return await self.execute_query(query)
@@ -335,7 +335,7 @@ class SQLiteManager:
         # 쿼리 타입에 따라 조건을 다르게 설정
         if type == 'send':
             query_condition = "(telegram_sent IS NOT true)"
-            query_condition += "AND (sec_firm_order != 19 OR (sec_firm_order = 19 AND telegram_url <> ''))"
+            query_condition += "AND (firm_id != 19 OR (firm_id = 19 AND telegram_url <> ''))"
         elif type == 'download':
             query_condition = "telegram_sent = 1 AND pdf_sync_status != 2"
 
@@ -344,7 +344,7 @@ class SQLiteManager:
 
         query = f"""
         SELECT 
-            report_id, sec_firm_order, article_board_order, firm_nm, reg_dt,
+            report_id, firm_id, board_id, firm_nm, reg_dt,
             pdf_url, article_title, article_url, telegram_sent, 
             download_url, writer, save_time, telegram_url
         FROM 
@@ -355,7 +355,7 @@ class SQLiteManager:
             AND reg_dt <= '{query_reg_dt}'
             AND {query_condition}
         GROUP BY (CASE WHEN telegram_url IS NULL OR telegram_url = '' THEN report_id ELSE telegram_url END)
-        ORDER BY sec_firm_order, article_board_order, save_time
+        ORDER BY firm_id, board_id, save_time
         """
         
         return await self.execute_query(query)
@@ -437,7 +437,7 @@ class SQLiteManager:
         FROM {self.main_table_name}
         WHERE (gemini_summary "IS NULL" OR gemini_summary = '')
         AND (telegram_url IS NOT NULL AND telegram_url != '')
-        AND sec_firm_order NOT IN ({", ".join(map(str, exclude_firms))})
+        AND firm_id NOT IN ({", ".join(map(str, exclude_firms))})
         ORDER BY save_time DESC
         LIMIT ?
         """

@@ -273,7 +273,7 @@ class SecReportsManager(LibrarySecReportsManager):
         sql = f"""
             SELECT r.report_id, r.firm_nm, r.article_title,
                    CASE
-                       WHEN r.sec_firm_order = 19 THEN r.pdf_url
+                       WHEN r.firm_id = 19 THEN r.pdf_url
                        ELSE COALESCE(NULLIF(r.telegram_url,''), NULLIF(r.download_url,''))
                    END AS telegram_url,
                    r.save_time
