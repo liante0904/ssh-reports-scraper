@@ -53,7 +53,7 @@ def test_broadcast_ga_reports_success(monkeypatch):
         keys.append(key)
         mock_rows.append({
             "report_id": i,
-            "sec_firm_order": 1,
+            "firm_id": 1,
             "firm_nm": "테스트증권",
             "article_title": f"매우 긴 리포트 제목 번호 {i}번 " * 5,  # 약 80자
             "report_unique_key": key,
@@ -101,7 +101,7 @@ def test_broadcast_ga_reports_partial_failure(monkeypatch):
         keys.append(key)
         mock_rows.append({
             "report_id": i,
-            "sec_firm_order": 1,
+            "firm_id": 1,
             "firm_nm": "테스트증권",
             "article_title": f"매우 긴 리포트 제목 번호 {i}번 " * 5,
             "report_unique_key": key,
@@ -149,7 +149,7 @@ def test_broadcast_ga_reports_filters_unresolved_dbfi(monkeypatch):
     mock_rows = [
         {
             "report_id": 1,
-            "sec_firm_order": 19,
+            "firm_id": 19,
             "firm_nm": "DB증권",
             "article_title": "미확정 DBFI",
             "report_unique_key": "dbfi_unresolved",
@@ -158,7 +158,7 @@ def test_broadcast_ga_reports_filters_unresolved_dbfi(monkeypatch):
         },
         {
             "report_id": 2,
-            "sec_firm_order": 19,
+            "firm_id": 19,
             "firm_nm": "DB증권",
             "article_title": "확정 DBFI",
             "report_unique_key": "dbfi_ready",

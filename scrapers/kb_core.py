@@ -65,7 +65,7 @@ def scrape_kb(cfg: dict, from_date: str = None, to_date: str = None) -> list[dic
             title = item.get(ik["title"], ""); sub = item.get(ik["subtitle"], "")
             if title and title not in sub: title = f"{title} : {sub}"
             elif sub: title = sub
-            result.append(dict(sec_firm_order=4,article_board_order=board,firm_nm="KB증권",
+            result.append(dict(firm_id=4,board_id=board,firm_nm="KB증권",
                 reg_dt=re.sub(r"[-./]","",str(item.get(ik["reg_dt"],""))),
                 writer=item.get(ik["writer"],""),download_url=dl,telegram_url=dl,pdf_url=dl,
                 article_title=title,mkt_tp=mkt,key=dl,report_unique_key=dl,

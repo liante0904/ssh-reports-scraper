@@ -55,8 +55,8 @@ def scrape_sangsangin(cfg: dict) -> list[dict]:
                 nt_no = str(item.get(item_keys["nt_no"], ""))
                 dl = url_tpl.replace("{cms}", cms_cd).replace("{nt_no}", nt_no)
                 result.append(dict(
-                    sec_firm_order=cfg.get("sec_firm_order", 6),
-                    article_board_order=board_idx,
+                    firm_id=cfg.get("firm_id", 6),
+                    board_id=board_idx,
                     firm_nm=cfg.get("firm_nm", "상상인증권"),
                     reg_dt=rdt, article_title=title, writer="",
                     download_url=dl, telegram_url=dl, pdf_url=dl,

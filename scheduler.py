@@ -179,8 +179,8 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
         # report_unique_key로 DB에서 실제 row 조회 (미발송 건만, 뉴스 제외)
         placeholders = ",".join(["%s"] * len(keys))
         dbfi_ready = (
-            "AND (sec_firm_order != 19 OR ("
-            "sec_firm_order = 19 "
+            "AND (firm_id != 19 OR ("
+            "firm_id = 19 "
             "AND telegram_url LIKE 'https://whub.dbsec.co.kr/pv/gate%%' "
             "AND pdf_url LIKE 'https://whub.dbsec.co.kr/streamdocs/v4/documents/%%'"
             "))"
@@ -227,9 +227,9 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
             send_message_text += f"*{title}*\n"
 
             # 링크 선정 (DS증권 예외 및 일반 대체 링크 우선순위 반영)
-            if row.get("sec_firm_order") == 19:
+            if row.get("firm_id") == 19:
                 link_url = row.get("pdf_url") or ""
-            elif row.get("sec_firm_order") == 11:
+            elif row.get("firm_id") == 11:
                 link_url = row.get("telegram_url") if row.get("telegram_url") else "링크없음"
             else:
                 link_url = row.get("telegram_url") or row.get("download_url") or row.get("article_url") or ""

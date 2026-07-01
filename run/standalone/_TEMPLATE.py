@@ -19,8 +19,8 @@
 
 === 필수 필드 (모든 증권사 공통) ===
 json_data_list.append({
-    "sec_firm_order": SEC_FIRM_ORDER,
-    "article_board_order": 0,
+    "firm_id": SEC_FIRM_ORDER,
+    "board_id": 0,
     "firm_nm": FIRM_NM,
     "reg_dt": "20260609",           # YYYYMMDD
     "download_url": "https://...",

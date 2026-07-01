@@ -8,7 +8,7 @@ IM증권 리포트 다운로드 URL 후처리 스크립트
   article_url이 BASE_URL(=https://m.imfnsec.com:442)로 저장되어 재방문 불가.
 
 전략:
-  1. sec_firm_order=18(IM증권) 레코드 조회
+  1. firm_id=18(IM증권) 레코드 조회
   2. telegram_url HEAD 검증
   3. fallback 경로 패턴 검증
   4. 통계 보고
@@ -48,7 +48,7 @@ async def fix_im_urls():
         SELECT report_id, "telegram_url", "pdf_url", "article_url",
                "article_title", "writer", "key"
         FROM "tbl_sec_reports"
-        WHERE "sec_firm_order" = %s
+        WHERE "firm_id" = %s
         ORDER BY "report_id" DESC
     """, (SEC_FIRM_ORDER,))
 

@@ -184,7 +184,7 @@ IMPORT_MAP = {
       "status": "success",
       "count": 510,
       "elapsed_sec": 3.5,
-      "articles": [{ "sec_firm_order": 3, "article_title": "...", ... }]
+      "articles": [{ "firm_id": 3, "article_title": "...", ... }]
     },
     {
       "name": "DBfi_19",
@@ -242,7 +242,7 @@ uv run python scripts/import_all_artifact.py [--repo ...] [--dry-run] [--json-fi
 1. `gh run list --workflow scrape-all.yml --status success` → 최신 run ID
 2. `gh run download` → `all-scraped-data` artifact 다운로드
 3. 증권사별 `db.insert_json_data_list(articles)` (ON CONFLICT dedup)
-4. **후처리**: DBfi 증권사(sec_firm_order=19)의 `telegram_url`이 비어있는 건들에 대해 `DBfi_detail()`로 gate URL 복구
+4. **후처리**: DBfi 증권사(firm_id=19)의 `telegram_url`이 비어있는 건들에 대해 `DBfi_detail()`로 gate URL 복구
 5. `--dry-run` 플래그로 DB insert 없이 로직 검증 가능
 6. `--json-file`로 GitHub Actions 없이 로컬 JSON 파일 import 가능
 7. `--skip-post-process`로 후처리 생략 가능
@@ -428,7 +428,7 @@ DB증권(19)은 텔레그램용 URL과 다운로드용 URL이 다르다 (gate vi
 
 | 컴포넌트 | READ | WRITE (tbl_sec_reports) | WRITE (다른 테이블) |
 |------|------|------|------|
-| **scraper** (29개 모듈) | - | `report_id`, `sec_firm_order`, `article_board_order`, `firm_nm`, `article_title`, `article_url`, `download_url`, `telegram_url`, `pdf_url`, `reg_dt`, `writer`, `mkt_tp`, `key`, `save_time`, `main_ch_send_yn` | - |
+| **scraper** (29개 모듈) | - | `report_id`, `firm_id`, `board_id`, `firm_nm`, `article_title`, `article_url`, `download_url`, `telegram_url`, `pdf_url`, `reg_dt`, `writer`, `mkt_tp`, `key`, `save_time`, `main_ch_send_yn` | - |
 | **enricher** (tag_extractor) | `article_title`, `firm_nm` | `tags`, `stock_names`, `stock_tickers`, `sector`, `gemini_summary`, `summary_time`, `summary_model`, `target_price`, `rating`, `revision_type`, `report_type`, `fnguide_summary_id`, `sync_status` | `tbl_report_enricher_tags`, `tbl_report_ai_summaries`, `tbl_report_price_targets` |
 | **pdf-archiver** | `download_url` | `pdf_sync_status`, `download_status_yn`, `pdf_hash` | `tbl_sec_reports_pdf_archive` (26컬럼 전체) |
 | **scraper.py enrich_data()** | `telegram_url`, `key`, `writer`, `reg_dt` | `telegram_url` (DBfi gate/LS msg URL 복구) | - |
@@ -446,12 +446,12 @@ enricher가 `sync_status`, `retry_count`, `archive_path`를 직접 쓴다.
 
 ```sql
 INSERT INTO tbl_sec_reports (
-    sec_firm_order, article_board_order, firm_nm, reg_dt,
+    firm_id, board_id, firm_nm, reg_dt,
     article_title, article_url, main_ch_send_yn, is_sent, download_url,
     telegram_url, pdf_url, writer, mkt_tp, key, save_time
 ) VALUES %s
 ON CONFLICT (report_unique_key) DO UPDATE SET
-    sec_firm_order      = EXCLUDED.sec_firm_order,
+    firm_id      = EXCLUDED.firm_id,
     firm_nm             = EXCLUDED.firm_nm,
     article_title       = EXCLUDED.article_title,
     reg_dt              = EXCLUDED.reg_dt,
@@ -480,12 +480,12 @@ RETURNING report_unique_key, (xmax = 0) AS inserted
 | 유진투자(12) 세션 만료 | 보류 | 세션 관리 방식 개선 필요 |
 | iMfnsec(18) | 보류 | 미구현 |
 | LS(0) WARP 의존 | GA에서 해결 | GitHub Actions 클린 IP로 WARP 불필요 |
-| `firm_nm: "Unknown(3)"` | GA only | SQLite에 FirmInfo 테이블 없음 → DB import 시 `sec_firm_order`로 복원 |
+| `firm_nm: "Unknown(3)"` | GA only | SQLite에 FirmInfo 테이블 없음 → DB import 시 `firm_id`로 복원 |
 | GitHub Actions runner 2-core 제한 | 감수 | 19개 증권사 순차/병렬 실행으로 2~3분 내 완료 |
 
 ### GA Standalone 이관 현황 (2026-06-11)
 
-| # | 증권사 | sec_firm_order | GA workflow | 상태 |
+| # | 증권사 | firm_id | GA workflow | 상태 |
 |---|--------|:---:|---|---|
 | 1 | 삼성증권 | 5 | scrape-samsung.yml | ✅ 완료 |
 | 2 | 키움증권 | 10 | scrape-kiwoom.yml | ✅ 완료 |

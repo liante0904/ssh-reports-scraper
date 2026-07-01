@@ -20,7 +20,7 @@ def scrape_yuanta(cfg: dict) -> list[dict]:
     cfg.setdefault("url_tpl", "https://www.myasset.com/myasset/research/rs_view/rs_view.cmd?cd007={code}&seq={seq}")
     cfg.setdefault("pdf_tpl", "{path}")
     cfg.setdefault("pages", 5)
-    cfg.setdefault("sec_firm_order", 27)
+    cfg.setdefault("firm_id", 27)
     cfg.setdefault("firm_nm", "유안타증권")
     requests.packages.urllib3.disable_warnings()
     result = []
@@ -56,7 +56,7 @@ def scrape_yuanta(cfg: dict) -> list[dict]:
                         dl = cfg["pdf_tpl"].replace("{path}", pt[cfg["pdf_attr"]])
                     # dl이 비어있으면 article_url을 fallback으로 사용
                     if not dl: dl = article_url
-                    result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=board_idx,
+                    result.append(dict(firm_id=cfg["firm_id"],board_id=board_idx,
                         firm_nm=cfg["firm_nm"],reg_dt=reg_dt,
                         download_url=dl,telegram_url=dl,pdf_url=dl,writer=writer,
                         key=article_url,report_unique_key=article_url,

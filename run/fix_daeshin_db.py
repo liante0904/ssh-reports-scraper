@@ -65,7 +65,7 @@ async def fix_daeshin_urls():
         SELECT report_id, "telegram_url", "pdf_url", "article_url",
                "article_title", "writer"
         FROM "tbl_sec_reports"
-        WHERE "sec_firm_order" = %s
+        WHERE "firm_id" = %s
         ORDER BY "report_id" DESC
     """, (SEC_FIRM_ORDER,))
 

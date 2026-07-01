@@ -23,7 +23,7 @@ def scrape_kyobo(cfg: dict) -> list[dict]:
     cfg.setdefault("attach_replace_to", "")
     cfg.setdefault("path_replace_from", "")
     cfg.setdefault("path_replace_to", "")
-    cfg.setdefault("sec_firm_order", 24)
+    cfg.setdefault("firm_id", 24)
     cfg.setdefault("firm_nm", "교보증권")
     cfg.setdefault("max_pages", 10)
     requests.packages.urllib3.disable_warnings()
@@ -56,7 +56,7 @@ def scrape_kyobo(cfg: dict) -> list[dict]:
                         dl = cfg["base_url"] + atag["href"].replace(cfg.get("attach_replace_from",""),"").replace(cfg.get("attach_replace_to",""),"").replace(cfg.get("path_replace_from",""),cfg.get("path_replace_to",""))
                     # trailing ') 방어: onclick=\"fn('url')\" 파싱 잔재 제거
                     dl = dl.rstrip("\')")
-                    result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=board,
+                    result.append(dict(firm_id=cfg["firm_id"],board_id=board,
                         firm_nm=cfg["firm_nm"],reg_dt=rd,download_url=dl,telegram_url=dl,
                         pdf_url=dl,article_title=title,writer=writer,key=dl,report_unique_key=dl,
                         save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))

@@ -9,7 +9,7 @@
   (https://www.hmsec.com/documents/research/...)
 
 전략:
-  1. sec_firm_order=9(현대차증권) 레코드 조회
+  1. firm_id=9(현대차증권) 레코드 조회
   2. telegram_url이 SynapDocViewServer URL인 경우, pdf_url로 교체
   3. HEAD 검증 후 DB 업데이트
 """
@@ -48,7 +48,7 @@ async def fix_hmsec_urls():
         SELECT report_id, "telegram_url", "pdf_url", "download_url",
                "article_title", "writer", "key"
         FROM "tbl_sec_reports"
-        WHERE "sec_firm_order" = %s
+        WHERE "firm_id" = %s
         ORDER BY "report_id" DESC
     """, (SEC_FIRM_ORDER,))
 

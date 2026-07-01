@@ -115,7 +115,7 @@ async def extract_dbfi_pdf_url(session, encoded_url):
 
 
 async def DBfi_checkNewArticle():
-    sec_firm_order = 19
+    firm_id = 19
     
     if not URL_PATHS:
         logger.error("DBfi: No URL_PATHS found in config. Check secrets.json.")
@@ -161,7 +161,7 @@ async def DBfi_checkNewArticle():
 
     # 2. 우리 DB 전체에서 중복 제거
     db = get_db()
-    existing_keys = db.fetch_existing_keys(sec_firm_order, days_limit=None)
+    existing_keys = db.fetch_existing_keys(firm_id, days_limit=None)
     # 도메인 변경 대응: m.db-fi.com → m.dbsec.co.kr 양쪽 키 모두 허용
     BASE_URL_LEGACY = "https://m.db-fi.com"
     _normalized = set(existing_keys)
@@ -179,10 +179,10 @@ async def DBfi_checkNewArticle():
         if key in existing_keys:
             continue
         
-        firm_info = FirmInfo(sec_firm_order=sec_firm_order, article_board_order=board_order)
+        firm_info = FirmInfo(firm_id=firm_id, board_id=board_order)
         candidates.append({
-            "sec_firm_order": sec_firm_order,
-            "article_board_order": board_order,
+            "firm_id": firm_id,
+            "board_id": board_order,
             "firm_nm": firm_info.get_firm_name(),
             "reg_dt": item["rdt"][:8],
             "article_url": "",

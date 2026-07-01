@@ -1,11 +1,11 @@
-ALTER TABLE tbl_sec_reports RENAME COLUMN sec_firm_order TO firm_id;
-ALTER TABLE tbl_sec_reports RENAME COLUMN article_board_order TO board_id;
+ALTER TABLE tbl_sec_reports RENAME COLUMN firm_id TO firm_id;
+ALTER TABLE tbl_sec_reports RENAME COLUMN board_id TO board_id;
 
 CREATE OR REPLACE VIEW public.v_sec_reports_canonical AS
 SELECT
     r.*,
-    r.firm_id AS sec_firm_order,
-    r.board_id AS article_board_order,
+    r.firm_id AS firm_id,
+    r.board_id AS board_id,
     COALESCE(
         r.save_at,
         CASE

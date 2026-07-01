@@ -62,7 +62,7 @@ def fetch_reports(conn, days=None, firm=None, limit=1000, offset=0):
         where.append("r.report_date >= %s")
         params.append(cutoff)
     if firm:
-        where.append("r.sec_firm_order = %s")
+        where.append("r.firm_id = %s")
         params.append(firm)
 
     query = f"""
@@ -126,7 +126,7 @@ def save_embeddings(conn, embeddings: list[dict], dry_run=False):
 def main():
     parser = argparse.ArgumentParser(description="RAG Embedding Batch")
     parser.add_argument("--days", type=int, help="최근 N일만 처리")
-    parser.add_argument("--firm", type=int, help="특정 sec_firm_order만")
+    parser.add_argument("--firm", type=int, help="특정 firm_id만")
     parser.add_argument("--batch-size", type=int, default=1000, help="DB에서 가져올 건수")
     parser.add_argument("--batch-count", type=int, default=1, help="반복 횟수")
     parser.add_argument("--dry-run", action="store_true", help="DB 저장 없이 출력만")

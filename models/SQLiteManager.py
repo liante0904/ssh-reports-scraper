@@ -163,7 +163,7 @@ class SQLiteManager:
         telegram_url 갱신이 필요한 레코드를 조회합니다.
         
         Args:
-            firm_info (FirmInfo): sec_firm_order와 article_board_order 속성을 포함한 FirmInfo 인스턴스.
+            firm_info (FirmInfo): firm_id와 board_id 속성을 포함한 FirmInfo 인스턴스.
             date_str (str, optional): 조회할 날짜 (형식: 'YYYYMMDD'). 지정하지 않으면 오늘 날짜로 설정됩니다.
         
         Returns:
@@ -172,7 +172,7 @@ class SQLiteManager:
         self.open_connection()
         query_date = date_str if date_str else datetime.now().strftime('%Y%m%d')
         firmInfo = firm_info.get_state()
-        logger.debug(f"Fetching daily articles for firm order: {firmInfo['sec_firm_order']}")
+        logger.debug(f"Fetching daily articles for firm order: {firmInfo['firm_id']}")
         query = f"""
         SELECT 
             report_id, firm_id, board_id, firm_nm, reg_dt,
@@ -183,7 +183,7 @@ class SQLiteManager:
         WHERE 
             reg_dt BETWEEN strftime('%Y%m%d', date(substr('{query_date}', 1, 4) || '-' || substr('{query_date}', 5, 2) || '-' || substr('{query_date}', 7, 2), '-3 days'))
                     AND strftime('%Y%m%d', date(substr('{query_date}', 1, 4) || '-' || substr('{query_date}', 5, 2) || '-' || substr('{query_date}', 7, 2), '+2 days'))
-            AND firm_id = '{firmInfo["sec_firm_order"]}'
+            AND firm_id = '{firmInfo["firm_id"]}'
             AND key IS NOT NULL
             AND telegram_url  = ''
         ORDER BY firm_id, board_id, save_time
@@ -200,7 +200,7 @@ class SQLiteManager:
         telegram_url 갱신이 필요한 전체 레코드를 조회합니다.
         
         Args:
-            firm_info (FirmInfo): sec_firm_order와 article_board_order 속성을 포함한 FirmInfo 인스턴스.
+            firm_info (FirmInfo): firm_id와 board_id 속성을 포함한 FirmInfo 인스턴스.
             days_limit (int, optional): 최근 며칠 이내의 데이터를 조회할지 여부.
         
         Returns:
@@ -208,7 +208,7 @@ class SQLiteManager:
         """
         self.open_connection()
         firmInfo = firm_info.get_state()
-        logger.debug(f"Fetching articles for firm order: {firmInfo['sec_firm_order']}")
+        logger.debug(f"Fetching articles for firm order: {firmInfo['firm_id']}")
         
         query = f"""
         SELECT 
@@ -218,7 +218,7 @@ class SQLiteManager:
         FROM 
             {self.main_table_name}
         WHERE 
-            firm_id = '{firmInfo["sec_firm_order"]}'
+            firm_id = '{firmInfo["firm_id"]}'
             AND key IS NOT NULL
             AND (telegram_url IS NULL OR telegram_url = '')
         """
@@ -236,7 +236,7 @@ class SQLiteManager:
 
     async def fetch_ls_detail_targets(self):
         """
-        LS증권(sec_firm_order=0) 레포트 중 TELEGRAM_URL이 .pdf로 끝나지 않는 대상을 조회합니다.
+        LS증권(firm_id=0) 레포트 중 TELEGRAM_URL이 .pdf로 끝나지 않는 대상을 조회합니다.
         """
         query = f"""
         SELECT 

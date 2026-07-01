@@ -29,9 +29,9 @@
 ```
 run/standalone/news.py
   → scrapers/news_core.py::scrape_all_news()
-    → scrape_chosun_biz()       # sec_firm_order=100, firm_nm="조선비즈"
-    → scrape_naver_flash()      # sec_firm_order=101, firm_nm="네이버"
-    → scrape_naver_rank()       # sec_firm_order=101, firm_nm="네이버"
+    → scrape_chosun_biz()       # firm_id=100, firm_nm="조선비즈"
+    → scrape_naver_flash()      # firm_id=101, firm_nm="네이버"
+    → scrape_naver_rank()       # firm_id=101, firm_nm="네이버"
   → stdout → news_result.json
   → SCP → incoming/ga-scrapes/
 ```

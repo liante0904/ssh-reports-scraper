@@ -11,7 +11,7 @@ def scrape_leading(cfg: dict) -> list[dict]:
     cfg.setdefault("table_sel", "table.basic-tbl thead tr")
     cfg.setdefault("row_sel", "table.basic-tbl tbody tr")
     cfg.setdefault("base_url", "http://www.leading.co.kr")
-    cfg.setdefault("sec_firm_order", 16)
+    cfg.setdefault("firm_id", 16)
     cfg.setdefault("firm_nm", "리딩투자증권")
     cfg.setdefault("attach_header", "첨부")
     cfg.setdefault("date_header", "등록일")
@@ -43,7 +43,7 @@ def scrape_leading(cfg: dict) -> list[dict]:
                 dl = "없음"
                 if rd.get(cfg.get("attach_header","첨부")):
                     dl = cfg["base_url"] + rd[cfg["attach_header"]]
-                result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=board_order,
+                result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
                     firm_nm=cfg["firm_nm"],reg_dt=re.sub(r"[-./]","",rd.get(cfg["date_header"],"")),
                     download_url=dl,telegram_url=dl,pdf_url=dl,
                     article_title=rd.get(cfg["title_header"],"No Title"),

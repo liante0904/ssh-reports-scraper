@@ -9,7 +9,7 @@ CREATE INDEX IF NOT EXISTS idx_reports_report_date ON tbl_sec_reports(report_dat
 
 -- 2) (증권사, 게시판) 복합 인덱스
 -- KB 게시판 13종 분류 완료 → 게시판 단위로 후보군 범위 축소
-CREATE INDEX IF NOT EXISTS idx_reports_board ON tbl_sec_reports(sec_firm_order, article_board_order);
+CREATE INDEX IF NOT EXISTS idx_reports_board ON tbl_sec_reports(firm_id, board_id);
 
 -- 3) writer 인덱스 — FnGuide 매처가 작성자 비교할 때 사용
 CREATE INDEX IF NOT EXISTS idx_reports_writer ON tbl_sec_reports(writer);

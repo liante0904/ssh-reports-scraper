@@ -169,8 +169,8 @@ def scrape_list(max_pages: int = 2) -> list[dict]:
                     title = title_text[title_text.find("]") + 1:].strip() if "]" in title_text else title_text
 
                     articles.append({
-                        "sec_firm_order": SEC_FIRM_ORDER,
-                        "article_board_order": board_order,
+                        "firm_id": SEC_FIRM_ORDER,
+                        "board_id": board_order,
                         "board_name": BOARD_NAMES[board_order],
                         "firm_nm": FIRM_NM,
                         "reg_dt": re.sub(r"[-./]", "", str_date),

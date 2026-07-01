@@ -12,34 +12,34 @@
 from models.FirmInfo import FirmInfo
 
 
-def firm_name(sec_firm_order: int) -> str:
+def firm_name(firm_id: int) -> str:
     """증권사명 반환. 예: firm_name(4) → 'KB증권'"""
-    return FirmInfo(sec_firm_order, 0).get_firm_name()
+    return FirmInfo(firm_id, 0).get_firm_name()
 
 
-def board_name(sec_firm_order: int, article_board_order: int = 0) -> str:
+def board_name(firm_id: int, board_id: int = 0) -> str:
     """게시판명 반환. 예: board_name(4, 7) → 'Global Insights'"""
-    return FirmInfo(sec_firm_order, article_board_order).get_board_name()
+    return FirmInfo(firm_id, board_id).get_board_name()
 
 
 def all_firm_names() -> list[str]:
-    """전체 증권사명 리스트 (sec_firm_order 순)."""
+    """전체 증권사명 리스트 (firm_id 순)."""
     return FirmInfo.firm_names
 
 
-def telegram_update_required(sec_firm_order: int) -> bool:
+def telegram_update_required(firm_id: int) -> bool:
     """텔레그램 발송 필요 여부."""
-    return FirmInfo(sec_firm_order, 0).telegram_update_required
+    return FirmInfo(firm_id, 0).telegram_update_required
 
 
-def ga_enabled(sec_firm_order: int) -> bool:
-    """GA(GitHub Actions) 이관 여부. PostgreSQL tbm_sec_firm_info.ga_enabled_yn 기준.
+def ga_enabled(firm_id: int) -> bool:
+    """GA(GitHub Actions) 이관 여부. PostgreSQL v_sec_firm_info.ga_enabled_yn 기준.
     SQLite/fallback 시 False 반환."""
-    return FirmInfo(sec_firm_order, 0).ga_enabled
+    return FirmInfo(firm_id, 0).ga_enabled
 
 
 def ga_enabled_orders() -> set[int] | None:
-    """PostgreSQL에서 ga_enabled_yn='Y'인 모든 sec_firm_order set 반환.
+    """PostgreSQL에서 ga_enabled_yn='Y'인 모든 firm_id set 반환.
     PostgreSQL 메타데이터가 로드되지 않았거나 static/sqlite fallback이면 None 반환.
     None은 "알 수 없음"을 의미 — 호출자는 전체 후보를 fallback으로 사용해야 한다."""
     fi = FirmInfo.__new__(FirmInfo)  # 인스턴스 생성 없이 클래스 속성 접근

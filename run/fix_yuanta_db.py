@@ -7,7 +7,7 @@
   다운로드가 실패하는 케이스가 있음. (https:// 로 접근해야 정상 동작)
 
 전략:
-  1. sec_firm_order=27(유안타) 레코드 조회
+  1. firm_id=27(유안타) 레코드 조회
   2. telegram_url이 http://file.myasset.com/ 인 경우 https:// 로 변환
   3. HEAD 검증 후 DB 업데이트
   4. 빈 URL은 article_url 재방문하여 PDF URL 재추출
@@ -68,7 +68,7 @@ async def fix_yuanta_urls():
         SELECT report_id, "telegram_url", "pdf_url", "article_url",
                "article_title", "writer", "key"
         FROM "tbl_sec_reports"
-        WHERE "sec_firm_order" = %s
+        WHERE "firm_id" = %s
         ORDER BY "report_id" DESC
     """, (SEC_FIRM_ORDER,))
 

@@ -228,8 +228,8 @@ class SecReportsManager(LibrarySecReportsManager):
             article_title
         )
             report_id,
-            firm_id AS sec_firm_order,
-            board_id AS article_board_order,
+            firm_id AS firm_id,
+            board_id AS board_id,
             firm_nm,reg_dt,
             article_title,article_url,
             download_url,writer,save_time,scraped_at,
