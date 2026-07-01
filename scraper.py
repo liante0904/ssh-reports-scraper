@@ -57,6 +57,11 @@ LS_LIST_TIMEOUT_SECONDS = int(os.getenv("LS_LIST_TIMEOUT_SECONDS", "900"))
 LS_DETAIL_TIMEOUT_SECONDS = int(os.getenv("LS_DETAIL_TIMEOUT_SECONDS", "900"))
 SCRAPER_HEALTH_ERRORS = []
 
+# BLOCKED_BY_SOURCE_IP — source IP 차단으로 인해 모든 automated fallback에서 제외
+# BNKfn_23: GA & server 모두 source IP 차단. Parser rewrite로 해결 불가.
+# LS_0: local server IP 차단. GA WARP 우회 가능하나, 로컬 fallback에선 skip.
+_BLOCKED_BY_SOURCE_IP = frozenset({"BNKfn_23", "LS_0"})
+
 # Watchdog ERROR 알림 제외 패턴 — 외부 이슈로 인한 알람 노이즈 방지
 _KNOWN_EXTERNAL_ERRORS = [
     "LS 직접 접속 실패",       # LS 사이트 서버 IP 차단 → WARP 우회
@@ -73,7 +78,7 @@ def _is_external_error(msg: str) -> bool:
     return any(re.search(pattern, msg) for pattern in _KNOWN_EXTERNAL_ERRORS)
 
 # GA 이관 증권사 — 평시(30분 간격)에는 GA standalone이 처리, 서버는 full-scrape 시간대에만 fallback 실행
-# {sec_firm_order: func} 매핑. PostgreSQL tbm_sec_firm_info.ga_enabled_yn='Y' 여부로 필터링.
+# {firm_id: func} 매핑. PostgreSQL tbm_sec_firm_info.ga_enabled_yn='Y' 여부로 필터링.
 _GA_FIRMS_SYNC = {
     5: Samsung_checkNewArticle,       # 삼성증권
     9: Hmsec_checkNewArticle,         # 현대차증권
@@ -88,7 +93,7 @@ _GA_FIRMS_SYNC = {
 
 _GA_FIRMS_ASYNC = {
     2: NHQV_checkNewArticle,          # NH투자증권
-    # 하나증권(sec_firm_order=3)은 GA 러너 IP가 www.hanaw.com에서 차단되어
+    # 하나증권(firm_id=3)은 GA 러너 IP가 www.hanaw.com에서 차단되어
     # GA로는 수집 불가. 서버 전용 regular async_functions에서 직접 호출한다.
     # _GA_FIRMS_ASYNC에 넣으면 ga_enabled_yn='N'일 때 full-scrape에서도 제외되어
     # 완전히 누락되므로 절대 GA fallback 목록에 포함시키지 않는다.
@@ -232,8 +237,8 @@ async def enrich_data():
     kst_hour = datetime.now(pytz.timezone('Asia/Seoul')).hour
     is_idle_time = kst_hour >= 20 or kst_hour < 6
 
-    for sec_firm_order in range(len(FirmInfo.firm_names)):
-        firm_info = FirmInfo(sec_firm_order=sec_firm_order, article_board_order=0)
+    for firm_id in range(len(FirmInfo.firm_names)):
+        firm_info = FirmInfo(firm_id=firm_id, board_id=0)
         firm_name = firm_info.get_firm_name()
 
         if firm_name and firm_info.telegram_update_required:
@@ -243,7 +248,7 @@ async def enrich_data():
 
             logger.info(f"[{firm_name}] Found {len(records)} records for enrichment (최근 3일).")
             try:
-                if sec_firm_order == 19:  # DB증권
+                if firm_id == 19:  # DB증권
                     update_records = await DBfi_enrich_and_persist_details(articles=records, firm_info=firm_info, db=db)
                     # DBfi_enrich_and_persist_details 내부에서 건별 DB 업데이트를 이미 수행함
                     success_count = sum(1 for r in update_records if r.get('telegram_url', '').startswith('https://whub.dbsec.co.kr/pv/gate'))
@@ -255,8 +260,8 @@ async def enrich_data():
                         backlog = db._fetchall('''
                             SELECT report_id, article_title, writer, telegram_url,
                                    report_date AS reg_dt, key
-                            FROM tbl_sec_reports
-                            WHERE sec_firm_order = 19
+                            FROM v_sec_reports_canonical
+                            WHERE firm_id = 19
                               AND (telegram_url IS NULL OR telegram_url = ''
                                    OR telegram_url NOT LIKE 'https://whub.dbsec.co.kr/pv/gate%%')
                               AND key IS NOT NULL AND key != ''
@@ -268,7 +273,7 @@ async def enrich_data():
                             fixed = await DBfi_enrich_and_persist_details(articles=backlog, firm_info=firm_info, db=db)
                             fixed_count = sum(1 for r in fixed if r.get('telegram_url', '').startswith('https://whub.dbsec.co.kr/pv/gate'))
                             logger.success(f"[DBfi][유휴] {fixed_count}/{len(backlog)}건 gate URL 복구 완료")
-                elif sec_firm_order == 0:  # LS
+                elif firm_id == 0:  # LS
                     update_records = await LS_detail(articles=records, firm_info=firm_info)
                     tasks = [db.update_telegram_url(r['report_id'], r['telegram_url'], r.get('article_title'), pdf_url=r.get('pdf_url') or r['telegram_url']) for r in update_records if r.get('telegram_url')]
                     if tasks: await asyncio.gather(*tasks)
@@ -277,8 +282,8 @@ async def enrich_data():
                     fallback_records = db._fetchall('''
                         SELECT report_id, article_title, writer, telegram_url,
                                report_date AS reg_dt, key
-                        FROM tbl_sec_reports
-                        WHERE sec_firm_order = 0
+                        FROM v_sec_reports_canonical
+                        WHERE firm_id = 0
                           AND telegram_url LIKE 'https://www.ls-sec.co.kr/upload/%%'
                           AND saved_at >= NOW() - INTERVAL '1 day'
                           AND key IS NOT NULL AND key != ''
@@ -298,8 +303,8 @@ async def enrich_data():
                         backlog = db._fetchall('''
                             SELECT report_id, article_title, writer, telegram_url,
                                    report_date AS reg_dt, key
-                            FROM tbl_sec_reports
-                            WHERE sec_firm_order = 0
+                            FROM v_sec_reports_canonical
+                            WHERE firm_id = 0
                               AND (telegram_url IS NULL OR telegram_url = ''
                                    OR telegram_url NOT LIKE 'https://msg.ls-sec.co.kr/%%')
                               AND key IS NOT NULL AND key != ''
@@ -313,7 +318,7 @@ async def enrich_data():
                             if fix_tasks:
                                 await asyncio.gather(*fix_tasks)
                                 logger.success(f"[LS][유휴] {len(fix_tasks)}건 msg URL 복구 완료")
-                elif sec_firm_order == 11:  # DS
+                elif firm_id == 11:  # DS
                     pass
                 logger.success(f"[{firm_name}] Enrichment completed.")
             except Exception as e:
@@ -476,9 +481,11 @@ async def main(date_str=None):
     db = get_db()
     
     # ── LS증권: 목록 2p 스크래핑 → DB 키 비교 → 신규만 detail ──
+    # LS_0: local server IP 차단됨 (BLOCKED_BY_SOURCE_IP).
+    # GA WARP 우회 가능하나 로컬 fallback에서는 skip.
     if os.getenv("SKIP_LS", "").lower() in ("1", "true", "yes"):
         ls_articles = []
-        logger.warning("[LS] SKIP_LS enabled; skipping LS scraper.")
+        logger.warning("[LS] SKIP_LS enabled (LS_0 is BLOCKED_BY_SOURCE_IP on local IP).")
     else:
         try:
             ls_articles = await asyncio.wait_for(
@@ -520,10 +527,11 @@ async def main(date_str=None):
     sync_funcs = _regular_sync_functions()
     async_functions = _regular_async_functions()
 
-    # BNK: always skipped for now. IP block confirmed on both GA and server side.
-    # Previously gated by SKIP_BNK env; no longer needed.
+    # BNKfn_23: BLOCKED_BY_SOURCE_IP — GA & server IP 모두 차단됨.
+    # Parser rewrite로 해결 불가. 재활성화는 source IP 변경 후에만 고려.
+    # Previously gated by SKIP_BNK env; now permanently excluded.
     if os.getenv("SKIP_BNK", "").lower() in ("1", "true", "yes"):
-        logger.info("[Local] SKIP_BNK env set, but BNK is already disabled by default.")
+        logger.info("[Local] SKIP_BNK env set (BNK already BLOCKED_BY_SOURCE_IP).")
 
     if is_full:
         sync_funcs.extend(_filter_ga_enabled(_GA_FIRMS_SYNC).values())
