@@ -96,7 +96,7 @@ def _resolve_pdf_download(base: str, view_key: int, analyst_key: str, cfg: dict)
         print(f"[heungkuk] WARN: formula PDF HEAD failed view_key={view_key}: {exc}", file=sys.stderr)
 
     if not cfg.get("enable_pdf_probe", False):
-        print(f"[heungkuk] WARN: drop row with unresolved PDF view_key={view_key}", file=sys.stderr)
+        print(f"[heungkuk] WARN: unresolved PDF; use article fallback view_key={view_key}", file=sys.stderr)
         return None
 
     max_delta = int(cfg.get("max_pdf_probe_delta", 3))
@@ -112,7 +112,7 @@ def _resolve_pdf_download(base: str, view_key: int, analyst_key: str, cfg: dict)
                 pass
 
     print(
-        f"[heungkuk] WARN: drop row after bounded PDF probe view_key={view_key} max_delta={max_delta}",
+        f"[heungkuk] WARN: unresolved PDF after bounded probe; use article fallback view_key={view_key} max_delta={max_delta}",
         file=sys.stderr,
     )
     return None
@@ -133,7 +133,7 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
         "pdf_probe_timeout": 0.5,
         "max_pdf_probe_delta": 3,
         "enable_pdf_probe": False,
-        "sec_firm_order": 28,
+        "firm_id": 28,
         "firm_nm": "흥국증권",
         **cfg,
     }
@@ -177,11 +177,12 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
                     analyst_key = am.group(1)
             rd = _norm_date(cells[3].get_text(" ",strip=True))
             dl = _resolve_pdf_download(base, vk, analyst_key, cfg)
-            if not dl:
-                continue
             au = cfg["view_tpl"].replace("{base}",base).replace("{board_path}",bp).replace("{view_key}",str(vk))
-            result.append(dict(sec_firm_order=cfg["sec_firm_order"],article_board_order=board_order,
-                firm_nm=cfg["firm_nm"],reg_dt=rd,download_url=dl,telegram_url=dl,pdf_url=dl,
+            telegram_url = dl or au
+            download_url = dl or ""
+            pdf_url = dl or ""
+            result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
+                firm_nm=cfg["firm_nm"],reg_dt=rd,download_url=download_url,telegram_url=telegram_url,pdf_url=pdf_url,
                 article_title=title,article_url=au,writer=writer,key=au,report_unique_key=au,
                 save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
     print(f"[heungkuk] {len(result)} articles collected (pre-duplicate-guard)", file=sys.stderr)

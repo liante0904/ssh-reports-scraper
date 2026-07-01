@@ -174,3 +174,26 @@ class TestHeungkukPdfResolution:
             "https://host/download.do?type=Board&key=30371",
             "https://host/download.do?type=Board&key=30367",
         ]
+
+
+class TestHeungkukPdfFallback:
+    """PDF 미확인 시 article_url fallback 동작 검증."""
+
+    def test_unresolved_pdf_uses_article_url_for_telegram_only(self):
+        """PDF 미확인 row는 발송 링크만 article_url로 대체하고 PDF 필드는 비운다."""
+        row = {
+            "firm_id": 28, "board_id": 0, "firm_nm": "흥국증권",
+            "reg_dt": "20260630", "article_title": "Test",
+            "article_url": "http://a.com/view.do?key=1",
+            "download_url": "",
+            "telegram_url": "http://a.com/view.do?key=1",
+            "pdf_url": "",
+            "writer": "", "key": "http://a.com/view.do?key=1",
+            "report_unique_key": "http://a.com/view.do?key=1",
+        }
+        from scrapers.heungkuk_core import _filter_duplicate_pdf_rows
+        result = _filter_duplicate_pdf_rows([row])
+        assert len(result) == 1
+        assert result[0]["telegram_url"] == result[0]["article_url"]
+        assert result[0]["download_url"] == ""
+        assert result[0]["pdf_url"] == ""

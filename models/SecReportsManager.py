@@ -81,9 +81,12 @@ class SecReportsManager(LibrarySecReportsManager):
                 except Exception:
                     pass
 
+            firm_id = entry.get("firm_id", entry.get("sec_firm_order"))
+            board_id = entry.get("board_id", entry.get("article_board_order"))
+
             records.append((
-                entry.get("sec_firm_order"),
-                entry.get("article_board_order"),
+                firm_id,
+                board_id,
                 entry.get("firm_nm"),
                 entry.get("reg_dt", ""),
                 entry.get("article_title"),
