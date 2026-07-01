@@ -14,9 +14,9 @@ class SecReportsManager(LibrarySecReportsManager):
 
     DBFI_READY_CONDITION = """
         (
-            sec_firm_order != 19
+            firm_id != 19
             OR (
-                sec_firm_order = 19
+                firm_id = 19
                 AND telegram_url LIKE 'https://whub.dbsec.co.kr/pv/gate%%'
                 AND pdf_url LIKE 'https://whub.dbsec.co.kr/streamdocs/v4/documents/%%'
             )
@@ -28,13 +28,13 @@ class SecReportsManager(LibrarySecReportsManager):
         condition = cls.DBFI_READY_CONDITION.strip()
         if not table_alias:
             return condition
-        for column in ("sec_firm_order", "telegram_url", "pdf_url"):
+        for column in ("firm_id", "telegram_url", "pdf_url"):
             condition = condition.replace(column, f"{table_alias}.{column}")
         return condition
 
     @classmethod
     def dbfi_ready_condition_for_read_view(cls):
-        return cls.dbfi_ready_condition().replace("sec_firm_order", "firm_id")
+        return cls.dbfi_ready_condition()
 
     def _reset_duplicate_send_yn(self, json_data_list, table_name):
         """Do not mutate send status during scraper upsert.
@@ -81,8 +81,8 @@ class SecReportsManager(LibrarySecReportsManager):
                 except Exception:
                     pass
 
-            firm_id = entry.get("firm_id", entry.get("sec_firm_order"))
-            board_id = entry.get("board_id", entry.get("article_board_order"))
+            firm_id = entry.get("firm_id")
+            board_id = entry.get("board_id")
 
             records.append((
                 firm_id,
@@ -109,14 +109,14 @@ class SecReportsManager(LibrarySecReportsManager):
 
         sql = f"""
             INSERT INTO {table_name} (
-                sec_firm_order, article_board_order, firm_nm, reg_dt,
+                firm_id, board_id, firm_nm, reg_dt,
                 article_title, article_url, download_url,
                 telegram_url, pdf_url, writer, mkt_tp,
                 key, report_unique_key, save_time, telegram_sent, save_at
             ) VALUES %s
             ON CONFLICT (report_unique_key) DO UPDATE SET
-                sec_firm_order      = EXCLUDED.sec_firm_order,
-                article_board_order = EXCLUDED.article_board_order,
+                firm_id             = EXCLUDED.firm_id,
+                board_id            = EXCLUDED.board_id,
                 firm_nm             = EXCLUDED.firm_nm,
                 article_title       = EXCLUDED.article_title,
                 reg_dt              = EXCLUDED.reg_dt,
