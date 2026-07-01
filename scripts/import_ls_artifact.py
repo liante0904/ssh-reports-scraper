@@ -113,7 +113,7 @@ def import_to_db(data: dict) -> tuple[int, int]:
     existing_keys = db.fetch_existing_keys(firm_id=0, days_limit=30)
 
     # 신규 기사만 필터
-    new_articles = [a for a in articles if a.get("key") and a["key"] not in existing_keys]
+    new_articles = [a for a in articles if a.get("report_unique_key") and a["report_unique_key"] not in existing_keys]
     skipped = len(articles) - len(new_articles)
     if skipped:
         logger.info(f"Skipped {skipped} already-existing articles")

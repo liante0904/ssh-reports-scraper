@@ -176,7 +176,7 @@ def scrape_list(max_pages: int = 2) -> list[dict]:
                         "reg_dt": re.sub(r"[-./]", "", str_date),
                         "article_title": title,
                         "writer": writer,
-                        "key": key,
+                        "report_unique_key": key,
                         "list_article_url": article_url,
                         "article_url": "",
                         "download_url": "",

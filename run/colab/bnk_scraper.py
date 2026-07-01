@@ -16,7 +16,7 @@ import requests
 from datetime import datetime
 from bs4 import BeautifulSoup
 
-SEC_FIRM_ORDER = 23
+FIRM_ID = 23
 FIRM_NM = "BNK투자증권"
 URLS_ENV_KEY = "BNK_URLS_JSON"
 
@@ -77,7 +77,7 @@ def scrape_bnk(urls: list[str]) -> list[dict]:
                     article_url = f"https://www.bnkfn.co.kr{m.group(1)}/{m.group(2)}"
 
                 result.append({
-                    "firm_id": SEC_FIRM_ORDER,
+                    "firm_id": FIRM_ID,
                     "board_id": board_id,
                     "firm_nm": FIRM_NM,
                     "reg_dt": re.sub(r"[-./]", "", reg_dt),
@@ -87,7 +87,6 @@ def scrape_bnk(urls: list[str]) -> list[dict]:
                     "telegram_url": article_url,
                     "pdf_url": article_url,
                     "writer": writer,
-                    "key": article_url,
                     "report_unique_key": article_url,
                     "save_time": datetime.now().isoformat(),
                 })
