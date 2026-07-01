@@ -34,11 +34,28 @@
 | 26 | 코드 | `tests/MariaDB.py` + `MariaDB_bak.py` | 미사용 백업 | 삭제 | 하 | ✅ 완료 |
 | 27 | 코드 | `run/fix_*.py` (12개) | 일회성 fix 스크립트 | 삭제 (archive/legacy 보존) | 하 | ✅ 완료 |
 | 28 | 코드 | `run/scraper_af.py` | `sec_firm_order` 참조, 거의 미사용 | 삭제 | 하 | ✅ 완료 |
-| 29 | 코드 | `scripts/import_*_artifact.py` | `sec_firm_order=0` 하드코딩 | `firm_id=0` | 하 | 🔶 agy |
-| 30 | 코드 | `modules/` + `scrapers/` | 29개씩 2개 디렉토리 분산 | 통합 검토 | 중 | 🔲 남음 |
-| 31 | 코드 | `checkNewArticle` 비동기/동기 혼재 | 모듈마다 `async def` / `def` 달라서 호출 패턴 다름 | 표준화 | 중 | 🔲 남음 |
-| 32 | 코드 | `models/db_factory.py` | SQLite/Postgres 분기 → ssh_library로 통합 필요 | 삭제 검토 | 하 | 🔲 남음 |
-| 33 | 백엔드 | `BASE_SELECT_SQL` 600자 | 모든 엔드포인트가 복붙 | View 하나로 대체 | 하 | 🔲 남음 |
+| 29 | 코드 | `scripts/import_*_artifact.py` | `sec_firm_order=0` 하드코딩 | `firm_id=0` | 하 | ✅ 완료 |
+| 30 | 코드 | `modules/` + `scrapers/` | 29개씩 2개 디렉토리 분산 | 통합 검토 | 중 | 🔲 검토 |
+| 31 | 코드 | `checkNewArticle` 비동기/동기 혼재 | 모듈마다 `async def` / `def` 달라서 호출 패턴 다름 | 표준화 | 중 | 🔲 검토 |
+| 32 | 코드 | `models/db_factory.py` | SQLite/Postgres 분기 → ssh_library로 통합 | 삭제 검토 | 하 | 🔲 검토 |
+| 33 | 백엔드 | `BASE_SELECT_SQL` 600자 | 모든 엔드포인트가 복붙 | `v_reports_api` 뷰로 대체 | 하 | ✅ 완료 |
+| 34 | 백엔드 | `_execute_raw_psycopg2_query` | 매 요청마다 raw connection 새로 생성 | 커넥션풀 사용 | 중 | 🔲 검토 |
+| 35 | 백엔드 | `routers/reports.py` | 아직 ORM (`db.query()`) | raw SQL 전환 | 중 | 🔲 검토 |
+| 36 | 백엔드 | `routers/admin.py` | ORM + `func.max/count` | raw SQL 전환 | 중 | 🔲 검토 |
+| 37 | 백엔드 | `routers/favorites.py` | ORM | raw SQL 전환 | 하 | 🔲 검토 |
+| 38 | 코드 | `ConfigManager` 싱글톤 | 환경별 테스트 어려움 | DI 패턴 | 중 | 🔲 검토 |
+| 39 | 코드 | `FirmInfo.firm_names` | 첫 접근에 DB 전체 로드 (29건) | 지연 로딩 또는 캐시 | 하 | 🔲 검토 |
+| 40 | CI/CD | `deploy.yml` | blue/green 수동 전환. health check 실패 시 rollback 불확실 | 자동 rollback 강화 | 중 | 🔲 검토 |
+| 41 | CI/CD | `.env` + `secrets.json` 이원화 | `generate_env.py` 없으면 secrets 누락 | 통합 또는 문서화 | 중 | 🔲 검토 |
+| 42 | Infra | `ssh oci "docker exec"` 매번 타이핑 | 3개 repo 3개 컨테이너 매번 수동 | `scripts/ops_ssh.sh` 통합 | 하 | 🔶 진행 중 |
+| 43 | Infra | scraper/backend/frontend deploy 각각 수동 확인 | deploy 후 API smoke test 자동화 안됨 | health check 스크립트 | 중 | 🔲 검토 |
+| 44 | Depth | `enrich_data()` 100줄 | 3레벨 if/for/try 중첩 | 함수 분리 | 중 | 🔲 검토 |
+| 45 | Depth | `_row_to_dict()` 100줄 | field 매핑에 early return 없음 | dataclass 또는 Pydantic | 중 | 🔲 검토 |
+| 46 | Depth | `scraper.py main()` | 동기/비동기/LS/전체 분기 → 단일 함수 | 함수 분리 | 중 | 🔲 검토 |
+| 47 | 코드 | `SecReportsManager` + `SQLiteManager` | 중복 로직. SQLite는 테스트 전용 | SQLiteManager 제거 → ssh_library mock | 중 | 🔲 검토 |
+| 48 | 코드 | `models/WebScraper.py` | `firm_id` 기준 if/elif 10개 체인 | dict 기반 dispatch | 중 | 🔲 검토 |
+| 49 | 테스트 | `tests/ls.py`, `tests/diagnose_ls_urls.py` | legacy test | archive | 하 | 🔲 검토 |
+| 50 | DB | `tbl_sec_reports` 컬럼 30개+ | 정규화 부족 (tags, stock_names JSONB) | 검토 | 상 | 🔲 검토 |
 | 34 | 백엔드 | `_execute_raw_psycopg2_query` | 매 요청마다 raw connection 새로 생성 | 커넥션풀 사용 | 중 | 🔲 남음 |
 | 35 | 백엔드 | `routers/reports.py` | 아직 ORM (`db.query()`) | raw SQL 전환 | 중 | 🔲 남음 |
 | 36 | 백엔드 | `routers/admin.py` | ORM + `func.max/count` | raw SQL 전환 (집계 쿼리) | 중 | 🔲 남음 |
