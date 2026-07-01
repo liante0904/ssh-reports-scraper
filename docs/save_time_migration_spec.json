@@ -1,0 +1,68 @@
+{
+  "task": "save_time → save_at 마이그레이션",
+  "scope": "apps/backend/ssh-reports-hub-fastAPI",
+  "rule": "데이터 완전 동일, 컬럼명만 save_time → save_at. 프론트엔드 last_save_time 키는 유지.",
+  "files": {
+    "app/models.py": {
+      "line_64": {
+        "current": "save_time = Column(String)",
+        "change": "save_time = Column(String)  # deprecated — use save_at. 백워드 호환용 유지, 새 코드는 save_at 사용"
+      }
+    },
+    "app/main.py": {
+      "line_282": {
+        "note": "이미 save_time AS scraped_at, save_at AS scraped_at_tz 로 매핑 중. 변경 불필요."
+      }
+    },
+    "app/routers/external_api.py": {
+      "line_129": {
+        "current": "item[\"save_time\"] = report.save_time",
+        "change": "item[\"scraped_at\"] = report.save_at.isoformat() if report.save_at else report.save_time",
+        "reason": "save_time 키 제거, scraped_at 으로 통일"
+      },
+      "line_324": {
+        "current": "SecReport.save_time.desc()",
+        "change": "SecReport.save_at.desc().nullslast()",
+        "reason": "save_at 기준 정렬. nullslast()로 미마이그레이션 row 후순위"
+      },
+      "line_412": {
+        "current": "SecReport.save_time.desc()",
+        "change": "SecReport.save_at.desc().nullslast()"
+      }
+    },
+    "app/routers/admin.py": {
+      "line_357": {
+        "current": "SecReport.save_time.desc()",
+        "change": "SecReport.save_at.desc().nullslast()"
+      },
+      "line_361": {
+        "current": "last_report_time = latest.save_time",
+        "change": "last_report_time = latest.save_at.isoformat() if latest.save_at else latest.save_time"
+      },
+      "line_403": {
+        "note": "키 'last_save_time' 유지 필수 — 프론트엔드 AdminConsole.jsx:81 이 키를 읽음",
+        "current": "\"last_save_time\": last_report_time",
+        "change": "변경 없음. 값만 save_at 에서 오도록 위에서 처리."
+      },
+      "line_428": {
+        "current": "func.max(SecReport.save_time)",
+        "change": "func.max(SecReport.save_at)"
+      }
+    },
+    "app/routers/favorites.py": {
+      "line_89": {
+        "current": "\"save_time\": report.save_time",
+        "change": "\"scraped_at\": report.save_at.isoformat() if report.save_at else report.save_time"
+      }
+    }
+  },
+  "frontend_impact": {
+    "files_changed": 0,
+    "reason": "AdminConsole.jsx:81 이 last_save_time 키만 읽음. 백엔드가 이 키 유지하면 프론트 무변경."
+  },
+  "verification": {
+    "1": "AdminConsole 진입 → '마지막 레포트 시간' 정상 표시",
+    "2": "보고서 목록 API 호출 → scraped_at 필드에 ISO8601 값 존재",
+    "3": "save_at IS NULL 인 row → scraped_at 필드가 save_time 으로 폴백"
+  }
+}
