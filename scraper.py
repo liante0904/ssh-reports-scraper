@@ -286,6 +286,7 @@ async def enrich_data():
                         WHERE firm_id = 0
                           AND telegram_url LIKE 'https://www.ls-sec.co.kr/upload/%%'
                           AND save_at >= NOW() - INTERVAL '1 day'
+                          AND key IS NOT NULL AND key != ''
                         ORDER BY save_at DESC
                         LIMIT 50
                     ''')
