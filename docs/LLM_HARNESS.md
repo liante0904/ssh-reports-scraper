@@ -1,3 +1,12 @@
+# LLM Control Harness & Dispatch Automation Guide
+
+> **통합 일자**: 2026-07-01
+> **대상 원본 문서**: LLM_CONTROL_HARNESS.md, LLM_DISPATCH_AUTOMATION.md, LLM_HARNESS_PORTING_GUIDE.md, LLM_HARNESS_README.md
+
+---
+
+## [통합 섹션] LLM_CONTROL_HARNESS
+
 # LLM 유지보수 통제 전략
 
 > 작성일: 2026-06-24  
@@ -641,3 +650,682 @@ LLM 작업 완료 보고에 아래 체크리스트 출력을 요구한다. 사�
 - **원인**: core가 `kb_result.json`으로 출력하는데 workflow SCP는 `kbsec_result.json`을 전송.
 - **증상**: GA는 성공, 서버에서 `incoming/ga-scrapes/`에 파일 없음 → 수집 누락.
 - **하네스 검출**: `harness.py --firm kb --offline` → "result_file mismatch: manifest=kb_result.json, workflow=kbsec_result.json"
+
+
+---
+
+## [통합 섹션] LLM_DISPATCH_AUTOMATION
+
+# LLM tmux 자동 송신 가이드
+
+목적: 사용자가 DeepSeek와 Gemini/AGY 터미널을 번갈아 보며 복붙하는 부담을 줄인다.
+
+## 전제
+
+이 방식은 LLM CLI가 `tmux` 세션 안에서 이미 실행 중일 때만 동작한다.
+
+권장 세션명:
+
+```bash
+tmux new -s deepseek
+tmux new -s agy
+```
+
+다른 세션명이나 특정 pane을 쓰면 환경변수로 지정한다.
+
+```bash
+export DEEPSEEK_TMUX_TARGET=ds
+export GEMINI_AGY_TMUX_TARGET=0:8.1
+```
+
+현재 pane 목록 확인:
+
+```bash
+tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_current_command} #{pane_current_path}'
+```
+
+`deepseek`, `agy`라는 이름의 세션이 있어도 그 안이 `bash`이면 자동 송신 대상이 아니다. 대상 pane에는 DeepSeek/Gemini CLI가 입력 대기 상태로 떠 있어야 한다.
+
+## 고정 파일
+
+자동 송신도 기존 규칙을 그대로 따른다.
+
+```text
+.agent_tasks/deepseek_next.md
+.agent_tasks/deepseek_result.md
+.agent_tasks/gemini_agy_next.md
+.agent_tasks/gemini_agy_result.md
+```
+
+새 `_next.md`, `_result.md` 파일을 만들지 않는다.
+
+작업을 여러 개 나눌 때는 한 개 JSON 원장을 사용한다.
+
+```text
+.agent_tasks/llm_task_queue.json
+```
+
+초기 템플릿 생성:
+
+```bash
+python3 scripts/llm_task_queue.py --init
+```
+
+`status: "ready"`인 작업을 기존 `_next.md` 파일로 렌더링:
+
+```bash
+python3 scripts/llm_task_queue.py --render
+python3 scripts/llm_task_queue.py --render --agent deepseek
+```
+
+실제 next 파일을 덮지 않는 렌더링 테스트:
+
+```bash
+python3 scripts/llm_task_queue.py --queue /tmp/llm_task_queue.json --render --output-dir /tmp/agent_tasks
+```
+
+JSON 작업 필드 작성 기준:
+
+| 필드 | 목적 |
+|---|---|
+| `agent` | `deepseek` 또는 `gemini` |
+| `status` | 실행 대상이면 `ready`, 보류면 `blocked` |
+| `objective` | 한 문장 작업 목표 |
+| `max_scope` | 범위 확장 방지 문장 |
+| `allowed_files` | 수정 허용 파일 |
+| `forbidden_files` | 수정 금지 파일 |
+| `instructions` | 실행 순서 |
+| `validation` | 검증 명령 |
+| `acceptance_criteria` | 완료 판정 기준 |
+| `constraints` | DB write, 배포, git 금지 같은 안전 경계 |
+
+LLM에게 효율적인 작업은 "무엇을 고칠지"보다 "어디까지만 고칠지"가 명확한 작업이다. 그래서 `allowed_files`, `forbidden_files`, `acceptance_criteria`는 생략하지 않는다.
+
+## Dry-Run
+
+기본은 전송하지 않고 보낼 문구만 출력한다.
+
+```bash
+bash scripts/llm_dispatch.sh deepseek
+bash scripts/llm_dispatch.sh gemini
+```
+
+## 실제 송신
+
+세션명이 맞는지 확인한 뒤 `--send`를 붙인다.
+
+```bash
+bash scripts/llm_dispatch.sh deepseek --send
+bash scripts/llm_dispatch.sh gemini --send
+```
+
+결과 파일 갱신까지 기다리려면:
+
+```bash
+bash scripts/llm_dispatch.sh deepseek --send --wait
+bash scripts/llm_dispatch.sh gemini --send --wait
+```
+
+timeout 조정:
+
+```bash
+bash scripts/llm_dispatch.sh deepseek --send --wait --timeout 1800
+```
+
+## 순차 실행
+
+DeepSeek 완료 후 Gemini/AGY를 실행하는 흐름:
+
+```bash
+bash scripts/llm_dispatch.sh deepseek --send --wait
+bash scripts/llm_dispatch.sh gemini --send --wait
+```
+
+같은 흐름을 한 번에 실행:
+
+```bash
+bash scripts/llm_cycle.sh
+```
+
+target 지정 예:
+
+```bash
+DEEPSEEK_TMUX_TARGET='0:7.1' GEMINI_AGY_TMUX_TARGET='0:8.1' bash scripts/llm_cycle.sh
+```
+
+`both --send`는 두 세션에 연속 송신한다. Gemini/AGY가 DeepSeek result를 필요로 하는 작업이면 사용하지 않는다.
+
+```bash
+bash scripts/llm_dispatch.sh both --send
+```
+
+## 병렬 실행
+
+DeepSeek 작업과 Gemini/AGY 작업이 서로 독립이면 병렬로 보낸다.
+
+```bash
+bash scripts/llm_dispatch.sh both --send --wait --parallel
+```
+
+같은 작업을 `llm_cycle.sh`로 실행:
+
+```bash
+bash scripts/llm_cycle.sh --parallel
+```
+
+주의:
+
+- `--parallel`은 `both --send --wait`에서 양쪽에 먼저 보낸 뒤 두 result 파일 갱신을 기다린다.
+- Gemini/AGY가 DeepSeek 결과를 읽어야 하는 작업이면 병렬 실행하지 않는다.
+- AGY 토큰이 없으면 JSON에서 Gemini 작업을 `status: "blocked"`로 두고 DeepSeek만 보낸다.
+
+## 실패 조건
+
+아래 상황이면 자동 송신하지 말고 수동 확인한다.
+
+- `tmux list-sessions`에 대상 세션이 없다.
+- target pane의 `pane_current_command`가 `bash`, `sh`, `zsh`, `fish` 같은 일반 shell이다.
+- LLM CLI가 프롬프트 입력 대기 상태가 아니다.
+- 이전 작업이 아직 실행 중이다.
+- result 파일이 갱신되지 않는다.
+- 운영 DB write, 서비스 restart, main merge, 배포가 포함된 작업이다.
+
+## Codex 사용 방식
+
+Codex는 `_next.md`를 갱신한 뒤 아래 명령을 실행하면 된다.
+
+```bash
+bash scripts/llm_dispatch.sh deepseek --send --wait
+```
+
+다만 운영 변경이 포함된 작업은 자동 송신보다 사용자 승인 후 수동 송신을 우선한다.
+
+## 흔한 실패
+
+잘못된 구조:
+
+```text
+deepseek tmux 세션 안에서 bash scripts/llm_dispatch.sh deepseek --send --wait 실행
+```
+
+이 경우 dispatcher가 LLM CLI가 아니라 자기 shell에 프롬프트를 보내므로 동작하지 않는다.
+
+`scripts/llm_dispatch.sh`는 기본적으로 일반 shell target에는 전송하지 않는다. 정말 의도한 경우에만 아래처럼 강제로 허용한다.
+
+```bash
+LLM_DISPATCH_ALLOW_SHELL_TARGET=1 bash scripts/llm_dispatch.sh deepseek --send
+```
+
+올바른 구조:
+
+```text
+deepseek target pane: DeepSeek CLI 입력 대기
+agy target pane: Gemini/AGY CLI 입력 대기
+별도 shell 또는 Codex: bash scripts/llm_dispatch.sh ...
+```
+
+
+---
+
+## [통합 섹션] LLM_HARNESS_PORTING_GUIDE
+
+# LLM 하네스 포팅 가이드
+
+목적: 다른 LLM, 다른 repo, 다른 도메인이 들어와도 같은 파일 큐와 `.sh` 도구로 작업을 통제한다.
+
+처음 읽는 사람은 `docs/LLM_HARNESS_README.md`를 먼저 읽고, 이 문서는 복사/포팅 작업 때만 읽는다.
+
+## 핵심 원칙
+
+하네스는 LLM 종류가 아니라 작업 계약을 고정한다.
+
+고정 계약:
+
+```text
+.agent_tasks/deepseek_next.md
+.agent_tasks/deepseek_result.md
+.agent_tasks/gemini_agy_next.md
+.agent_tasks/gemini_agy_result.md
+```
+
+새 LLM이 들어와도 새 `_next.md`, `_result.md`를 늘리지 않는다. 역할만 바꾼다.
+
+## 현재 표준 역할
+
+| 역할 | 현재 도구 | 책임 | 기본 금지 |
+|---|---|---|---|
+| Codex | Codex CLI | 작업 분해, 최종 판단, diff 리뷰, 위험 작업 직접 처리 | 반복 조사에 토큰 낭비 |
+| DeepSeek | `cc` alias 기반 Claude Code CLI + DeepSeek API | 조사, 작은 구현, 검증, 브랜치 작업 | 승인 없는 main merge/배포/DB write |
+| Gemini/AGY | `agy` CLI | 요약, 문장 정리, 체크리스트, read-only 검토 | 코드 수정, 명령 실행, git 조작 |
+
+다른 LLM을 붙일 때도 위 역할 중 하나에 매핑한다.
+
+예:
+
+```text
+새 저가 coding agent -> DeepSeek 역할에 매핑
+새 문서 요약 agent -> Gemini/AGY 역할에 매핑
+고성능 reviewer -> Codex가 직접 쓰되 next/result 파일은 늘리지 않음
+```
+
+## repo에 설치할 최소 파일
+
+대상 repo 루트:
+
+```text
+scripts/llm_dispatch.sh
+scripts/llm_cycle.sh
+scripts/llm_task_queue.py
+docs/LLM_DELEGATION_PROTOCOL.md
+docs/LLM_DISPATCH_AUTOMATION.md
+docs/LLM_HARNESS_PORTING_GUIDE.md
+.agent_tasks/
+```
+
+`.agent_tasks/` 안:
+
+```text
+deepseek_next.md
+deepseek_result.md
+gemini_agy_next.md
+gemini_agy_result.md
+llm_task_queue.json
+```
+
+`.agent_tasks/`는 커밋하지 않는다.
+
+```gitignore
+.agent_tasks/
+```
+
+## 새 도메인에 복사
+
+```bash
+cd <target-repo>
+mkdir -p scripts docs .agent_tasks
+
+cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/scripts/llm_dispatch.sh scripts/
+cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/scripts/llm_cycle.sh scripts/
+cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/scripts/llm_task_queue.py scripts/
+cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/docs/LLM_DELEGATION_PROTOCOL.md docs/
+cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/docs/LLM_DISPATCH_AUTOMATION.md docs/
+cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/docs/LLM_HARNESS_PORTING_GUIDE.md docs/
+
+touch .agent_tasks/deepseek_next.md
+touch .agent_tasks/deepseek_result.md
+touch .agent_tasks/gemini_agy_next.md
+touch .agent_tasks/gemini_agy_result.md
+python3 scripts/llm_task_queue.py --init
+```
+
+## tmux 표준
+
+DeepSeek 역할:
+
+```bash
+tmux new -s deepseek
+cd <target-repo>
+cc
+```
+
+`cc`는 Claude Code CLI에 DeepSeek API를 물린 alias다.
+
+Gemini/AGY 역할:
+
+```bash
+tmux new -s agy
+cd <target-repo>
+agy
+```
+
+pane 확인:
+
+```bash
+tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_current_command} #{pane_current_path}'
+```
+
+## 실행
+
+현재 repo 표준:
+
+```bash
+LLM_DISPATCH_ALLOW_SHELL_TARGET=1 \
+DEEPSEEK_TMUX_TARGET='deepseek' \
+GEMINI_AGY_TMUX_TARGET='0:8.1' \
+bash scripts/llm_cycle.sh
+```
+
+dry-run:
+
+```bash
+bash scripts/llm_cycle.sh --dry-run
+```
+
+JSON 원장 렌더링:
+
+```bash
+python3 scripts/llm_task_queue.py --render
+```
+
+독립 작업 병렬 실행:
+
+```bash
+bash scripts/llm_cycle.sh --parallel
+```
+
+개별 실행:
+
+```bash
+bash scripts/llm_dispatch.sh deepseek --send --wait
+bash scripts/llm_dispatch.sh gemini --send --wait
+```
+
+## 새 LLM을 붙일 때
+
+1. 새 LLM을 tmux pane에서 입력 대기 상태로 띄운다.
+2. `tmux list-panes -a`로 target을 확인한다.
+3. DeepSeek 역할이면 `DEEPSEEK_TMUX_TARGET`에 연결한다.
+4. Gemini/AGY 역할이면 `GEMINI_AGY_TMUX_TARGET`에 연결한다.
+5. next/result 파일명은 바꾸지 않는다.
+
+예:
+
+```bash
+DEEPSEEK_TMUX_TARGET='new-agent:1.1' bash scripts/llm_dispatch.sh deepseek --send --wait
+GEMINI_AGY_TMUX_TARGET='doc-agent:1.1' bash scripts/llm_dispatch.sh gemini --send --wait
+```
+
+## 자동 송신 금지 작업
+
+아래 작업은 자동 cycle에 넣지 않는다.
+
+- 운영 DB write/delete
+- 서비스 restart
+- 배포
+- main merge
+- secret/env 출력 가능성이 있는 조사
+- 파일 삭제
+- 여러 repo 동시 수정
+
+이 작업들은 Codex가 직접 처리하거나 사용자 승인 후 단일 명령으로 실행한다.
+
+## result 판정 기준
+
+DeepSeek result에는 최소한 아래가 있어야 한다.
+
+```text
+Agent:
+Completed At:
+Changed Files:
+Validation:
+Blocked:
+Next Recommended Step:
+```
+
+Gemini/AGY result에는 최소한 아래가 있어야 한다.
+
+```text
+Agent:
+Completed At:
+Summary:
+Remaining Risk:
+Next Action:
+Stop Conditions:
+```
+
+## 흔한 실패
+
+### target이 bash
+
+증상:
+
+```text
+ERROR: target 'deepseek' is plain shell command 'bash', not an LLM CLI.
+```
+
+해결:
+
+```bash
+tmux attach -t deepseek
+cd <target-repo>
+cc
+```
+
+`cc`가 shell 안에서 떠 있어서 `pane_current_command`가 `claude`나 `bash`로 보이는 경우만 아래를 허용한다.
+
+```bash
+LLM_DISPATCH_ALLOW_SHELL_TARGET=1 ...
+```
+
+### Gemini가 DeepSeek보다 먼저 실행됨
+
+Gemini/AGY는 DeepSeek result를 읽는 요약 역할이다. DeepSeek result가 최신이 아니면 `Plan/result not ready`로 끝나는 것이 정상이다.
+
+### result 파일이 갱신되지 않음
+
+확인:
+
+```bash
+tmux capture-pane -t <target> -p -S -80
+stat .agent_tasks/*_result.md
+```
+
+LLM이 승인 대기 중이거나 CLI가 입력 대기 상태가 아닐 수 있다.
+
+
+---
+
+## [통합 섹션] LLM_HARNESS_README
+
+# LLM 운영 하네스 한 장 요약
+
+목적: Codex, DeepSeek, Gemini/AGY, 새 LLM이 들어와도 같은 `.sh`와 같은 파일 큐로 작업한다.
+
+## 1. 읽는 순서
+
+새 LLM이나 새 작업자가 들어오면 이 파일만 먼저 읽는다.
+
+상세 문서:
+
+| 문서 | 용도 |
+|---|---|
+| `docs/LLM_DELEGATION_PROTOCOL.md` | next/result 파일 계약과 역할 상세 |
+| `docs/LLM_DISPATCH_AUTOMATION.md` | tmux 자동 송신 상세 |
+| `docs/LLM_HARNESS_PORTING_GUIDE.md` | 다른 repo로 복사하는 절차 |
+| `docs/OPS_LOG_TAIL.md` | OCI 운영 로그 조회 |
+| `docs/LLM_CONTROL_HARNESS.md` | scraper 특화 장애 패턴과 검증 명령 |
+
+## 2. 고정 파일
+
+LLM 지시와 결과는 이 네 파일만 사용한다.
+
+```text
+.agent_tasks/deepseek_next.md
+.agent_tasks/deepseek_result.md
+.agent_tasks/gemini_agy_next.md
+.agent_tasks/gemini_agy_result.md
+```
+
+새 LLM이 와도 파일을 늘리지 않는다. DeepSeek 역할 또는 Gemini/AGY 역할에 매핑한다.
+
+`.agent_tasks/`는 커밋하지 않는다.
+
+작업이 둘 이상이면 사람이 `_next.md`를 직접 나눠 쓰지 않는다. JSON 원장을 먼저 만들고 렌더링한다.
+
+```text
+.agent_tasks/llm_task_queue.json
+```
+
+이 JSON도 커밋하지 않는다.
+
+## 3. 역할
+
+| 역할 | 현재 도구 | 맡길 일 | 금지 |
+|---|---|---|---|
+| Codex | Codex | 작업 분해, 최종 판단, diff 리뷰, 위험한 변경 | 반복 조사에 토큰 낭비 |
+| DeepSeek | `cc` | 조사, 작은 구현, 검증, 브랜치 작업 | 승인 없는 main merge, 배포, DB write |
+| Gemini/AGY | `agy` | 요약, 문장 정리, 체크리스트 | 코드 수정, 명령 실행, git 조작 |
+
+## 4. tmux 표준
+
+DeepSeek:
+
+```bash
+tmux attach -t deepseek
+cd /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper
+cc
+```
+
+Gemini/AGY:
+
+```bash
+tmux attach -t agy
+cd /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper
+agy
+```
+
+pane 확인:
+
+```bash
+tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_current_command} #{pane_current_path}'
+```
+
+현재 reports scraper 표준 실행:
+
+```bash
+LLM_DISPATCH_ALLOW_SHELL_TARGET=1 \
+DEEPSEEK_TMUX_TARGET='deepseek' \
+GEMINI_AGY_TMUX_TARGET='0:8.1' \
+bash scripts/llm_cycle.sh
+```
+
+검증만:
+
+```bash
+bash scripts/llm_cycle.sh --dry-run
+```
+
+## 5. JSON 원장 병렬 작업
+
+여러 작업을 나눌 때는 한 개 JSON에 DeepSeek/Gemini 작업을 같이 적는다.
+
+초기 템플릿:
+
+```bash
+python3 scripts/llm_task_queue.py --init
+```
+
+JSON에서 `status: "ready"`인 작업을 기존 next 파일로 렌더링:
+
+```bash
+python3 scripts/llm_task_queue.py --render
+```
+
+양쪽 LLM에 병렬 송신:
+
+```bash
+LLM_DISPATCH_ALLOW_SHELL_TARGET=1 \
+DEEPSEEK_TMUX_TARGET='deepseek' \
+GEMINI_AGY_TMUX_TARGET='0:8.1' \
+bash scripts/llm_cycle.sh --parallel
+```
+
+AGY 토큰이 없으면 Gemini 작업은 `status: "blocked"`로 두고 DeepSeek만 렌더링/송신한다.
+
+LLM 효율 기준:
+
+- 한 agent에 `ready` 작업은 한 번에 하나만 둔다.
+- `objective`는 한 문장으로 쓴다.
+- `max_scope`로 작업 범위를 닫는다.
+- `allowed_files`와 `forbidden_files`를 반드시 채운다.
+- `acceptance_criteria`에는 사람이 판정할 완료 조건을 적는다.
+- 운영 DB write, 배포, main merge는 JSON 작업에 넣지 않는다.
+
+이 구조가 효율적인 이유:
+
+- LLM은 긴 배경 설명보다 닫힌 파일 목록과 완료 기준을 더 잘 따른다.
+- 병렬 작업은 한 JSON에서 관리하되, 실행은 기존 `_next.md` 파일로 유지한다.
+- 결과 파일 계약이 그대로라 기존 tmux/복붙 운영과 충돌하지 않는다.
+- AGY처럼 약한 모델은 코드가 아니라 요약/문장 정리 작업만 받게 제한할 수 있다.
+
+## 6. 운영 로그
+
+운영 로그는 직접 긴 SSH 명령을 만들지 않고 이 스크립트로 본다.
+
+```bash
+bash scripts/ops_tail_errors.sh --since "09:00"
+bash scripts/ops_tail_errors.sh --docker-only --watchdog
+bash scripts/ops_tail_errors.sh --service ssh-reports-scraper-main-scraper-green
+bash scripts/ops_tail_errors.sh --firm-order 3 --firm-name 'HANA|하나|hana' --date-from 20260626 --date-to 20260629 --logs-only
+```
+
+이 스크립트는 읽기 전용이다. restart, DB write, 파일 삭제를 넣지 않는다.
+
+특정 증권사 누락 조사는 긴 SSH 조합을 만들지 말고 `--firm-order`와 `--firm-name`으로 시작한다.
+
+## 7. 로그 DB 저장 정책
+
+전체 로그를 DB에 저장하지 않는다.
+
+이유:
+
+- Docker/file 로그는 이미 원본 저장소가 있다.
+- 전체 로그 DB 적재는 용량과 노이즈가 크다.
+- 검색/보관 목적이면 Dozzle, Loki, 파일 압축, grep이 더 싸다.
+- 장애 처리에 필요한 것은 원문 전체가 아니라 사건 단위 요약이다.
+
+DB에 저장해도 되는 것:
+
+```text
+incident_id
+detected_at
+service_name
+severity
+fingerprint
+first_seen_at
+last_seen_at
+count
+status: open | mitigated | resolved | ignored
+owner
+summary
+resolution_note
+source_log_ref
+```
+
+즉, 원문 로그 DB가 아니라 장애 이벤트/해결 상태 DB만 만든다.
+
+## 8. 자동화 금지
+
+아래는 LLM 자동 cycle에 넣지 않는다.
+
+- 운영 DB write/delete
+- 서비스 restart
+- 배포
+- main merge
+- secret/env 출력 가능성이 있는 조사
+- 파일 삭제
+- 여러 repo 동시 수정
+
+이 작업은 Codex가 직접 처리하거나 사용자 승인 후 단일 명령으로 실행한다.
+
+## 9. 다른 repo에 복사
+
+```bash
+cd <target-repo>
+mkdir -p scripts docs .agent_tasks
+cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/scripts/llm_dispatch.sh scripts/
+cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/scripts/llm_cycle.sh scripts/
+cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/scripts/llm_task_queue.py scripts/
+cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/scripts/ops_tail_errors.sh scripts/
+cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/docs/LLM_HARNESS_README.md docs/
+cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/docs/LLM_DELEGATION_PROTOCOL.md docs/
+cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/docs/LLM_DISPATCH_AUTOMATION.md docs/
+cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/docs/LLM_HARNESS_PORTING_GUIDE.md docs/
+cp /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/docs/OPS_LOG_TAIL.md docs/
+touch .agent_tasks/deepseek_next.md .agent_tasks/deepseek_result.md
+touch .agent_tasks/gemini_agy_next.md .agent_tasks/gemini_agy_result.md
+```
+
+
+---
+

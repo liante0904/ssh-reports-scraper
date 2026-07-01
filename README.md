@@ -65,9 +65,13 @@ API 키, DB 비밀번호, 수집 대상 URL(경쟁 우위 정보)을 소스코�
 
 ### 5. 중복 제거 전략
 
-같은 보고서가 여러 번 수집될 수 있다.  
-`KEY` 컬럼(보고서 고유 식별자)에 `ON CONFLICT DO UPDATE` 를 적용해 DB 레벨에서 멱등성을 보장한다.  
-애플리케이션 코드에서 중복 체크 없이 그냥 upsert하면 된다.
+같은 보고서가 여러 번 수집될 수 있습니다.  
+기존 `key` 컬럼 대신 고유 식별자인 `report_unique_key` 컬럼에 `ON CONFLICT DO UPDATE`를 적용하여 DB 레벨에서 완벽한 멱등성을 보장합니다.  
+
+### 6. 물리 데이터 구조 현대화 (2026-07-01)
+- **컬럼명 정규화**: `sec_firm_order` -> `firm_id`, `article_board_order` -> `board_id`로 개편하여 직관성을 높였습니다.
+- **날짜/시간대 표준화**: 레거시 `save_time` (VARCHAR) 대신 시간대를 지원하는 `save_at` (TIMESTAMPTZ) 컬럼으로 전환하여 데이터 시간 정합성을 강화했습니다.
+- **기사 식별키 통합**: 구형 `key` 컬럼의 데이터 적재를 전면 중단하고 `report_unique_key` 로 일원화하였습니다.
 
 ---
 

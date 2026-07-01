@@ -428,30 +428,38 @@ DB증권(19)은 텔레그램용 URL과 다운로드용 URL이 다르다 (gate vi
 
 | 컴포넌트 | READ | WRITE (tbl_sec_reports) | WRITE (다른 테이블) |
 |------|------|------|------|
-| **scraper** (29개 모듈) | - | `report_id`, `firm_id`, `board_id`, `firm_nm`, `article_title`, `article_url`, `download_url`, `telegram_url`, `pdf_url`, `reg_dt`, `writer`, `mkt_tp`, `key`, `save_time`, `main_ch_send_yn` | - |
+| **scraper** (29개 모듈) | - | `report_id`, `firm_id`, `board_id`, `firm_nm`, `article_title`, `article_url`, `download_url`, `telegram_url`, `pdf_url`, `reg_dt`, `writer`, `mkt_tp`, `report_unique_key`, `save_at`, `telegram_sent` | - |
 | **enricher** (tag_extractor) | `article_title`, `firm_nm` | `tags`, `stock_names`, `stock_tickers`, `sector`, `gemini_summary`, `summary_time`, `summary_model`, `target_price`, `rating`, `revision_type`, `report_type`, `fnguide_summary_id`, `sync_status` | `tbl_report_enricher_tags`, `tbl_report_ai_summaries`, `tbl_report_price_targets` |
 | **pdf-archiver** | `download_url` | `pdf_sync_status`, `download_status_yn`, `pdf_hash` | `tbl_sec_reports_pdf_archive` (26컬럼 전체) |
-| **scraper.py enrich_data()** | `telegram_url`, `key`, `writer`, `reg_dt` | `telegram_url` (DBfi gate/LS msg URL 복구) | - |
-| **scheduler.py** | `main_ch_send_yn`, `telegram_url`, `article_title` | `main_ch_send_yn='Y'` (발송 완료) | - |
+| **scraper.py enrich_data()** | `telegram_url`, `report_unique_key`, `writer`, `reg_dt` | `telegram_url` (DBfi gate/LS msg URL 복구) | - |
+| **scheduler.py** | `telegram_sent`, `telegram_url`, `article_title` | `telegram_sent=true` (발송 완료) | - |
 
-### `tbl_report_downloads` → DROP (2026-06-11)
+---
 
-pdf-archiver가 `tbl_sec_reports`에 직접 `pdf_sync_status`, `download_status_yn`, `pdf_hash`를 쓰고,
-enricher가 `sync_status`, `retry_count`, `archive_path`를 직접 쓴다.
-별도 미러 테이블은 실시간 싱크 불가 → 불필요 → DROP 완료.
+## 7. 데이터베이스 연동 및 스키마 구조 (2026-07-01 업데이트)
 
-## 7. DB Schema (관련 부분)
+### 7.1 주요 데이터 구조 변경사항
+* **`firm_id` 도입**: 기존의 `sec_firm_order` 물리적 컬럼명이 `firm_id`로 전면 개편되었습니다. (19개 스크래퍼 모듈 및 백엔드 맵핑 완료)
+* **`board_id` 도입**: 기존의 `article_board_order` 물리적 컬럼명이 `board_id`로 전면 개편되었습니다. (9개 스크래퍼 모듈 및 백엔드 맵핑 완료)
+* **`save_at` 마이그레이션**: 기존 `save_time` (VARCHAR ISO 포맷) 대신 표준 시간대를 지원하는 `save_at` (TIMESTAMPTZ) 컬럼이 추가되었으며, 기존 `save_time` 컬럼은 `# deprecated` 처리되었습니다.
+* **`report_unique_key` 전환**: 기존 `key` 컬럼은 사용이 중단(deprecated)되었으며, 모든 기사 식별은 `report_unique_key` 로 단일 통일되었습니다.
 
-### `tbl_sec_reports` — upsert 로직
+### 7.2 DDL 파일 목록 및 역할
+데이터베이스 변경사항을 정의하는 DDL 스크립트는 `sql/` 디렉토리 내에 보관되어 관리됩니다:
+- `sql/TB_SEC_REPORTS.sql`: 메인 리포트 테이블 (`tbl_sec_reports`) DDL 구조 정의
+- `sql/TB_SEC_FIRM_INFO.sql`: 증권사 메타데이터 테이블 (`tbm_sec_firm_info`) DDL 구조 정의
+- `sql/TB_SEC_FIRM_BOARD_INFO.sql`: 증권사별 게시판 메타데이터 테이블 (`tbm_sec_firm_board_info`) DDL 구조 정의
+- `sql/VIEWS.sql`: 레거시 호환을 위한 `v_sec_reports_full` 등 종합 뷰(View) 정의
 
+### 7.3 `tbl_sec_reports` — upsert 로직 (report_unique_key 기반)
 ```sql
 INSERT INTO tbl_sec_reports (
     firm_id, board_id, firm_nm, reg_dt,
-    article_title, article_url, main_ch_send_yn, is_sent, download_url,
-    telegram_url, pdf_url, writer, mkt_tp, key, save_time
+    article_title, article_url, telegram_sent, download_url,
+    telegram_url, pdf_url, writer, mkt_tp, report_unique_key, save_at
 ) VALUES %s
 ON CONFLICT (report_unique_key) DO UPDATE SET
-    firm_id      = EXCLUDED.firm_id,
+    firm_id             = EXCLUDED.firm_id,
     firm_nm             = EXCLUDED.firm_nm,
     article_title       = EXCLUDED.article_title,
     reg_dt              = EXCLUDED.reg_dt,
@@ -463,110 +471,37 @@ ON CONFLICT (report_unique_key) DO UPDATE SET
 RETURNING report_unique_key, (xmax = 0) AS inserted
 ```
 
-- **report_unique_key**: 중복제거용 primary unique key (URL 기반). `key` 컬럼 deprecated, 안정화 후 drop 예정.
-- **ON CONFLICT (report_unique_key)**: 동일 report_unique_key 존재 시 update, 없으면 insert
-- **COALESCE**: 새로운 값이 빈 문자열이면 기존 값 유지 (다른 소스에서 채운 telegram_url 보존)
-- **RETURNING**: `xmax = 0`이면 신규 insert, 아니면 update
+---
+
+## 8. GA Standalone 전환 & 운영 현황 (GA_STATUS 통합)
+
+* **정상 작동 (24개사)**: NH투자, KB, 삼성, 상상인, 미래에셋, 현대차, 키움, 다올, 토스, 리딩, DB, 메리츠, 한화, 한양, 교보, IBK, SK, 유안타, 흥국 등
+* **서버 전용 수집 (5개사)**: LS, 신한, DS, 유진, 대신 (보안 설정 및 스파이더 방어로 인해 개발 서버에서 전용 수집 수행)
+* **네트워크 차단 (2개사)**: 
+  - `BNKfn_23`: 소스 사이트의 외부 IP 차단
+  - `하나증권(HANA_3)`: GA 러너 IP 차단으로 인해 서버 직접 스크래핑으로 전환
+* **인증 만료**: `iM증권(iMfnsec_18)` secure key 갱신 대기 중
 
 ---
 
-## 7. 알려진 이슈 & 한계
+## 9. 배포 체크리스트 & 안정성 대책 (DEPLOY_CHECKLIST 통합)
 
-| 이슈 | 상태 | 비고 |
-|------|------|------|
-| DBfi(19) 0건 반환 | 서버/GA 동일 | 소스 사이트 IP 차단 의심, GA에서 살아날 가능성 있음 |
-| BNK(23) 0건 반환 | 서버/GA 동일 | 상동 |
-| 한국투자(13) Selenium 필요 | 보류 | GitHub Actions에 Chrome 설치로 해결 가능 (추후) |
-| 유진투자(12) 세션 만료 | 보류 | 세션 관리 방식 개선 필요 |
-| iMfnsec(18) | 보류 | 미구현 |
-| LS(0) WARP 의존 | GA에서 해결 | GitHub Actions 클린 IP로 WARP 불필요 |
-| `firm_nm: "Unknown(3)"` | GA only | SQLite에 FirmInfo 테이블 없음 → DB import 시 `firm_id`로 복원 |
-| GitHub Actions runner 2-core 제한 | 감수 | 19개 증권사 순차/병렬 실행으로 2~3분 내 완료 |
+### 9.1 배포 전 체크리스트
+- [ ] CI 통과 확인 (GitHub Actions workflow green)
+- [ ] pre-push 훅 통과 (`scripts/verify_dockerfile.sh`, `scripts/verify_standalones.sh` 실행 완료)
+- [ ] `report_unique_key` ON CONFLICT 정상 동작 확인
+- [ ] `key` 컬럼 쓰기 차단 코드 배포 상태 확인
 
-### GA Standalone 이관 현황 (2026-06-11)
-
-| # | 증권사 | firm_id | GA workflow | 상태 |
-|---|--------|:---:|---|---|
-| 1 | 삼성증권 | 5 | scrape-samsung.yml | ✅ 완료 |
-| 2 | 키움증권 | 10 | scrape-kiwoom.yml | ✅ 완료 |
-| 3 | 토스증권 | 15 | scrape-toss.yml | ✅ 완료 |
-| 4 | 한화투자증권 | 21 | scrape-hanwha.yml | ✅ 완료 |
-| 5 | 한양증권 | 22 | scrape-hanyang.yml | ✅ 완료 |
-| 6 | 흥국증권 | 28 | scrape-heungkuk.yml | ✅ 완료 |
-| 7 | **KB증권** | **4** | **scrape-kb.yml** | **✅ 신규** |
-| 8 | **NH투자증권** | **2** | **scrape-nhqv.yml** | **✅ 신규** |
-| 9 | **상상인증권** | **6** | **scrape-sangsanginib.yml** | **✅ 신규** |
-| 10 | **리딩투자증권** | **16** | **scrape-leading.yml** | **✅ 신규** |
-
-> **남은 증권사 (19개)**: LS(0), 신한(1), 하나(3), 신영(7), 미래에셋(8), 현대차(9), DS(11), 유진(12), 한국(13), 다올(14), 대신(17), iM(18), DBfi(19), 메리츠(20), BNK(23), 교보(24), IBK(25), SK(26), 유안타(27)
-> **보류**: 한국투자(13, Selenium), 유진(12, 세션만료), iM(18, 미구현)
-
-### GA 장애 대비 — Dual-Mode 스크래핑 전략 (2026-06-11)
-
-GA standalone이 정상 동작할 때는 primary 소스로 작동하지만, **GA 장애 시에도 데이터 수집 공백이 발생하지 않도록** 서버 `scraper.py`가 fallback 역할을 겸한다.
-
-```
-시간대 구분:
-  KST 1시 / 7시 / 13시 / 21시 → FULL-SCRAPE MODE
-    └─ 서버에서 GA 이관 10개사 포함 전체 29개사 직접 스크래핑
-       (GA standalone이 실패해도 최대 6시간 이내 복구)
-
-  그 외 시간 (30분 간격) → REGULAR MODE
-    └─ 서버는 GA 미이관 19개사만 스크래핑 (중복 방지)
-    └─ GA 이관 10개사는 GitHub Actions cron이 매시간 처리
-```
-
-**중복 방지 로직**: `tbl_sec_reports`의 `ON CONFLICT (key) DO UPDATE` upsert 메커니즘으로, GA와 서버가 동일한 레포트를 중복 수집해도 DB에는 1건만 존재한다.
-
-**GA 장애 감지 기준**:
-- 특정 GA workflow가 3회 연속 실패 → Telegram 알람
-- 서버 full-scrape 모드에서 GA 이관사의 reg_dt가 최신인지 확인 → GA 정상 동작 간접 검증
+### 9.2 장애 방지 및 예외 대책
+1. **Dockerfile COPY 누락 방지**: `verify_dockerfile.sh` 스크립트를 통해 신규 디렉토리 배포 누락 사전 차단.
+2. **스크래퍼 구동 안정성**: `verify_standalones.sh` pre-push 훅을 통해 로컬 syntax 오류 사전 검증.
+3. **듀얼 모드 백업**: KST 1시, 7시, 13시, 21시에 서버에서 직접 FULL-SCRAPE를 돌려 GA 다운 타임 백업 지원.
+4. **IP 블록 대책**: 외부 차단된 BNK/LS의 경우 무리한 파서 갱신 대신 전용 로컬 서버 IP 및 프록시 처리를 권장함.
 
 ---
 
----
-
-## 8. Core 모듈 패턴 (2026-06-11 추가)
-
-GA standalone과 서버 모듈의 코드 중복을 제거하기 위해 `scrapers/` 공통 코어 패턴 도입:
-
-```
-scrapers/{firm}_core.py     ← 순수 스크래핑 로직 (requests만 의존, 환경 독립)
-       ↙              ↘
-run/standalone/{firm}.py   modules/{Firm}.py
-(GA, sync, ~30줄)          (서버, async, ~40줄)
-env var → core 호출         ConfigManager → core 호출
-→ stdout JSON               → FirmInfo 보강 → DB
-```
-
-10개 GA 이관사 모두 적용 완료. `_TEMPLATE.py`가 이 패턴을 가이드.
-
-## 9. DB 정규화 (2026-06-11)
-
-33개 컬럼의 `tbl_sec_reports`를 4개 관심사로 분리:
-
-| 테이블 | 내용 | 건수 |
-|------|------|:---:|
-| `tbl_sec_reports` | 핵심 스크래핑 + pdf-archiver 상태 | 283,932 |
-| `tbl_report_enricher_tags` | Enricher 태그/종목 (title 기반 규칙 추출, AI 아님) | 3,480 |
-| `tbl_report_ai_summaries` | LLM 요약 (enricher) | 368 |
-| `tbl_report_price_targets` | 목표주가/FnGuide (enricher) | 6,991 |
-| ~~`tbl_report_downloads`~~ | - | DROP — pdf-archiver가 `tbl_sec_reports` 직접 관리 |
-
-타입 마이그레이션: `saved_at`(timestamptz), `report_date`(date), `telegram_sent`(boolean), `report_unique_key`(text).
-하위호환: `v_sec_reports_full` 뷰. 옛 컬럼은 1주일 검증 후 드랍 예정.
-→ 상세: `~/workspace/external.reports-hub/docs/DB_MIGRATION_STATUS.md`
-
-## 10. RAG 임베딩 파이프라인 (2026-06-11)
-
-`run/rag_embed_batch.py`: `tbl_sec_reports.article_title` → embedding vector → `tbl_report_embeddings`
-용도: Private Hub에서 의미 기반 리포트 검색 ("HBM 전망" → "고대역폭메모리" 리포트도 검색)
-→ 상세: `~/workspace/external.reports-hub/docs/LLM_INTEGRATION_STRATEGY.md`
-
-## 11. 향후 개선 가능성
-
+## 10. 향후 개선 사항
 1. **한국투자증권 Selenium**: GitHub Actions에 Chrome 설치 step 추가 → `Koreainvestment_13` 활성화
-2. **Matrix build**: 24개 증권사를 각각 독립 job으로 분할 → 병렬성 극대화 (최대 20 parallel jobs)
-3. **알람 연동**: GitHub Actions 실패 시 Telegram/Discord 웹훅
-4. **Retention 정책**: artifact 보관 기간을 1일 → 3일로 늘려 장애 복구 용이성 확보
-5. **slack/discord notification**: `scrape-all.yml`에 `if: failure()` step 추가
+2. **Matrix build**: 24개 증권사를 각각 독립 job으로 분할하여 빌드/수집 병렬성 극대화 (최대 20 parallel jobs)
+3. **실패 자동 웹훅**: GitHub Actions 실패 시 Telegram/Discord 웹훅 경보 연동
+4. **Retention 정책**: artifact 보관 기간을 1일 → 3일로 조정하여 장애 복구 용이성 확보
