@@ -12,7 +12,7 @@ SELECT
     r.firm_id AS firm_id, r.board_id AS board_id,
     r.article_title, r.article_url, r.report_unique_key AS key, r.report_unique_key,
     r.reg_dt, r.report_date,
-    r.save_time, r.saved_at,
+    r.save_time, r.save_at,
     r.telegram_sent,
     r.telegram_url, r.writer, r.mkt_tp,
     r.download_url, r.pdf_url,

@@ -265,7 +265,7 @@ async def enrich_data():
                               AND (telegram_url IS NULL OR telegram_url = ''
                                    OR telegram_url NOT LIKE 'https://whub.dbsec.co.kr/pv/gate%%')
                               AND key IS NOT NULL AND key != ''
-                            ORDER BY saved_at DESC
+                            ORDER BY save_at DESC
                             LIMIT 200
                         ''')
                         if backlog:
@@ -285,9 +285,8 @@ async def enrich_data():
                         FROM v_sec_reports_canonical
                         WHERE firm_id = 0
                           AND telegram_url LIKE 'https://www.ls-sec.co.kr/upload/%%'
-                          AND saved_at >= NOW() - INTERVAL '1 day'
-                          AND key IS NOT NULL AND key != ''
-                        ORDER BY saved_at DESC
+                          AND save_at >= NOW() - INTERVAL '1 day'
+                        ORDER BY save_at DESC
                         LIMIT 50
                     ''')
                     if fallback_records:
@@ -308,7 +307,7 @@ async def enrich_data():
                               AND (telegram_url IS NULL OR telegram_url = ''
                                    OR telegram_url NOT LIKE 'https://msg.ls-sec.co.kr/%%')
                               AND key IS NOT NULL AND key != ''
-                            ORDER BY saved_at DESC
+                            ORDER BY save_at DESC
                             LIMIT 200
                         ''')
                         if backlog:
