@@ -126,7 +126,7 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
         "table_sel": "table.data_list_x tbody tr",
         "link_sel": "td.left a",
         "onclick_pattern": r"key=(\d+)",
-        "pdf_formula": "2 * {view_key} - 12039",
+        "pdf_formula": "2 * {view_key} - 12059",
         "download_tpl": "{base}/download.do?type=Board&key={pdf_key}",
         "view_tpl": "{base}/research/{board_path}/view.do?key={view_key}",
         "pdf_head_timeout": 0.8,
@@ -137,8 +137,8 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
         "firm_nm": "흥국증권",
         **cfg,
     }
-    # 2026.06.24: PDF key 공식 시프트 (12059→12039). GA secret override 방지.
-    cfg["pdf_formula"] = "2 * {view_key} - 12039"
+    # 2026.06.24: PDF key 공식 시프트 (12059→12059). GA secret override 방지.
+    cfg["pdf_formula"] = "2 * {view_key} - 12059"
     requests.packages.urllib3.disable_warnings()
     result = []
     for board_order, list_url in enumerate(cfg.get("urls",[cfg.get("url","")])):
