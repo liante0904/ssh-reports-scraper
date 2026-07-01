@@ -17,24 +17,24 @@
 | 9 | 백엔드 | `.KQ`/`.KS` 필터 | `\(\d{5,6}\.K[QS]\)` 패턴이 `/매수` 변형 못 잡음 | `\([^)]+\.K[QS][^)]*\)` 추가 | 하 | ✅ 완료 |
 | 10 | 스크래퍼 | 한화(21) GA fallback | GA standalone은 있는데 서버 fallback 없음 | `_GA_FIRMS_ASYNC`에 추가 | 하 | ✅ 완료 |
 | 11 | 문서 | 21개 마크다운 | LLM_* 6개, 운영문서 중복 | 10개로 통합 | 하 | ✅ 완료 |
-| 12 | 코드 | `_TEMPLATE.py` 예제 | `sec_firm_order`, `article_board_order` 그대로 | `firm_id`, `board_id`로 교체 | 하 | 🔲 남음 |
-| 13 | 코드 | `run/colab/bnk_scraper.py` | 동일 | 동일 | 하 | 🔲 남음 |
-| 14 | 코드 | `scripts/standalone_bnk_scraper.py` | 동일 | 동일 | 하 | 🔲 남음 |
-| 15 | 코드 | `scripts/standalone_ls_scraper.py` | `"key": key` | `"report_unique_key": key` | 하 | 🔲 남음 |
-| 16 | DB | `save_time` TEXT | `save_at` TIMESTAMPTZ와 중복, 매번 ISO 파싱 | DROP `save_time` → `save_at` 통일 | 중 | 🔲 남음 |
-| 17 | DB | `main_ch_send_yn` CHAR(1) | `telegram_sent` BOOLEAN이 이미 대체 | DROP COLUMN | 하 | 🔲 남음 |
-| 18 | DB | `key` 컬럼 | `report_unique_key`가 대체, INSERT가 양쪽 다 씀 | INSERT에서 제거 → DROP | 하 | 🔲 남음 |
-| 19 | DB | `reg_dt` TEXT `"YYYYMMDD"` | 날짜연산 시 매번 `::date` 캐스팅 | DATE 타입 ALTER (또는 `report_date`로 통합) | 중 | 🔲 남음 |
-| 20 | DB | `download_status_yn` + `pdf_sync_status` + `sync_status` | 비슷한 컬럼 3개 | 통합 검토 | 상 | 🔲 남음 |
-| 21 | DB | `gemini_summary` | DeepSeek/Gemini 여러 모델 쓰는데 컬럼명 고정 | `ai_summary` 또는 `llm_summary` | 중 | 🔲 남음 |
-| 22 | DB | `firm_nm` | `nm` = name 축약 (5글자) | `firm_name` (9글자). DDL 부담 | 하 | 🔲 남음 |
-| 23 | DB | `mkt_tp` | `tp` = type 축약 | `market_type` | 하 | 🔲 남음 |
-| 24 | DB | `tbl_` vs `tbm_` prefix | `tbl_sec_reports` vs `tbm_sec_firm_info` | prefix 불일치 (마스터=m, 트랜잭션=l) | 하 | 🔲 남음 |
-| 25 | 코드 | `tests/fnguide.py` | 1000줄, `sec_firm_order` 50회 하드코딩 | 리팩토링 또는 archive | 하 | 🔲 남음 |
-| 26 | 코드 | `tests/MariaDB.py` + `MariaDB_bak.py` | 미사용 백업 | 삭제 | 하 | 🔲 남음 |
-| 27 | 코드 | `run/fix_*.py` (10개) | 일회성 fix 스크립트 | `archive/` 이동 | 하 | 🔲 남음 |
-| 28 | 코드 | `run/scraper_af.py` | `sec_firm_order` 참조, 거의 미사용 | 삭제 또는 업데이트 | 하 | 🔲 남음 |
-| 29 | 코드 | `scripts/import_*_artifact.py` | `sec_firm_order=0` 하드코딩 | `firm_id=0` | 하 | 🔲 남음 |
+| 12 | 코드 | `_TEMPLATE.py` 예제 | `sec_firm_order`, `article_board_order` 그대로 | `firm_id`, `board_id`로 교체 | 하 | 🔶 agy |
+| 13 | 코드 | `run/colab/bnk_scraper.py` | 동일 | 동일 | 하 | 🔶 agy |
+| 14 | 코드 | `scripts/standalone_bnk_scraper.py` | 동일 | 동일 | 하 | 🔶 agy |
+| 15 | 코드 | `scripts/standalone_ls_scraper.py` | `"key": key` | `"report_unique_key": key` | 하 | 🔶 agy |
+| 16 | DB | `save_time` TEXT | `save_at` TIMESTAMPTZ와 중복, 매번 ISO 파싱 | DROP `save_time` → `save_at` 통일 | 중 | 🔲 DDL 배치 |
+| 17 | DB | `main_ch_send_yn` CHAR(1) | `telegram_sent` BOOLEAN이 이미 대체 | DROP COLUMN | 하 | 🔲 DDL 배치 |
+| 18 | DB | `key` 컬럼 | `report_unique_key`가 대체, INSERT가 양쪽 다 씀 | INSERT에서 제거 → DROP | 하 | 🔲 DDL 배치 |
+| 19 | DB | `reg_dt` TEXT `"YYYYMMDD"` | 날짜연산 시 매번 `::date` 캐스팅 | DATE 타입 ALTER (또는 `report_date`로 통합) | 중 | 🔲 DDL 배치 |
+| 20 | DB | `download_status_yn` + `pdf_sync_status` + `sync_status` | 비슷한 컬럼 3개 | 통합 검토 | 상 | 🔲 검토 |
+| 21 | DB | `gemini_summary` | DeepSeek/Gemini 여러 모델 쓰는데 컬럼명 고정 | `ai_summary` 또는 `llm_summary` | 중 | 🔲 검토 |
+| 22 | DB | `firm_nm` | `nm` = name 축약 (5글자) | `firm_name` 뷰 alias | 하 | ✅ 완료 |
+| 23 | DB | `mkt_tp` | `tp` = type 축약 | `market_type` 뷰 alias | 하 | ✅ 완료 |
+| 24 | DB | `tbl_` vs `tbm_` prefix | `tbl_sec_reports` vs `tbm_sec_firm_info` | prefix 불일치 (마스터=m, 트랜잭션=l) | 하 | 🔲 주석 |
+| 25 | 코드 | `tests/fnguide.py` | 1000줄, `sec_firm_order` 50회 하드코딩 | 리팩토링 또는 archive | 하 | 🔲 검토 |
+| 26 | 코드 | `tests/MariaDB.py` + `MariaDB_bak.py` | 미사용 백업 | 삭제 | 하 | ✅ 완료 |
+| 27 | 코드 | `run/fix_*.py` (12개) | 일회성 fix 스크립트 | 삭제 (archive/legacy 보존) | 하 | ✅ 완료 |
+| 28 | 코드 | `run/scraper_af.py` | `sec_firm_order` 참조, 거의 미사용 | 삭제 | 하 | ✅ 완료 |
+| 29 | 코드 | `scripts/import_*_artifact.py` | `sec_firm_order=0` 하드코딩 | `firm_id=0` | 하 | 🔶 agy |
 | 30 | 코드 | `modules/` + `scrapers/` | 29개씩 2개 디렉토리 분산 | 통합 검토 | 중 | 🔲 남음 |
 | 31 | 코드 | `checkNewArticle` 비동기/동기 혼재 | 모듈마다 `async def` / `def` 달라서 호출 패턴 다름 | 표준화 | 중 | 🔲 남음 |
 | 32 | 코드 | `models/db_factory.py` | SQLite/Postgres 분기 → ssh_library로 통합 필요 | 삭제 검토 | 하 | 🔲 남음 |

@@ -2,15 +2,13 @@
 --
 -- Canonical columns:
 --   scraped_at        : save_at first, legacy save_time fallback
---   firm_id           : firm_id read-only alias
---   board_id          : board_id read-only alias
+--   firm_id / firm_name / board_id : read-only aliases
+--   market_type       : mkt_tp alias
 --
 
 CREATE OR REPLACE VIEW public.v_sec_reports_canonical AS
 SELECT
     r.*,
-    r.firm_id AS firm_id,
-    r.board_id AS board_id,
     COALESCE(
         r.save_at,
         CASE
@@ -18,5 +16,7 @@ SELECT
             THEN (left(r.save_time, 10) || ' 00:00:00+09')::timestamptz
             ELSE NULL
         END
-    ) AS scraped_at
+    ) AS scraped_at,
+    r.firm_nm AS firm_name,
+    r.mkt_tp AS market_type
 FROM public.tbl_sec_reports r;
