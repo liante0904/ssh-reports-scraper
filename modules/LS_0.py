@@ -184,8 +184,7 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
                         "telegram_url": '',
                         "pdf_url": '',
                         "writer": writer,
-                        "key": LIST_ARTICLE_URL,
-                    "report_unique_key": LIST_ARTICLE_URL,
+                        "report_unique_key": LIST_ARTICLE_URL,
                         "article_title": LIST_ARTICLE_TITLE,
                         "save_time": datetime.now().isoformat()
                     })
@@ -203,7 +202,7 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
         try:
             db = get_db()
             existing_keys = db.fetch_existing_keys(firm_id=firm_id, days_limit=None)
-            new_articles = [a for a in json_data_list if a.get("key") and a["key"] not in existing_keys]
+            new_articles = [a for a in json_data_list if a.get("report_unique_key") and a["report_unique_key"] not in existing_keys]
             skipped = len(json_data_list) - len(new_articles)
             if skipped:
                 logger.info(f"[LS] {skipped}건 기존 등록, 신규 {len(new_articles)}건")
@@ -274,7 +273,7 @@ async def fetch(session: ClientSession, url: str, headers: dict) -> str:
                 return None
 
 async def process_article(session: ClientSession, article: dict, headers: dict, db=None):
-    TARGET_URL = article["key"]
+    TARGET_URL = article["report_unique_key"]
 
     if ".pdf" in TARGET_URL:
         article["article_url"] = TARGET_URL

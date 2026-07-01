@@ -22,7 +22,7 @@ class FakeCursor:
         return False
 
     def fetchall(self):
-        return [(self.records[0][13], True)]
+        return [(self.records[0][11], True)]
 
 
 class FakeConnection:
@@ -65,17 +65,16 @@ def test_insert_includes_legacy_and_canonical_keys(monkeypatch):
         "board_id": 0,
         "firm_nm": "신영증권",
         "article_title": "테스트",
-        "key": "https://example.test/report.pdf",
+        "report_unique_key": "https://example.test/report.pdf",
         "save_time": "2026-06-15T08:00:00+09:00",
     }])
 
     assert (inserted, updated) == (1, 0)
-    assert "key" in connection.cursor_instance.sql
+    assert " key," not in connection.cursor_instance.sql
     assert "report_unique_key" in connection.cursor_instance.sql
     assert connection.cursor_instance.records[0][11] == "https://example.test/report.pdf"
-    assert connection.cursor_instance.records[0][12] == "https://example.test/report.pdf"
-    assert connection.cursor_instance.records[0][13] == "2026-06-15T08:00:00+09:00"
-    assert connection.cursor_instance.records[0][14] is False
+    assert connection.cursor_instance.records[0][12] == "2026-06-15T08:00:00+09:00"
+    assert connection.cursor_instance.records[0][13] is False
     assert "main_ch_send_yn     = CASE" not in connection.cursor_instance.sql
     assert "telegram_sent       = COALESCE" in connection.cursor_instance.sql
     assert "EXCLUDED.telegram_sent" not in connection.cursor_instance.sql

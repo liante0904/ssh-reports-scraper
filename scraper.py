@@ -113,7 +113,7 @@ _GA_FIRMS_ASYNC = {
     # 10: Kiwoom_checkNewArticle,      # 키움증권: payload 필요
     # 14: DAOL_checkNewArticle,        # 다올투자증권: path_tpl 필요
     # 16: Leading_checkNewArticle,     # 리딩투자증권: reg_dt 미검출
-    # 21: Hanwha_checkNewArticle,      # 한화투자증권: xml_item_tag 필요
+    21: Hanwha_checkNewArticle,        # 한화투자증권
     # 22: Hanyang_checkNewArticle,     # 한양증권: reg_dt 미검출
 }
 

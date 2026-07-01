@@ -81,7 +81,7 @@ def scrape_shinyoung(cfg: dict) -> list[dict]:
                 "reg_dt": re.sub(r"[-./]", "", item[item_keys["reg_dt"]]),
                 "writer": item.get(item_keys["writer"], ""),
                 "article_title": title, "telegram_url": dl, "download_url": dl,
-                "key": dl, "report_unique_key": dl,
+                "report_unique_key": dl,
                 "save_time": datetime.now(timezone(timedelta(hours=9))).isoformat(),
             })
         except Exception as exc:

@@ -32,7 +32,7 @@ def scrape_eugene(url: str) -> list[dict]:
         result.append({"firm_id":12,"board_id":0,
             "firm_nm":"유진투자증권","reg_dt":reg_dt,"article_title":title,
             "download_url":article_url,"telegram_url":article_url,
-            "key":article_url,"report_unique_key":article_url,
+            "report_unique_key":article_url,
             "save_time":datetime.now(timezone(timedelta(hours=9))).isoformat()})
     print(f"[eugene] {len(result)} articles collected", file=sys.stderr)
     return result

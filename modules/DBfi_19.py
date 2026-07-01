@@ -191,8 +191,7 @@ async def DBfi_checkNewArticle():
             "article_title": item["tit"],
             "writer": item["wnm"],
             "CATEGORY": item["div"],
-            "key": key,
-                    "report_unique_key": key,
+            "report_unique_key": key,
             "save_time": datetime.now().isoformat(),
         })
 
@@ -229,7 +228,7 @@ async def fetch_detailed_url(articles):
         for article in articles:
             if article.get("telegram_url") and article.get("pdf_url"):
                 continue
-            key_url = article.get("key")
+            key_url = article.get("report_unique_key")
             if not key_url:
                 continue
             signature = _article_signature(article)
@@ -478,7 +477,7 @@ async def DBfi_enrich_and_persist_details(articles, firm_info=None, db=None):
     # ── Pass 1: key URL → gate_url (빠름) ──
     pass1_ok = 0
     for article in articles:
-        key_url = article.get("key")
+        key_url = article.get("report_unique_key")
         if not key_url:
             continue
         try:

@@ -69,8 +69,7 @@ def Shinyoung_checkNewArticle():
             "writer":writer,
             "telegram_url": download_url,
             "mkt_tp": mkt_tp,
-            "key":LIST_ARTICLE_URL,
-                    "report_unique_key": LIST_ARTICLE_URL,
+            "report_unique_key": LIST_ARTICLE_URL,
             "save_time": datetime.now().isoformat()
         })
             

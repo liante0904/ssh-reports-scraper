@@ -131,8 +131,7 @@ async def Koreainvestment_selenium_checkNewArticle():
                         "pdf_url": LIST_ARTICLE_URL,
                         "article_title":LIST_ARTICLE_TITLE,
                         "writer": article_info_str[0],
-                        "key": LIST_ARTICLE_URL,
-                    "report_unique_key": LIST_ARTICLE_URL,
+                        "report_unique_key": LIST_ARTICLE_URL,
                         "save_time": datetime.now().isoformat(),
                         "mkt_tp": cat["mkt_tp"]
                     })

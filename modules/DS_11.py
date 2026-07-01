@@ -100,8 +100,7 @@ def DS_checkNewArticle(full_scan=False):
                         "pdf_url": pdf_url,
                         "reg_dt": reg_dt,
                         "save_time": save_time,
-                        "key": pdf_url if pdf_url != "없음" else article_url,
-                    "report_unique_key": pdf_url if pdf_url != "없음" else article_url
+                        "report_unique_key": pdf_url if pdf_url != "없음" else article_url
                     })
 
                 # 한 페이지만 가져올 경우 루프 종료

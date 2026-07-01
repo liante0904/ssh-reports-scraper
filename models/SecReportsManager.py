@@ -68,7 +68,6 @@ class SecReportsManager(LibrarySecReportsManager):
         for entry in json_data_list:
             unique_key = (
                 entry.get("report_unique_key")
-                or entry.get("key")
                 or entry.get("article_url")
                 or ""
             )
@@ -97,7 +96,6 @@ class SecReportsManager(LibrarySecReportsManager):
                 entry.get("writer", ""),
                 entry.get("mkt_tp", "KR"),
                 unique_key,
-                unique_key,
                 save_time,
                 False,
                 save_at,
@@ -112,7 +110,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 firm_id, board_id, firm_nm, reg_dt,
                 article_title, article_url, download_url,
                 telegram_url, pdf_url, writer, mkt_tp,
-                key, report_unique_key, save_time, telegram_sent, save_at
+                report_unique_key, save_time, telegram_sent, save_at
             ) VALUES %s
             ON CONFLICT (report_unique_key) DO UPDATE SET
                 firm_id             = EXCLUDED.firm_id,

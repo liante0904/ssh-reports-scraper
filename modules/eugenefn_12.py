@@ -99,7 +99,6 @@ async def parse_article_list(html_text, board_id):
                     "telegram_url": url,
                     "pdf_url": url,
                     "article_title": title,
-                    "key": url,
                     "report_unique_key": url,
                     "save_time": datetime.now().isoformat()
                 })

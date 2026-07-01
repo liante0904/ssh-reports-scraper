@@ -62,7 +62,7 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
                 result.append({"firm_id":1,"board_id":board,
                     "firm_nm":"신한증권","reg_dt":reg_dt,"download_url":dl,"telegram_url":dl,
                     "article_title":item.get("title","").strip(),"writer":item.get("nickname","").strip(),
-                    "key":dl,"report_unique_key":dl,
+                    "report_unique_key":dl,
                     "save_time":datetime.now(timezone(timedelta(hours=9))).isoformat()})
             next_key = jres.get("header",{}).get("repeatKeyN","")
             if not next_key or next_key == repeat_key: break
@@ -93,7 +93,7 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
                 result.append({"firm_id":1,"board_id":board,
                     "firm_nm":"신한증권","reg_dt":reg_dt,"download_url":dl,"telegram_url":dl,
                     "article_title":item.get(t_key,"").strip(),"writer":item.get(w_key,"").strip(),
-                    "key":dl,"report_unique_key":dl,
+                    "report_unique_key":dl,
                     "save_time":datetime.now(timezone(timedelta(hours=9))).isoformat()})
     print(f"[shinhan] {len(result)} articles collected before deduplication", file=sys.stderr)
     seen = set()

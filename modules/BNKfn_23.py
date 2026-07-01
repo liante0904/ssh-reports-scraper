@@ -125,7 +125,6 @@ def BNK_checkNewArticle():
                     "telegram_url": article_url,
                     "writer": writer,
                     "save_time": datetime.now().isoformat(),
-                    "key": article_url,
                     "report_unique_key": article_url
                 })
 

@@ -71,10 +71,10 @@ class SQLiteManager:
         return [dict(row) for row in rows]
 
     def fetch_existing_keys(self, firm_id: int, days_limit: int = 7) -> set:
-        """특정 증권사의 key 목록을 조회하여 반환 (중복 방지용)"""
+        """특정 증권사의 report_unique_key 목록을 조회하여 반환 (중복 방지용)"""
         self.open_connection()
         try:
-            sql = f"SELECT key FROM {self.main_table_name} WHERE firm_id = ?"
+            sql = f"SELECT report_unique_key FROM {self.main_table_name} WHERE firm_id = ?"
             params = [firm_id]
             
             if days_limit is not None:
@@ -84,7 +84,7 @@ class SQLiteManager:
                 
             self.cursor.execute(sql, tuple(params))
             rows = self.cursor.fetchall()
-            return {r["key"] for r in rows if r["key"]}
+            return {r["report_unique_key"] for r in rows if r["report_unique_key"]}
         finally:
             self.close_connection()
 
@@ -106,9 +106,9 @@ class SQLiteManager:
                     INSERT INTO {table_name} (
                         firm_id, board_id, firm_nm, reg_dt,
                         article_title, article_url, telegram_sent,
-                        download_url, telegram_url, pdf_url, writer, mkt_tp, key, save_time
+                        download_url, telegram_url, pdf_url, writer, mkt_tp, report_unique_key, save_time
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(key) DO UPDATE SET
+                    ON CONFLICT(report_unique_key) DO UPDATE SET
                         reg_dt = excluded.reg_dt,  -- 항상 갱신
                         writer = excluded.writer,  -- 항상 갱신
                         mkt_tp = excluded.mkt_tp,  -- 항상 갱신
@@ -140,7 +140,7 @@ class SQLiteManager:
                     entry.get("pdf_url") or entry.get("download_url") or entry.get("telegram_url", None),  # PDF_URL이 없으면 대체 URL을 넣음
                     entry.get("writer", ''),
                     entry.get("mkt_tp", "KR"),  # MKT_TP가 빈값이면 KR을 넣음
-                    entry.get("key") or entry.get("pdf_url") or entry.get("download_url") or entry.get("telegram_url", ''),  # KEY가 없거나 빈 값일 때 대체 URL을 사용
+                    entry.get("report_unique_key") or entry.get("pdf_url") or entry.get("download_url") or entry.get("telegram_url", ''),  # KEY가 없거나 빈 값일 때 대체 URL을 사용
                     entry["save_time"]
                 ))
 
@@ -177,14 +177,14 @@ class SQLiteManager:
         SELECT 
             report_id, firm_id, board_id, firm_nm, reg_dt,
             article_title, article_url, telegram_sent, 
-            download_url, writer, save_time, telegram_url, key, pdf_url
+            download_url, writer, save_time, telegram_url, report_unique_key AS key, pdf_url
         FROM 
             {self.main_table_name}
         WHERE 
             reg_dt BETWEEN strftime('%Y%m%d', date(substr('{query_date}', 1, 4) || '-' || substr('{query_date}', 5, 2) || '-' || substr('{query_date}', 7, 2), '-3 days'))
                     AND strftime('%Y%m%d', date(substr('{query_date}', 1, 4) || '-' || substr('{query_date}', 5, 2) || '-' || substr('{query_date}', 7, 2), '+2 days'))
             AND firm_id = '{firmInfo["firm_id"]}'
-            AND key IS NOT NULL
+            AND report_unique_key IS NOT NULL
             AND telegram_url  = ''
         ORDER BY firm_id, board_id, save_time
         """
@@ -214,12 +214,12 @@ class SQLiteManager:
         SELECT 
             report_id, firm_id, board_id, firm_nm, reg_dt,
             article_title, article_url, telegram_sent, 
-            download_url, writer, save_time, telegram_url, key, pdf_url
+            download_url, writer, save_time, telegram_url, report_unique_key AS key, pdf_url
         FROM 
             {self.main_table_name}
         WHERE 
             firm_id = '{firmInfo["firm_id"]}'
-            AND key IS NOT NULL
+            AND report_unique_key IS NOT NULL
             AND (telegram_url IS NULL OR telegram_url = '')
         """
         
@@ -242,7 +242,7 @@ class SQLiteManager:
         SELECT 
             report_id, firm_id, board_id, firm_nm, reg_dt,
             pdf_url, article_title, article_url, telegram_sent, 
-            download_url, writer, save_time, telegram_url, key
+            download_url, writer, save_time, telegram_url, report_unique_key AS key
         FROM 
             {self.main_table_name}
         WHERE 
