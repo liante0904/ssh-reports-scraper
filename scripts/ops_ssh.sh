@@ -40,21 +40,21 @@ case "$CMD" in
         CONTAINER="${1:-backend}"
         LINES="${2:-50}"
         case "$CONTAINER" in
-            backend) NAME="ssh-reports-hub-fastapi-blue" ;;
-            scraper) NAME="ssh-reports-scraper-main-scraper-green" ;;
+            backend) NAME=$($OCI "docker ps --format '{{.Names}}' | grep 'fastapi-blue\|fastapi-green' | head -1") ;;
+            scraper) NAME=$($OCI "docker ps --format '{{.Names}}' | grep 'main-scraper' | head -1") ;;
             nginx)   NAME="external-nginx" ;;
             *)       NAME="$CONTAINER" ;;
         esac
-        $OCI "docker logs $NAME --tail $LINES 2>&1"
+        $OCI "docker logs ${NAME:-$CONTAINER} --tail $LINES 2>&1"
         ;;
     restart)
         CONTAINER="${1:-backend}"
         case "$CONTAINER" in
-            backend) NAME="ssh-reports-hub-fastapi-blue" ;;
-            scraper) NAME="ssh-reports-scraper-main-scraper-green" ;;
+            backend) NAME=$($OCI "docker ps --format '{{.Names}}' | grep 'fastapi-blue\|fastapi-green' | head -1") ;;
+            scraper) NAME=$($OCI "docker ps --format '{{.Names}}' | grep 'main-scraper' | head -1") ;;
             *)       NAME="$CONTAINER" ;;
         esac
-        $OCI "docker restart $NAME"
+        $OCI "docker restart ${NAME:-$CONTAINER}"
         ;;
     deploy-status)
         echo "=== scraper ===" && gh run list --repo liante0904/ssh-reports-scraper --workflow deploy.yml --limit 1 --json status,conclusion 2>/dev/null

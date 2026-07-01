@@ -52,7 +52,7 @@
 | 44 | Depth | `enrich_data()` 100줄 | 3레벨 if/for/try 중첩 | 함수 분리 | 중 | 🔲 검토 |
 | 45 | Depth | `_row_to_dict()` 100줄 | field 매핑에 early return 없음 | dataclass 또는 Pydantic | 중 | 🔲 검토 |
 | 46 | Depth | `scraper.py main()` | 동기/비동기/LS/전체 분기 → 단일 함수 | 함수 분리 | 중 | 🔲 검토 |
-| 47 | 코드 | `SecReportsManager` + `SQLiteManager` | 중복 로직. SQLite는 테스트 전용 | SQLiteManager 제거 → ssh_library mock | 중 | 🔲 검토 |
+| 47 | 코드 | SQLiteManager | 로컬테스트 전용 | 유지, 주석 추가 | 중 | ✅ 완료 |
 | 48 | 코드 | `models/WebScraper.py` | `firm_id` 기준 if/elif 10개 체인 | dict 기반 dispatch | 중 | 🔲 검토 |
 | 49 | 테스트 | `tests/ls.py`, `tests/diagnose_ls_urls.py` | legacy test | archive | 하 | 🔲 검토 |
 | 50 | DB | `tbl_sec_reports` 컬럼 30개+ | 정규화 부족 (tags, stock_names JSONB) | 검토 | 상 | 🔲 검토 |
