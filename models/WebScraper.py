@@ -21,60 +21,21 @@ class SyncWebScraper:
         self.headers = headers or self._set_headers()
         self.proxies = proxies
 
+    _HEADER_MAP = {
+        0: {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Accept-Language": "ko,en-US;q=0.9,en;q=0.8", "Accept-Encoding": "gzip, deflate, br", "Connection": "keep-alive", "Cache-Control": "no-cache", "Pragma": "no-cache", "Upgrade-Insecure-Requests": "1", "Sec-Fetch-Dest": "document", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-Site": "none", "Sec-Fetch-User": "?1"},
+        1: {"User-Agent": "Mozilla/5.0"},
+        2: {"User-Agent": "Mozilla/5.0 (Linux; Android 10; SM-G970F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Mobile Safari/537.36"},
+        4: {"Accept": "application/json, text/javascript, */*; q=0.01", "Accept-Encoding": "gzip, deflate, br", "Accept-Language": "ko,en-US;q=0.9,en;q=0.8", "Connection": "keep-alive", "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36", "X-Requested-With": "XMLHttpRequest"},
+        7: {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36", "Referer": "https://www.shinyoung.com/?page=10078&head=0"},
+    }
+    _DEFAULT_HEADERS = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"}
+    _CSS_SELECTOR_MAP = {0: "#contents > table > tbody > tr", 1: "#mainContent > div > table > tbody > tr", 2: "#customContent > section > div > table > tr", 16: "#sub-container > div.table-wrap > table > tbody > tr"}
+
     def _set_headers(self):
-        """
-        [DEPRECATED] firm_id 값에 따라 헤더를 추론.
-        신규 모듈은 SyncWebScraper(url, headers={...}) 로 명시적 전달 권장.
-        이 메서드는 하위 호환용. 기존 if/elif 분기는 점진적으로 제거 예정.
-        """
-        if self.firm_info is None or self.firm_info.firm_id == 0:
-            # firm_id가 0번에 맞는 헤더 설정 (LS증권)
-            return {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-                "Accept-Language": "ko,en-US;q=0.9,en;q=0.8",
-                "Accept-Encoding": "gzip, deflate, br",
-                "Connection": "keep-alive",
-                "Cache-Control": "no-cache",
-                "Pragma": "no-cache",
-                "Upgrade-Insecure-Requests": "1",
-                "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "none",
-                "Sec-Fetch-User": "?1"
-            }
-        elif self.firm_info.firm_id == 1:
-            # 회사 1번에 맞는 헤더 설정
-            return {
-                "User-Agent": "Mozilla/5.0"
-            }
-        elif self.firm_info.firm_id == 2:
-            # 회사 2번에 맞는 헤더 설정 (예시)
-            return {
-                "User-Agent": "Mozilla/5.0 (Linux; Android 10; SM-G970F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Mobile Safari/537.36"
-            }
-        elif self.firm_info.firm_id == 4:
-            # 회사 4번에 맞는 헤더 설정 (예시)
-            return {
-                "Accept": "application/json, text/javascript, */*; q=0.01",
-                "Accept-Encoding": "gzip, deflate, br",
-                "Accept-Language": "ko,en-US;q=0.9,en;q=0.8",
-                "Connection": "keep-alive",
-                "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36",
-                "X-Requested-With": "XMLHttpRequest"
-            }
-        elif self.firm_info.firm_id == 7:
-            # firm_id가 7번일 때 Referer 추가
-            return {
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-                "Referer": "https://www.shinyoung.com/?page=10078&head=0"
-            }
-        else:
-            # 기본 Header
-            return {
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
-            }
+        """[DEPRECATED] dict dispatch. 신규 모듈은 headers={...} 명시적 전달 권장."""
+        if self.firm_info is None:
+            return dict(self._DEFAULT_HEADERS)
+        return dict(self._HEADER_MAP.get(self.firm_info.firm_id, self._DEFAULT_HEADERS))
 
     def _clean_response_text(self, text):
             """응답 텍스트에서 제어 문자 및 비표준 문자를 제거하고 정규화"""
@@ -100,24 +61,9 @@ class SyncWebScraper:
             return 'utf-8'
          
     def _get_css_selector(self):
-        """
-        firm_id 값에 따라 CSS 선택자를 반환하는 메서드
-        :return: 적절한 CSS 선택자 문자열
-        """
-        if self.firm_info is None or self.firm_info.firm_id == 0:
-            # 기본 CSS 선택자 (firm_id가 0일 때)
-            return '#contents > table > tbody > tr'
-        elif self.firm_info.firm_id == 1:
-            # 회사 1번에 대한 CSS 선택자
-            return '#mainContent > div > table > tbody > tr'
-        elif self.firm_info.firm_id == 2:
-            # 회사 2번에 대한 CSS 선택자 (예시)
-            return '#customContent > section > div > table > tr'
-        # ... 필요한 경우 다른 회사별 CSS 선택자 추가 가능
-        elif self.firm_info.firm_id == 16:
-            return '#sub-container > div.table-wrap > table > tbody > tr'
-        else:
+        if self.firm_info is None:
             return None
+        return self._CSS_SELECTOR_MAP.get(self.firm_info.firm_id)
 
     def _parse_list_item(self, soup_list):
         """
