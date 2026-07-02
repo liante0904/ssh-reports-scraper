@@ -6,14 +6,15 @@ on:
     - cron: '*/10 22 * * 0'
     - cron: '0 23 * * 0'
     # KST 월~금 09~18시 매시간
-    - cron: '0 * * * 1-5'
+    - cron: '0 0-10,15-23 * * 1-5'
+    - cron: '30 11-14 * * 1-5'
     
   workflow_dispatch:
 
 jobs:
   scrape-and-scp:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -28,6 +29,7 @@ jobs:
       - name: Run Hanwha scraper
         env:
           HANWHA_URLS_JSON: ${{ secrets.HANWHA_URLS_JSON }}
+          HANWHA_MAX_PAGES: "350"
         run: |
           uv run python run/standalone/hanwha.py > hanwha_result.json 2>hanwha_log.txt
           echo "=== Scraper Log ==="

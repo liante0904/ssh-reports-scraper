@@ -1,6 +1,6 @@
 import sys
 """Hanwha Securities — config 기반 XML 파싱."""
-import re, requests, urllib.parse
+import os, re, requests, urllib.parse
 from datetime import datetime, timezone, timedelta
 from xml.etree import ElementTree as ET
 
@@ -11,10 +11,11 @@ def scrape_hanwha(cfg: dict) -> list[dict]:
     cfg.setdefault("headers", {"User-Agent": "Mozilla/5.0"})
     cfg.setdefault("item_keys", {})
     cfg.setdefault("url_tpl", "")
-    cfg.setdefault("max_pages", 50)
+    cfg.setdefault("max_pages", int(os.environ.get("HANWHA_MAX_PAGES", "50")))
     cfg.setdefault("page_size", 100)
     cfg.setdefault("firm_id", 21)
     cfg.setdefault("firm_nm", "한화투자증권")
+    cfg.setdefault("xml_item_tag", "item")
     requests.packages.urllib3.disable_warnings()
     result = []
     base_url = cfg.get("urls",[cfg.get("url","")])[0] if isinstance(cfg.get("urls"),list) else cfg.get("url","")
