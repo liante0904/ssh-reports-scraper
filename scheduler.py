@@ -237,7 +237,9 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
             if link_url == "링크없음":
                 send_message_text += "링크없음\n"
             else:
-                send_message_text += f"{EMOJI_PICK}[링크]({link_url})\n"
+                # URL 내 괄호 문자 때문에 마크다운 링크가 깨지는 것 방지
+                _safe_url = link_url.replace("(", "%28").replace(")", "%29")
+                send_message_text += f"{EMOJI_PICK}[링크]({_safe_url})\n"
 
             total_addition = firm_header + send_message_text
 
@@ -322,11 +324,21 @@ def run_fnguide_matcher():
 
 scheduler = BlockingScheduler()
 
-# [스케줄 1] 메인 스크래퍼: */30 0,5-12,14-23 * * * (기존 crontab 복제)
+# [스케줄 1a] 메인 스크래퍼 (기본 시간대: 0시, 5~19시) — 매 30분 (정각 + 30분)
 scheduler.add_job(
     run_scraper,
-    CronTrigger(minute='*/30', hour='0,5-23', jitter=60),
+    CronTrigger(minute='*/30', hour='0,5-19', jitter=60),
     id="main_scraper_job",
+    max_instances=1,
+    coalesce=True,
+    misfire_grace_time=600,
+)
+
+# [스케줄 1b] 메인 스크래퍼 (저녁 시간대: 20~23시) — 각 시 30분만 (정각 호출 제외)
+scheduler.add_job(
+    run_scraper,
+    CronTrigger(minute='30', hour='20-23', jitter=60),
+    id="main_scraper_evening_job",
     max_instances=1,
     coalesce=True,
     misfire_grace_time=600,
