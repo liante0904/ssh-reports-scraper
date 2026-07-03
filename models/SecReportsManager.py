@@ -99,7 +99,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 firm_id,
                 board_id,
                 entry.get("firm_nm"),
-                entry.get("report_date") or "",
+                entry.get("report_date") or None,
                 entry.get("article_title"),
                 entry.get("article_url"),
                 entry.get("download_url"),
