@@ -71,14 +71,18 @@ class SecReportsManager(LibrarySecReportsManager):
                 or entry.get("article_url")
                 or ""
             )
-            save_time = entry.get("save_time", "")
             save_at = entry.get("save_at")
-            if not save_at and save_time:
-                try:
-                    from datetime import datetime
-                    save_at = datetime.fromisoformat(str(save_time).replace("Z", "+00:00"))
-                except Exception:
-                    pass
+            if not save_at:
+                save_time_val = entry.get("save_time", "")
+                if save_time_val:
+                    try:
+                        from datetime import datetime
+                        save_at = datetime.fromisoformat(str(save_time_val).replace("Z", "+00:00"))
+                    except Exception:
+                        pass
+                if not save_at:
+                    from datetime import datetime, timezone
+                    save_at = datetime.now(timezone.utc)
 
             firm_id = entry.get("firm_id")
             board_id = entry.get("board_id")
@@ -87,6 +91,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 firm_id,
                 board_id,
                 entry.get("firm_nm"),
+                entry.get("report_date") or entry.get("reg_dt", ""),
                 entry.get("reg_dt", ""),
                 entry.get("article_title"),
                 entry.get("article_url"),
@@ -96,7 +101,6 @@ class SecReportsManager(LibrarySecReportsManager):
                 entry.get("writer", ""),
                 entry.get("mkt_tp", "KR"),
                 unique_key,
-                save_time,
                 False,
                 save_at,
             ))
@@ -107,16 +111,17 @@ class SecReportsManager(LibrarySecReportsManager):
 
         sql = f"""
             INSERT INTO {table_name} (
-                firm_id, board_id, firm_nm, reg_dt,
+                firm_id, board_id, firm_nm, report_date, reg_dt,
                 article_title, article_url, download_url,
                 telegram_url, pdf_url, writer, mkt_tp,
-                report_unique_key, save_time, telegram_sent, save_at
+                report_unique_key, telegram_sent, save_at
             ) VALUES %s
             ON CONFLICT (report_unique_key) DO UPDATE SET
                 firm_id             = EXCLUDED.firm_id,
                 board_id            = EXCLUDED.board_id,
                 firm_nm             = EXCLUDED.firm_nm,
                 article_title       = EXCLUDED.article_title,
+                report_date         = EXCLUDED.report_date,
                 reg_dt              = EXCLUDED.reg_dt,
                 writer              = EXCLUDED.writer,
                 mkt_tp              = EXCLUDED.mkt_tp,
@@ -230,22 +235,22 @@ class SecReportsManager(LibrarySecReportsManager):
             board_id AS board_id,
             firm_nm,reg_dt,
             article_title,article_url,
-            download_url,writer,save_time,scraped_at,
+            download_url,writer,save_at,scraped_at,
             report_unique_key,
             CASE
                 WHEN firm_id = 19 THEN pdf_url
                 ELSE telegram_url
             END AS telegram_url
         FROM   {self.REPORTS_READ_VIEW}
-        WHERE  LEFT(save_time, 10) >= (%s::date - 2)::text
-          AND  LEFT(save_time, 10) <= %s
+        WHERE  save_at::date >= (%s::date - 2)
+          AND  save_at::date <= %s
           AND  reg_dt >= %s
           AND  reg_dt <= %s
           AND  {cond}
         ORDER BY
             firm_id,
             article_title,
-            save_time
+            save_at
         """
         return self._fetchall(sql, (query_date, query_date, three_days_ago, query_reg_dt))
 
@@ -274,15 +279,15 @@ class SecReportsManager(LibrarySecReportsManager):
                        WHEN r.firm_id = 19 THEN r.pdf_url
                        ELSE COALESCE(NULLIF(r.telegram_url,''), NULLIF(r.download_url,''))
                    END AS telegram_url,
-                   r.save_time
+                   r.save_at
             FROM {self.table_name} r
             LEFT JOIN tbl_report_send_history h
                    ON r.report_id = h.report_id AND h.user_id = %s
             WHERE (r.article_title ILIKE %s OR r.writer ILIKE %s)
-              AND DATE(r.save_time) = %s
+              AND r.save_at::date = %s
               AND h.id IS NULL
               AND {self.dbfi_ready_condition("r")}
-            ORDER BY r.save_time ASC, r.firm_nm ASC
+            ORDER BY r.save_at ASC, r.firm_nm ASC
         """
         keyword_param = f"%{keyword}%"
         return self._fetchall(sql, (user_id, keyword_param, keyword_param, date))
@@ -295,7 +300,7 @@ class SecReportsManager(LibrarySecReportsManager):
             LEFT JOIN tbl_report_send_history h
                    ON r.report_id = h.report_id AND h.user_id = %s
             WHERE (r.article_title ILIKE %s OR r.writer ILIKE %s)
-              AND DATE(r.save_time) = %s
+              AND r.save_at::date = %s
               AND h.id IS NULL
               AND {self.dbfi_ready_condition("r")}
         """
