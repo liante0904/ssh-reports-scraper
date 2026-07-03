@@ -48,6 +48,14 @@ class SecReportsManager(LibrarySecReportsManager):
         return
 
     def insert_json_data_list(self, json_data_list, table_name=None):
+        """scraper 전용 INSERT — ssh_library 부모 클래스 오버라이드.
+
+        부모와의 차이:
+        - 네이버/조선비즈 차단 (firm_nm 기반 필터)
+        - telegram_sent = false 하드코딩 (신규 레포트는 미발송)
+        - ON CONFLICT 시 telegram_sent 보존 (COALESCE로 기존값 유지)
+        - pdf_url fallback: telegram_url 사용
+        """
         if table_name is None:
             table_name = self.table_name
         table_name = self._TABLE_MAP.get(table_name, table_name)
@@ -253,8 +261,6 @@ class SecReportsManager(LibrarySecReportsManager):
         return self._fetchall(sql, (query_date, query_date, three_days_ago, query_report_date_end))
 
     # Backward-compat alias. 새 코드는 select_reports_ready_for_telegram 사용.
-    daily_select_data = select_reports_ready_for_telegram
-
     async def daily_update_data(self, date_str=None, fetched_rows=None, type=None):
         """Mark sent status and mirror it to the legacy main channel flag."""
         if type not in ("send", "download"):
