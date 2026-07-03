@@ -14,7 +14,7 @@ on:
 jobs:
   scrape-and-scp:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -29,7 +29,6 @@ jobs:
       - name: Run Hanwha scraper
         env:
           HANWHA_URLS_JSON: ${{ secrets.HANWHA_URLS_JSON }}
-          HANWHA_MAX_PAGES: "350"
         run: |
           uv run python run/standalone/hanwha.py > hanwha_result.json 2>hanwha_log.txt
           echo "=== Scraper Log ==="
