@@ -74,25 +74,25 @@ class TestValidation:
 
     def test_valid_result_passes(self):
         from scrapers.validate import validate_results
-        results = [{"report_unique_key": "a", "reg_dt": "20260615", "key": "a"}]
+        results = [{"report_unique_key": "a", "report_date": "20260615", "key": "a"}]
         v = validate_results(results, "test")
         assert len(v) == 1
 
-    def test_empty_reg_dt_filtered(self):
+    def test_empty_report_date_filtered(self):
         from scrapers.validate import validate_results
-        results = [{"report_unique_key": "a", "reg_dt": "", "key": "a"}]
+        results = [{"report_unique_key": "a", "report_date": "", "key": "a"}]
         v = validate_results(results, "test")
         assert len(v) == 0
 
-    def test_invalid_reg_dt_filtered(self):
+    def test_invalid_report_date_filtered(self):
         from scrapers.validate import validate_results
-        results = [{"report_unique_key": "a", "reg_dt": "2026-06-15", "key": "a"}]
+        results = [{"report_unique_key": "a", "report_date": "2026-06-15", "key": "a"}]
         v = validate_results(results, "test")
         assert len(v) == 0
 
     def test_missing_key_filtered(self):
         from scrapers.validate import validate_results
-        results = [{"reg_dt": "20260615"}]
+        results = [{"report_date": "20260615"}]
         v = validate_results(results, "test")
         assert len(v) == 0
 
@@ -100,6 +100,6 @@ class TestValidation:
         from scrapers.validate import validate_results
         from datetime import datetime
         today = datetime.now().strftime("%Y%m%d")
-        results = [{"report_unique_key": "a", "reg_dt": "", "key": "a"}]
+        results = [{"report_unique_key": "a", "report_date": "", "key": "a"}]
         v = validate_results(results, "test")
         assert len(v) == 0  # empty not filled with today

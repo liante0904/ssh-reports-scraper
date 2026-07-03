@@ -14,13 +14,13 @@ def validate_results(results: list[dict], firm_name: str) -> list[dict]:
             continue
 
         # 2) reg_dt must be exactly YYYYMMDD
-        reg_dt = str(r.get("reg_dt", "")).strip()
+        reg_dt = str(r.get("report_date", "")).strip()
         if not re.match(r'^\d{8}$', reg_dt):
-            print(f"[{firm_name}] SKIP item[{i}]: invalid reg_dt='{reg_dt}'", file=sys.stderr)
+            print(f"[{firm_name}] SKIP item[{i}]: invalid report_date='{reg_dt}'", file=sys.stderr)
             errors += 1
             continue
 
-        r["reg_dt"] = reg_dt
+        r["report_date"] = reg_dt
         valid.append(r)
 
     if errors:

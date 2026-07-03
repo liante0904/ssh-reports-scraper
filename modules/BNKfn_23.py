@@ -118,13 +118,13 @@ def BNK_checkNewArticle():
                     "firm_id": firm_id,
                     "board_id": board_id,
                     "firm_nm": firm_info.get_firm_name(),
-                    "reg_dt": re.sub(r"[-./]", "", reg_dt),
+                    "report_date": re.sub(r"[-./]", "", reg_dt),
                     "article_title": article_title,
                     "article_url": article_url,
                     "download_url": article_url,
                     "telegram_url": article_url,
                     "writer": writer,
-                    "save_time": datetime.now().isoformat(),
+                    "save_at": datetime.now().isoformat(),
                     "report_unique_key": article_url
                 })
 

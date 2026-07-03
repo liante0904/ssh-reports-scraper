@@ -57,10 +57,10 @@ def scrape_yuanta(cfg: dict) -> list[dict]:
                     # dl이 비어있으면 article_url을 fallback으로 사용
                     if not dl: dl = article_url
                     result.append(dict(firm_id=cfg["firm_id"],board_id=board_idx,
-                        firm_nm=cfg["firm_nm"],reg_dt=reg_dt,
+                        firm_nm=cfg["firm_nm"],report_date=reg_dt,
                         download_url=dl,telegram_url=dl,pdf_url=dl,writer=writer,
-                        key=article_url,report_unique_key=article_url,
-                        article_title=title,save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
+                        report_unique_key=article_url,
+                        article_title=title,save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception: continue
     print(f"[yuanta] {len(result)} articles collected", file=sys.stderr)
     return result

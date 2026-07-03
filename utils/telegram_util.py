@@ -6,7 +6,7 @@ from loguru import logger
 from models.ConfigManager import config
 
 # 가공없이 텍스트를 발송합니다.
-async def sendMarkDownText(token, chat_id, sendMessageText):
+async def sendMarkDownText(token, chat_id, sendMessageText, parse_mode="Markdown"):
     if not token:
         raise ValueError(
             "Telegram bot token is missing. "
@@ -19,7 +19,7 @@ async def sendMarkDownText(token, chat_id, sendMessageText):
         )
     await asyncio.sleep(1)
     bot = telegram.Bot(token = token)
-    await bot.sendMessage(chat_id = chat_id, text = sendMessageText, disable_web_page_preview = True, parse_mode = "Markdown")
+    await bot.sendMessage(chat_id = chat_id, text = sendMessageText, disable_web_page_preview = True, parse_mode = parse_mode)
 
 async def send_system_alert(message):
     """

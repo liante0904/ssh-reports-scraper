@@ -58,10 +58,10 @@ def scrape_sangsangin(cfg: dict) -> list[dict]:
                     firm_id=cfg.get("firm_id", 6),
                     board_id=board_idx,
                     firm_nm=cfg.get("firm_nm", "상상인증권"),
-                    reg_dt=rdt, article_title=title, writer="",
+                    report_date=rdt, article_title=title, writer="",
                     download_url=dl, telegram_url=dl, pdf_url=dl,
-                    key=dl, report_unique_key=dl,
-                    save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
+                    report_unique_key=dl,
+                    save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
             except Exception: continue
 
     print(f"[sangsangin] {len(result)} articles collected", file=sys.stderr)

@@ -69,9 +69,9 @@ def scrape_nhqv(cfg: dict, target_date: str = None) -> list[dict]:
             u = a.get(ik["pdf_url"])
             if not u: continue
             result.append(dict(firm_id=2,board_id=0,firm_nm="NH투자증권",
-                reg_dt=a[ik["reg_dt"]].replace(".",""),writer=a.get(ik["writer"],""),
+                report_date=a[ik["reg_dt"]].replace(".",""),writer=a.get(ik["writer"],""),
                 telegram_url=u,pdf_url=u,article_title=a[ik["title"]],
-                key=u,report_unique_key=u,save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
+                report_unique_key=u,save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
         if cnt >= cfg["page_size"]: p["rshPprNo"] = _jp(cfg["list_path"])[-1]["rshPprNo"]
         else: break
     print(f"[nhqv] {len(result)} articles collected", file=sys.stderr)

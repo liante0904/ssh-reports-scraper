@@ -96,7 +96,7 @@ async def Daeshin_checkNewArticle():
                         "firm_id": firm_id,
                         "board_id": board_id,
                         "firm_nm": firm_info.get_firm_name(),
-                        "reg_dt": re.sub(r"[-./]", "", reg_dt),
+                        "report_date": re.sub(r"[-./]", "", reg_dt),
                         "article_url": article_url,
                         "download_url": attach_url,
                         "telegram_url": attach_url,
@@ -104,7 +104,7 @@ async def Daeshin_checkNewArticle():
                         "report_unique_key": attach_url,
                         "article_title": title,
                         "writer": author,
-                        "save_time": datetime.now().isoformat()
+                        "save_at": datetime.now().isoformat()
                     })
 
             # 전체 아이템에 대한 병렬 태스크 실행

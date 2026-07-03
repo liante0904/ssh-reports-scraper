@@ -31,9 +31,9 @@ def scrape_ds(urls: list[str]) -> list[dict]:
             download_url = urljoin(url, pdf_cell.get("href","")) if pdf_cell else article_url
             # 2026.06.21 fix: GA Import 중복제거 및 DB 업서트 시 식별값으로 사용될 key, report_unique_key 설정 추가
             result.append({"firm_id":11,"board_id":board_order,
-                "firm_nm":"DS투자증권","reg_dt":reg_dt,"article_title":title,
+                "firm_nm":"DS투자증권","report_date":reg_dt,"article_title":title,
                 "download_url":download_url,"telegram_url":download_url,"pdf_url":download_url,
                 "report_unique_key":download_url,
-                "save_time":datetime.now(timezone(timedelta(hours=9))).isoformat()})
+                "save_at":datetime.now(timezone(timedelta(hours=9))).isoformat()})
     print(f"[ds] {len(result)} articles collected", file=sys.stderr)
     return result

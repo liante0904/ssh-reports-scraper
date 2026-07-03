@@ -92,7 +92,7 @@ async def parse_article_list(html_text, board_id):
                     "firm_id": firm_id,
                     "board_id": board_id,
                     "firm_nm": firm_info.get_firm_name(),
-                    "reg_dt": reg_dt,
+                    "report_date": reg_dt,
                     "writer": writer,
                     "article_url": '',
                     "download_url": url,  # 필요시 변경
@@ -100,7 +100,7 @@ async def parse_article_list(html_text, board_id):
                     "pdf_url": url,
                     "article_title": title,
                     "report_unique_key": url,
-                    "save_time": datetime.now().isoformat()
+                    "save_at": datetime.now().isoformat()
                 })
                 
     return articles

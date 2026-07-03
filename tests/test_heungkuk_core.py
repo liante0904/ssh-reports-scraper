@@ -21,18 +21,26 @@ class TestDuplicatePdfGuard:
         result = _filter_duplicate_pdf_rows(rows)
         assert len(result) == 2
 
-    def test_duplicate_pdf_across_different_articles_dropped(self):
-        """서로 다른 article_url이 같은 PDF URL을 공유 → 모두 제거."""
+    def test_duplicate_pdf_reassigns_losers_to_article_fallback(self):
+        """서로 다른 article_url이 같은 PDF URL을 공유 → formula delta 승자만 PDF 유지, 나머지는 article_url 폴백."""
         from scrapers.heungkuk_core import _filter_duplicate_pdf_rows
 
+        # download_url (not telegram_url) must contain the PDF key for delta calc
         rows = [
-            {"article_title": "A", "article_url": "http://a.com/1", "telegram_url": "http://pdf/shared"},
-            {"article_title": "B", "article_url": "http://a.com/2", "telegram_url": "http://pdf/shared"},
-            {"article_title": "C", "article_url": "http://a.com/3", "telegram_url": "http://pdf/unique"},
+            {"article_title": "A", "article_url": "http://a.com/view.do?key=100", "download_url": "http://a.com/download.do?type=Board&key=200", "telegram_url": "http://a.com/download.do?type=Board&key=200", "pdf_url": "http://a.com/download.do?type=Board&key=200", "reg_dt": "20260630"},
+            {"article_title": "B", "article_url": "http://a.com/view.do?key=101", "download_url": "http://a.com/download.do?type=Board&key=200", "telegram_url": "http://a.com/download.do?type=Board&key=200", "pdf_url": "http://a.com/download.do?type=Board&key=200", "reg_dt": "20260629"},
+            {"article_title": "C", "article_url": "http://a.com/view.do?key=200", "download_url": "http://a.com/download.do?type=Board&key=999", "telegram_url": "http://a.com/download.do?type=Board&key=999", "pdf_url": "http://a.com/download.do?type=Board&key=999", "reg_dt": "20260628"},
         ]
         result = _filter_duplicate_pdf_rows(rows)
-        assert len(result) == 1
-        assert result[0]["article_title"] == "C"
+        assert len(result) == 3  # all 3 kept, but B reassigned
+        # Article C (unique PDF) keeps it
+        assert result[2]["download_url"] != ""
+        # Articles A and B shared PDF → winner keeps, loser gets article fallback
+        # A: formula=2*100-12059=-11859, delta=abs(200-(-11859))=12059
+        # B: formula=2*101-12059=-11857, delta=abs(200-(-11857))=12057 → B wins!
+        assert result[1]["download_url"] != ""  # B wins (smaller delta)
+        assert result[0]["download_url"] == ""  # A loses → article fallback
+        assert result[0]["telegram_url"] == result[0]["article_url"]
 
     def test_empty_list(self):
         """빈 리스트 → 빈 리스트."""
@@ -53,16 +61,20 @@ class TestDuplicatePdfGuard:
         # Both have same article_url → article_urls set size = 1 → NOT flagged
         assert len(result) == 2
 
-    def test_all_suspect_returns_empty(self):
-        """모든 행이 의심스러운 PDF 공유 → 빈 리스트 반환."""
+    def test_all_shared_pdf_one_winner_keeps_pdf(self):
+        """모든 행이 같은 PDF 공유 → formula delta로 승자 하나만 PDF 유지, 나머지는 article 폴백."""
         from scrapers.heungkuk_core import _filter_duplicate_pdf_rows
 
         rows = [
-            {"article_title": "A", "article_url": "http://a.com/1", "telegram_url": "http://pdf/shared"},
-            {"article_title": "B", "article_url": "http://a.com/2", "telegram_url": "http://pdf/shared"},
+            {"article_title": "A", "article_url": "http://a.com/view.do?key=100", "download_url": "http://a.com/download.do?type=Board&key=200", "telegram_url": "http://a.com/download.do?type=Board&key=200", "pdf_url": "http://a.com/download.do?type=Board&key=200", "reg_dt": "20260630"},
+            {"article_title": "B", "article_url": "http://a.com/view.do?key=101", "download_url": "http://a.com/download.do?type=Board&key=200", "telegram_url": "http://a.com/download.do?type=Board&key=200", "pdf_url": "http://a.com/download.do?type=Board&key=200", "reg_dt": "20260629"},
         ]
         result = _filter_duplicate_pdf_rows(rows)
-        assert result == []
+        assert len(result) == 2  # both kept
+        # B has smaller delta (12057 vs 12059), so B wins
+        assert result[1]["download_url"] != ""
+        assert result[0]["download_url"] == ""  # A loses → fallback
+        assert result[0]["telegram_url"] == result[0]["article_url"]
 
     def test_none_pdf_handled(self):
         """telegram_url이 None인 행도 처리된다."""
@@ -113,8 +125,8 @@ class TestHeungkukPdfResolution:
             "download_tpl": "{base}/download.do?type=Board&key={pdf_key}",
             "pdf_head_timeout": 0.8,
             "pdf_probe_timeout": 0.5,
-            "max_pdf_probe_delta": 3,
-            "enable_pdf_probe": False,
+            "max_pdf_probe_delta": 15,
+            "enable_pdf_probe": True,
         }
         cfg.update(overrides)
         return cfg
@@ -134,7 +146,7 @@ class TestHeungkukPdfResolution:
         assert url == "https://host/download.do?type=Board&key=30369"
         assert calls == ["https://host/download.do?type=Board&key=30369"]
 
-    def test_probe_disabled_by_default_after_formula_miss(self, monkeypatch):
+    def test_probe_disabled_formula_miss_falls_back(self, monkeypatch):
         from scrapers import heungkuk_core
 
         calls = []
@@ -144,7 +156,8 @@ class TestHeungkukPdfResolution:
             return False
 
         monkeypatch.setattr(heungkuk_core, "_head_pdf_ok", fake_head_pdf_ok)
-        url = heungkuk_core._resolve_pdf_download("https://host", 21204, "123", self._cfg())
+        url = heungkuk_core._resolve_pdf_download("https://host", 21204, "123",
+                                                   self._cfg(enable_pdf_probe=False))
 
         assert url is None
         assert calls == ["https://host/download.do?type=Board&key=30369"]

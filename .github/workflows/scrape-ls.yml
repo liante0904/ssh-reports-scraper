@@ -1,7 +1,8 @@
 name: LS Scraper → SCP
 on:
   schedule:
-    - cron: '0 * * * 1-5'
+    - cron: '0 0-10,15-23 * * 1-5'
+    - cron: '30 11-14 * * 1-5'
   workflow_dispatch:
 jobs:
   scrape-and-scp:

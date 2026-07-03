@@ -78,11 +78,11 @@ def scrape_shinyoung(cfg: dict) -> list[dict]:
             # 2026.06.21 fix: GA Import 중복제거 및 DB 업서트 시 식별값으로 사용될 key, report_unique_key 설정 추가
             result.append({
                 "firm_id": 7, "board_id": 0, "firm_nm": cfg.get("firm_nm", "신영증권"),
-                "reg_dt": re.sub(r"[-./]", "", item[item_keys["reg_dt"]]),
+                "report_date": re.sub(r"[-./]", "", item[item_keys["reg_dt"]]),
                 "writer": item.get(item_keys["writer"], ""),
                 "article_title": title, "telegram_url": dl, "download_url": dl,
                 "report_unique_key": dl,
-                "save_time": datetime.now(timezone(timedelta(hours=9))).isoformat(),
+                "save_at": datetime.now(timezone(timedelta(hours=9))).isoformat(),
             })
         except Exception as exc:
             skipped += 1

@@ -41,9 +41,9 @@ def scrape_hanyang(cfg: dict) -> list[dict]:
                 ac = cells[cfg["cell_attach"]].find("a") if "cell_attach" in cfg else None
                 if ac: dl = urljoin(url, ac.get("href",""))
                 result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
-                    firm_nm=cfg["firm_nm"],reg_dt=re.sub(r"[-./]","",reg_dt),
+                    firm_nm=cfg["firm_nm"],report_date=re.sub(r"[-./]","",reg_dt),
                     article_title=title,article_url=dl,download_url=dl,telegram_url=dl,
-                    pdf_url=dl,key=dl,report_unique_key=dl,save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
+                    pdf_url=dl,report_unique_key=dl,save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
             except Exception: continue
     print(f"[hanyang] {len(result)} articles collected", file=sys.stderr)
     return result

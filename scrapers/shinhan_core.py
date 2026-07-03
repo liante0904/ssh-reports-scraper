@@ -60,10 +60,10 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
                 if not dl.startswith("http"): continue
                 board = BOARD_MAP.get(bbs_name, 99)
                 result.append({"firm_id":1,"board_id":board,
-                    "firm_nm":"신한증권","reg_dt":reg_dt,"download_url":dl,"telegram_url":dl,
+                    "firm_nm":"신한증권","report_date":reg_dt,"download_url":dl,"telegram_url":dl,
                     "article_title":item.get("title","").strip(),"writer":item.get("nickname","").strip(),
                     "report_unique_key":dl,
-                    "save_time":datetime.now(timezone(timedelta(hours=9))).isoformat()})
+                    "save_at":datetime.now(timezone(timedelta(hours=9))).isoformat()})
             next_key = jres.get("header",{}).get("repeatKeyN","")
             if not next_key or next_key == repeat_key: break
             repeat_key = next_key
@@ -91,15 +91,15 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
                 if not dl.startswith("http"): continue
                 board = BOARD_MAP.get(board_name, 99)
                 result.append({"firm_id":1,"board_id":board,
-                    "firm_nm":"신한증권","reg_dt":reg_dt,"download_url":dl,"telegram_url":dl,
+                    "firm_nm":"신한증권","report_date":reg_dt,"download_url":dl,"telegram_url":dl,
                     "article_title":item.get(t_key,"").strip(),"writer":item.get(w_key,"").strip(),
                     "report_unique_key":dl,
-                    "save_time":datetime.now(timezone(timedelta(hours=9))).isoformat()})
+                    "save_at":datetime.now(timezone(timedelta(hours=9))).isoformat()})
     print(f"[shinhan] {len(result)} articles collected before deduplication", file=sys.stderr)
     seen = set()
     deduped_result = []
     for item in result:
-        dup_key = (item["reg_dt"], item["article_title"])
+        dup_key = (item.get("report_date", ""), item["article_title"])
         if dup_key not in seen:
             seen.add(dup_key)
             deduped_result.append(item)

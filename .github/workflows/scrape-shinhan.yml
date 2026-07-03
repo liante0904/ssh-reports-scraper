@@ -3,7 +3,8 @@ name: Shinhan Scraper → SCP
 on:
   schedule:
     # KST 08-17 평일 매시간
-    - cron: '0 * * * 1-5'
+    - cron: '0 0-10,15-23 * * 1-5'
+    - cron: '30 11-14 * * 1-5'
   workflow_dispatch:
 
 jobs:

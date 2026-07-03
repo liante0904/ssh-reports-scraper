@@ -20,47 +20,103 @@ def _norm_date(text):
     return digits[:8] if len(digits) >= 8 else ""
 
 def _filter_duplicate_pdf_rows(rows: list[dict]) -> list[dict]:
-    """같은 PDF URL이 서로 다른 article_url/제목에 연결된 행을 걸러낸다.
-    동일 PDF 공유 행은 모두 제거하고, 고유 PDF 행만 반환."""
+    """같은 PDF URL이 서로 다른 article_url에 연결된 경우, formula delta + reg_dt
+    기준으로 가장 가능성 높은 한 행에만 PDF를 할당하고 나머지는 article_url로 폴백한다."""
     if not rows:
         return rows
+
+    # ── helper: extract numeric key from URL ──
+    def _extract_key(url: str, pat: str) -> int | None:
+        m = re.search(pat, url)
+        return int(m.group(1)) if m else None
+
     # PDF URL → list of row indices
     pdf_groups: dict[str, list[int]] = {}
     for i, row in enumerate(rows):
-        pdf = row.get("telegram_url") or row.get("download_url") or ""
+        pdf = row.get("download_url") or row.get("pdf_url") or ""
         if not pdf:
             continue
         pdf_groups.setdefault(pdf, []).append(i)
 
-    dup_pdf_urls: set[str] = set()
+    # ── resolve shared PDFs ──
+    reassign_indices: set[int] = set()
+    kept_groups = 0
+
     for pdf_url, indices in pdf_groups.items():
         if len(indices) < 2:
             continue
-        # 서로 다른 article_url이 있는지 확인
         article_urls = {rows[i].get("article_url", "") for i in indices}
-        if len(article_urls) > 1:
-            dup_pdf_urls.add(pdf_url)
+        if len(article_urls) <= 1:
+            continue  # same article → keep all
+
+        # score each candidate: lower delta = closer to correct PDF
+        best_idx = -1
+        best_score = (999999, -1)  # (delta, epoch_date for tiebreak)
+        winner_reg_dt = ""
+
+        for idx in indices:
+            au = rows[idx].get("article_url", "")
+            dl = rows[idx].get("download_url", "") or rows[idx].get("pdf_url", "")
+            vk = _extract_key(au, r"key=(\d+)")
+            dk = _extract_key(dl, r"key=(\d+)")
+            if vk is None or dk is None:
+                continue
+            formula_pk = 2 * vk - 12059
+            delta = abs(dk - formula_pk)
+            # tiebreak: prefer newer reg_dt (larger YYYYMMDD int = newer)
+            reg = rows[idx].get("reg_dt", "")
+            reg_int = int(reg) if reg.isdigit() and len(reg) == 8 else 0
+            score = (delta, -reg_int)  # negate so newer (larger int) = smaller score
+            if score < best_score:
+                best_score = score
+                best_idx = idx
+                winner_reg_dt = reg
+
+        if best_idx >= 0:
+            kept_groups += 1
             titles = [rows[i].get("article_title", "")[:40] for i in indices]
             urls = [rows[i].get("article_url", "") for i in indices]
+            winner_title = rows[best_idx].get("article_title", "")[:40]
+            # mark others for reassignment (clear PDF, use article URL)
+            for idx in indices:
+                if idx != best_idx:
+                    reassign_indices.add(idx)
             print(
                 f"[heungkuk] WARN: duplicate PDF URL {pdf_url} "
                 f"shared by {len(indices)} articles: titles={titles}, urls={urls}",
                 file=sys.stderr,
             )
+            print(
+                f"[heungkuk] INFO: kept PDF for winner \"{winner_title}\" "
+                f"(delta={best_score[0]}, reg_dt={winner_reg_dt}), "
+                f"reassigning {len(indices)-1} other(s) to article fallback",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                f"[heungkuk] WARN: duplicate PDF URL {pdf_url} "
+                f"shared by {len(indices)} articles but no row has extractable key "
+                f"— all rows keep duplicate PDF (possible URL format change)",
+                file=sys.stderr,
+            )
 
-    if not dup_pdf_urls:
+    if not reassign_indices:
         return rows
 
-    safe = [
-        row for row in rows
-        if (row.get("telegram_url") or row.get("download_url") or "") not in dup_pdf_urls
-    ]
+    # ── apply reassignments ──
+    for idx in reassign_indices:
+        row = rows[idx]
+        row["download_url"] = ""
+        row["pdf_url"] = ""
+        row["telegram_url"] = row.get("article_url") or row.get("telegram_url", "")
+
     print(
-        f"[heungkuk] duplicate guard: dropped {len(rows) - len(safe)}/{len(rows)} suspect rows, "
-        f"kept {len(safe)} rows",
+        f"[heungkuk] duplicate guard: kept PDF for {kept_groups} groups, "
+        f"reassigned {len(reassign_indices)} row(s) to article fallback, "
+        f"{len(rows)} total rows",
         file=sys.stderr,
     )
-    return safe
+    return rows
 
 
 def _content_disposition_matches(resp, analyst_key: str) -> bool:
@@ -131,8 +187,8 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
         "view_tpl": "{base}/research/{board_path}/view.do?key={view_key}",
         "pdf_head_timeout": 0.8,
         "pdf_probe_timeout": 0.5,
-        "max_pdf_probe_delta": 3,
-        "enable_pdf_probe": False,
+        "max_pdf_probe_delta": 15,
+        "enable_pdf_probe": True,
         "firm_id": 28,
         "firm_nm": "흥국증권",
         **cfg,
@@ -183,8 +239,8 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
             pdf_url = dl or ""
             result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
                 firm_nm=cfg["firm_nm"],reg_dt=rd,download_url=download_url,telegram_url=telegram_url,pdf_url=pdf_url,
-                article_title=title,article_url=au,writer=writer,key=au,report_unique_key=au,
-                save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
+                article_title=title,article_url=au,writer=writer,report_unique_key=au,
+                save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
     print(f"[heungkuk] {len(result)} articles collected (pre-duplicate-guard)", file=sys.stderr)
     result = _filter_duplicate_pdf_rows(result)
     return result

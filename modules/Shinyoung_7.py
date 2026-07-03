@@ -65,12 +65,12 @@ def Shinyoung_checkNewArticle():
             "board_id":board_id,
             "firm_nm":firm_info.get_firm_name(),
             "article_title":LIST_ARTICLE_TITLE,
-            "reg_dt":reg_dt,
+            "report_date":reg_dt,
             "writer":writer,
             "telegram_url": download_url,
             "mkt_tp": mkt_tp,
             "report_unique_key": LIST_ARTICLE_URL,
-            "save_time": datetime.now().isoformat()
+            "save_at": datetime.now().isoformat()
         })
             
 

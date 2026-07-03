@@ -66,10 +66,10 @@ def scrape_kb(cfg: dict, from_date: str = None, to_date: str = None) -> list[dic
             if title and title not in sub: title = f"{title} : {sub}"
             elif sub: title = sub
             result.append(dict(firm_id=4,board_id=board,firm_nm="KB증권",
-                reg_dt=re.sub(r"[-./]","",str(item.get(ik["reg_dt"],""))),
+                report_date=re.sub(r"[-./]","",str(item.get(ik["reg_dt"],""))),
                 writer=item.get(ik["writer"],""),download_url=dl,telegram_url=dl,pdf_url=dl,
-                article_title=title,mkt_tp=mkt,key=dl,report_unique_key=dl,
-                save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
+                article_title=title,mkt_tp=mkt,report_unique_key=dl,
+                save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
         except Exception: continue
     print(f"[kb] {len(result)} articles collected", file=sys.stderr)
     return result

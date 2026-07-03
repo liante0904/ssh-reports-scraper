@@ -24,10 +24,10 @@ def scrape_hmsec(cfg: dict) -> list[dict]:
                     dl = cfg["url_tpl"].replace("{file}", fn)
                     vu = cfg.get("viewer_tpl", dl).replace("{url}", dl)
                     result.append(dict(firm_id=9,board_id=board_order,firm_nm="현대차증권",
-                        reg_dt=(item.get(ik["reg_dt"],"")).strip(),article_title=item[ik["title"]],
+                        report_date=(item.get(ik["reg_dt"],"")).strip(),article_title=item[ik["title"]],
                         writer=(item.get(ik["writer"],"")).strip(),article_url=vu,pdf_url=dl,
-                        download_url=dl,telegram_url=vu,key=vu,report_unique_key=vu,
-                        save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
+                        download_url=dl,telegram_url=vu,report_unique_key=vu,
+                        save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception: continue
             page += 1
             if total_pages and page > total_pages: break

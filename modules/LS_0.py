@@ -178,7 +178,7 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
                         "firm_id": firm_id,
                         "board_id": board_id,
                         "firm_nm": firm_info.get_firm_name(),
-                        "reg_dt": re.sub(r"[-./]", "", str_date),
+                        "report_date": re.sub(r"[-./]", "", str_date),
                         "article_url": '',
                         "download_url": '',
                         "telegram_url": '',
@@ -186,7 +186,7 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
                         "writer": writer,
                         "report_unique_key": LIST_ARTICLE_URL,
                         "article_title": LIST_ARTICLE_TITLE,
-                        "save_time": datetime.now().isoformat()
+                        "save_at": datetime.now().isoformat()
                     })
                 except Exception as e:
                     logger.error(f"Error parsing LS article row: {e}")
@@ -563,7 +563,7 @@ async def reconstruct_msg_url_from_db(article, headers):
             WHERE firm_id = 0
               AND writer = %s
               AND telegram_url LIKE 'https://msg.ls-sec.co.kr/eum/K_%%'
-            ORDER BY save_time DESC
+            ORDER BY save_at DESC
             LIMIT 1
         """, (writer_name,))
 

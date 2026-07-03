@@ -98,8 +98,8 @@ def DS_checkNewArticle(full_scan=False):
                         "article_url": article_url,
                         "telegram_url": telegram_url,
                         "pdf_url": pdf_url,
-                        "reg_dt": reg_dt,
-                        "save_time": save_time,
+                        "report_date": reg_dt,
+                        "save_at": save_time,
                         "report_unique_key": pdf_url if pdf_url != "없음" else article_url
                     })
 

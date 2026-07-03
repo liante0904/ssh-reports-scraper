@@ -184,7 +184,7 @@ async def DBfi_checkNewArticle():
             "firm_id": firm_id,
             "board_id": board_order,
             "firm_nm": firm_info.get_firm_name(),
-            "reg_dt": item["rdt"][:8],
+            "report_date": item["rdt"][:8],
             "article_url": "",
             "telegram_url": "",
             "pdf_url": "",
@@ -192,7 +192,7 @@ async def DBfi_checkNewArticle():
             "writer": item["wnm"],
             "CATEGORY": item["div"],
             "report_unique_key": key,
-            "save_time": datetime.now().isoformat(),
+            "save_at": datetime.now().isoformat(),
         })
 
     logger.info(f"DBfi: DB 전체 대조 후 신규 건수 {len(candidates)}건")
@@ -212,7 +212,7 @@ async def fetch_detailed_url(articles):
         # DB증권은 동일 리포트가 여러 게시판에 중복 노출되는 경우가 있어
         # 제목/작성자/등록일/카테고리 기준으로 대표 건만 상세 조회합니다.
         return (
-            _normalize_text(article.get("reg_dt", "")),
+            _normalize_text(article.get("report_date") or article.get("reg_dt", "")),
             _normalize_text(article.get("article_title", "")),
             _normalize_text(article.get("writer", "")),
             _normalize_text(article.get("CATEGORY", "")),

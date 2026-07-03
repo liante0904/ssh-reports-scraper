@@ -55,9 +55,9 @@ def scrape_meritz(cfg: dict) -> list[dict]:
                     except Exception:
                         dl = article_url
                     result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
-                        firm_nm=cfg["firm_nm"],reg_dt=rd,article_url=article_url,
+                        firm_nm=cfg["firm_nm"],report_date=rd,article_url=article_url,
                         download_url=dl,telegram_url=dl,article_title=title,writer=writer,
-                        key=dl,report_unique_key=dl,save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
+                        report_unique_key=dl,save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception: continue
     print(f"[meritz] {len(result)} articles collected", file=sys.stderr)
     return result

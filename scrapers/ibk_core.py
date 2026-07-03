@@ -76,10 +76,10 @@ def scrape_ibk(cfg: dict) -> list[dict]:
                         firm_id=cfg.get("firm_id",25),
                         board_id=board_idx,
                         firm_nm=cfg.get("firm_nm","IBK투자증권"),
-                        reg_dt=rdt, article_title=title, writer=writer,
+                        report_date=rdt, article_title=title, writer=writer,
                         download_url=dl, telegram_url=dl, pdf_url=dl,
-                        key=dl, report_unique_key=dl,
-                        save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
+                        report_unique_key=dl,
+                        save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception: continue
             if len(items) < row_size: break
 

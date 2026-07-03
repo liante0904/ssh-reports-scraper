@@ -42,8 +42,8 @@ def scrape_daol(cfg: dict) -> list[dict]:
             fn = parts[1].split("'")[1]
             dl = cfg["pdf_tpl"].replace("{path}",path).replace("{filename}",fn)
             result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
-                firm_nm=cfg["firm_nm"],reg_dt=rd,download_url=dl,telegram_url=dl,
-                article_title=title,writer=writer,key=dl,report_unique_key=dl,
-                save_time=datetime.now(timezone(timedelta(hours=9))).isoformat()))
+                firm_nm=cfg["firm_nm"],report_date=rd,download_url=dl,telegram_url=dl,
+                article_title=title,writer=writer,report_unique_key=dl,
+                save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
     print(f"[daol] {len(result)} articles collected", file=sys.stderr)
     return result

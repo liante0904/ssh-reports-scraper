@@ -141,7 +141,7 @@ class SQLiteManager:
                     entry.get("writer", ''),
                     entry.get("mkt_tp", "KR"),  # MKT_TP가 빈값이면 KR을 넣음
                     entry.get("report_unique_key") or entry.get("pdf_url") or entry.get("download_url") or entry.get("telegram_url", ''),  # KEY가 없거나 빈 값일 때 대체 URL을 사용
-                    entry["save_time"]
+                    entry.get("save_at") or entry.get("save_time", "")
                 ))
 
                 # 삽입 또는 업데이트 확인

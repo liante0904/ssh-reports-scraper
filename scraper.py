@@ -196,9 +196,9 @@ def log_scraper_health(name, rows):
         return
 
     reg_dates = sorted({
-        str(row.get("reg_dt", ""))[:8]
+        str(row.get("report_date") or row.get("reg_dt", ""))[:8]
         for row in rows
-        if row.get("reg_dt")
+        if row.get("report_date") or row.get("reg_dt")
     })
     if not reg_dates:
         msg = f"{name} returned {len(rows)} articles but no reg_dt values."

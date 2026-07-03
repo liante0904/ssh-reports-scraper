@@ -85,6 +85,7 @@ services:
     volumes:
       - ~/sqlite3:/app/db
       - ~/logs:/log
+      - ~/incoming/ga-scrapes:/app/incoming/ga-scrapes:rw
     environment:
       - APP_ENV=${APP_ENV:-production}
       - SQLITE_DB_PATH=/app/db/telegram.db
@@ -114,6 +115,7 @@ services:
     volumes:
       - ~/sqlite3:/app/db
       - ~/logs:/log
+      - ~/incoming/ga-scrapes:/app/incoming/ga-scrapes:rw
     environment:
       - APP_ENV=${APP_ENV:-production}
       - SQLITE_DB_PATH=/app/db/telegram.db
