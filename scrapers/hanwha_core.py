@@ -11,7 +11,11 @@ def scrape_hanwha(cfg: dict) -> list[dict]:
     cfg.setdefault("headers", {"User-Agent": "Mozilla/5.0"})
     cfg.setdefault("item_keys", {})
     cfg.setdefault("url_tpl", "")
-    cfg.setdefault("max_pages", int(os.environ.get("HANWHA_MAX_PAGES", "50")))
+    # env override for backfill — hard-override, not setdefault (config may embed max_pages)
+    if "HANWHA_MAX_PAGES" in os.environ:
+        cfg["max_pages"] = int(os.environ["HANWHA_MAX_PAGES"])
+    else:
+        cfg.setdefault("max_pages", 50)
     cfg.setdefault("page_size", 100)
     cfg.setdefault("firm_id", 21)
     cfg.setdefault("firm_nm", "한화투자증권")
