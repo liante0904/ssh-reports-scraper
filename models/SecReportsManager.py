@@ -91,8 +91,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 firm_id,
                 board_id,
                 entry.get("firm_nm"),
-                entry.get("report_date") or entry.get("reg_dt", ""),
-                entry.get("reg_dt", ""),
+                entry.get("report_date") or "",
                 entry.get("article_title"),
                 entry.get("article_url"),
                 entry.get("download_url"),
@@ -111,7 +110,7 @@ class SecReportsManager(LibrarySecReportsManager):
 
         sql = f"""
             INSERT INTO {table_name} (
-                firm_id, board_id, firm_nm, report_date, reg_dt,
+                firm_id, board_id, firm_nm, report_date,
                 article_title, article_url, download_url,
                 telegram_url, pdf_url, writer, mkt_tp,
                 report_unique_key, telegram_sent, save_at
@@ -122,7 +121,6 @@ class SecReportsManager(LibrarySecReportsManager):
                 firm_nm             = EXCLUDED.firm_nm,
                 article_title       = EXCLUDED.article_title,
                 report_date         = EXCLUDED.report_date,
-                reg_dt              = EXCLUDED.reg_dt,
                 writer              = EXCLUDED.writer,
                 mkt_tp              = EXCLUDED.mkt_tp,
                 download_url        = COALESCE(NULLIF(EXCLUDED.download_url, ''), {table_name}.download_url),
@@ -202,12 +200,12 @@ class SecReportsManager(LibrarySecReportsManager):
         """
         if date_str is None:
             query_date = datetime.now().strftime("%Y-%m-%d")
-            query_reg_dt = (datetime.now() + timedelta(days=2)).strftime("%Y%m%d")
+            query_report_date_end = (datetime.now() + timedelta(days=2)).date()
         else:
             query_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
-            query_reg_dt = (datetime.strptime(date_str, "%Y%m%d") + timedelta(days=2)).strftime("%Y%m%d")
+            query_report_date_end = (datetime.strptime(date_str, "%Y%m%d") + timedelta(days=2)).date()
 
-        three_days_ago = (datetime.now() - timedelta(days=3)).strftime("%Y%m%d")
+        three_days_ago = (datetime.now() - timedelta(days=3)).date()
 
         if type == "send":
             cond = f"""
@@ -233,7 +231,7 @@ class SecReportsManager(LibrarySecReportsManager):
             report_id,
             firm_id AS firm_id,
             board_id AS board_id,
-            firm_nm,reg_dt,
+            firm_nm,report_date,
             article_title,article_url,
             download_url,writer,save_at,scraped_at,
             report_unique_key,
@@ -244,15 +242,15 @@ class SecReportsManager(LibrarySecReportsManager):
         FROM   {self.REPORTS_READ_VIEW}
         WHERE  save_at::date >= (%s::date - 2)
           AND  save_at::date <= %s
-          AND  reg_dt >= %s
-          AND  reg_dt <= %s
+          AND  report_date >= %s
+          AND  report_date <= %s
           AND  {cond}
         ORDER BY
             firm_id,
             article_title,
             save_at
         """
-        return self._fetchall(sql, (query_date, query_date, three_days_ago, query_reg_dt))
+        return self._fetchall(sql, (query_date, query_date, three_days_ago, query_report_date_end))
 
     # Backward-compat alias. 새 코드는 select_reports_ready_for_telegram 사용.
     daily_select_data = select_reports_ready_for_telegram
