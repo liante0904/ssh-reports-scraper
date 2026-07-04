@@ -72,9 +72,9 @@ def test_insert_includes_legacy_and_canonical_keys(monkeypatch):
     assert (inserted, updated) == (1, 0)
     assert " key," not in connection.cursor_instance.sql
     assert "report_unique_key" in connection.cursor_instance.sql
-    assert connection.cursor_instance.records[0][12] == "https://example.test/report.pdf"
-    assert connection.cursor_instance.records[0][14] is not None  # save_at
-    assert connection.cursor_instance.records[0][13] is False
+    assert connection.cursor_instance.records[0][11] == "https://example.test/report.pdf"
+    assert connection.cursor_instance.records[0][13] is not None  # save_at
+    assert connection.cursor_instance.records[0][12] is False
     assert "main_ch_send_yn     = CASE" not in connection.cursor_instance.sql
     assert "telegram_sent       = COALESCE" in connection.cursor_instance.sql
     assert "EXCLUDED.telegram_sent" not in connection.cursor_instance.sql
