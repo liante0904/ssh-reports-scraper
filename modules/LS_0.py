@@ -700,6 +700,53 @@ async def reconstruct_msg_url_from_db(article, headers):
         return None
 
 
+async def LS_enrich(db, records, firm_info, is_idle_time):
+    """LS enrichment: msg URL 복구 + upload fallback + 유휴시간 backlog"""
+    update_records = await LS_detail(articles=records, firm_info=firm_info)
+    tasks = [db.update_telegram_url(r['report_id'], r['telegram_url'], r.get('article_title'),
+              pdf_url=r.get('pdf_url') or r['telegram_url']) for r in update_records if r.get('telegram_url')]
+    if tasks:
+        await asyncio.gather(*tasks)
+
+    upload_fallback_prefix = f"{LS_PUBLIC_ORIGIN}/upload/"
+
+    fallback_records = db._fetchall('''
+        SELECT report_id, article_title, writer, telegram_url, report_date AS reg_dt, key
+        FROM v_sec_reports_canonical
+        WHERE firm_id = 0 AND telegram_url LIKE %s
+          AND save_at >= NOW() - INTERVAL '1 day' AND key IS NOT NULL AND key != ''
+        ORDER BY save_at DESC LIMIT 50
+    ''', (f"{upload_fallback_prefix}%",))
+    if fallback_records:
+        logger.info(f"[LS] upload/ fallback {len(fallback_records)}건 재시도...")
+        refixed = await LS_detail(articles=fallback_records, firm_info=firm_info)
+        tasks = [db.update_telegram_url(r['report_id'], r['telegram_url'], r.get('article_title'),
+                  pdf_url=r.get('pdf_url') or r['telegram_url']) for r in refixed
+                 if r.get('telegram_url', '').startswith(LS_MSG_PREFIX)]
+        if tasks:
+            await asyncio.gather(*tasks)
+            logger.success(f"[LS] upload/ fallback {len(tasks)}건 msg URL 재복구 완료")
+
+    if is_idle_time:
+        backlog = db._fetchall('''
+            SELECT report_id, article_title, writer, telegram_url, report_date AS reg_dt, key
+            FROM v_sec_reports_canonical
+            WHERE firm_id = 0 AND (telegram_url IS NULL OR telegram_url = ''
+               OR telegram_url NOT LIKE %s)
+              AND key IS NOT NULL AND key != ''
+            ORDER BY save_at DESC LIMIT 200
+        ''', (f"{LS_MSG_PREFIX}%",))
+        if backlog:
+            logger.info(f"[LS][유휴] 전체 backlog {len(backlog)}건 재처리...")
+            fixed = await LS_detail(articles=backlog, firm_info=firm_info)
+            tasks = [db.update_telegram_url(r['report_id'], r['telegram_url'], r.get('article_title'),
+                      pdf_url=r.get('pdf_url') or r['telegram_url']) for r in fixed
+                     if r.get('telegram_url', '').startswith(LS_MSG_PREFIX)]
+            if tasks:
+                await asyncio.gather(*tasks)
+                logger.success(f"[LS][유휴] {len(tasks)}건 msg URL 복구 완료")
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == 'fix':
         logger.info("상세 정보 누락 건 복구 모드(fix) 실행...")

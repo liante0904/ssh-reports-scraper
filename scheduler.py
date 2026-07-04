@@ -128,12 +128,6 @@ def run_ga_import():
             data = json.loads(fpath.read_text(encoding="utf-8"))
             if not isinstance(data, list):
                 raise ValueError(f"Expected JSON array, got {type(data).__name__}")
-            # ── 뉴스/미디어는 PostgreSQL에 insert하지 않고 완전히 제외 ──
-            EXCLUDED_FIRMS = {"네이버", "조선비즈"}
-            filtered = [d for d in data if d.get("firm_nm") not in EXCLUDED_FIRMS]
-            if len(filtered) < len(data):
-                logger.info(f"[GA-Import] {fpath.name}: stripped {len(data) - len(filtered)} news rows (네이버/조선비즈)")
-                data = filtered
             # 배치 내 중복 제거 (같은 게시판 중복 등재 방지)
             deduped = {}
             for d in data:
@@ -175,23 +169,17 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
 
     try:
         from utils.telegram_util import sendMarkDownText
+        from models.SecReportsManager import SecReportsManager
 
-        # report_unique_key로 DB에서 실제 row 조회 (미발송 건만, 뉴스 제외)
+        # report_unique_key로 DB에서 실제 row 조회 (미발송 건만)
         placeholders = ",".join(["%s"] * len(keys))
-        dbfi_ready = (
-            "AND (firm_id != 19 OR ("
-            "firm_id = 19 "
-            "AND telegram_url LIKE 'https://whub.dbsec.co.kr/pv/gate%%' "
-            "AND pdf_url LIKE 'https://whub.dbsec.co.kr/streamdocs/v4/documents/%%'"
-            "))"
-        )
+        dbfi_ready = f"AND {SecReportsManager.dbfi_ready_condition()}"
         rows = db._fetchall(
             f"""
             SELECT *
             FROM tbl_sec_reports
             WHERE report_unique_key IN ({placeholders})
               AND (telegram_sent IS NOT true)
-              AND firm_nm NOT IN ('네이버', '조선비즈')
               {dbfi_ready}
             """,
             keys,
@@ -200,7 +188,6 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
             return
 
         EMOJI_PICK = u'\U0001F449'
-        EXCLUDED_FIRMS = {"네이버", "조선비즈"}
         message_limit = 3500
 
         # 청크 단위 발송을 위한 상태 저장 변수들
@@ -210,10 +197,6 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
 
         for row in rows:
             firm_nm = row.get("firm_nm")
-
-            # 뉴스/미디어는 레포트 채널에서 제외 (헤더뿐 아니라 row 전체 스킵)
-            if firm_nm in EXCLUDED_FIRMS:
-                continue
 
             send_message_text = ""
 

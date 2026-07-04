@@ -42,12 +42,10 @@ def format_message(data_list):
             firm_nm = data['firm_nm']
             # data_list가 단건인 경우, 회사명 출력을 생략
             if len(data_list) > 1:
-                # 제외할 FIRM_NM이 아닌 경우에만 처리
-                if '네이버' not in firm_nm or '조선비즈' not in firm_nm:
-                    # 새로운 FIRM_NM이거나 첫 번째 데이터일 때만 FIRM_NM을 포함
-                    if firm_nm != last_firm_nm:
-                        sendMessageText += "\n\n" + "●" + firm_nm + "\n"
-                        last_firm_nm = firm_nm
+                # 새로운 FIRM_NM이거나 첫 번째 데이터일 때만 FIRM_NM을 포함
+                if firm_nm != last_firm_nm:
+                    sendMessageText += "\n\n" + "●" + firm_nm + "\n"
+                    last_firm_nm = firm_nm
         
 
     # 게시글 제목이 유효한 값인지 확인
@@ -128,10 +126,7 @@ def save_data_to_local_json(filename, firm_id, board_id, firm_nm, pdf_url, artic
         print(f"\n새 데이터가 {filename}에 성공적으로 저장되었습니다.")
         
         # 중복되지 않은 항목을 템플릿 형식으로 반환
-        if '네이버'in firm_nm or '조선비즈' in firm_nm:
-            return format_message(new_data) + '\n'
-        else:
-            return format_message(new_data)
+        return format_message(new_data)
     else:
         print("중복된 데이터가 발견되어 저장하지 않았습니다.")
         return ''

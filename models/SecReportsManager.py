@@ -1,10 +1,35 @@
 """Scraper-specific PostgreSQL manager compatibility fixes."""
 
+import os
 from datetime import datetime, timedelta
 
 from loguru import logger
 import psycopg2.extras
 from ssh_library import SecReportsManager as LibrarySecReportsManager
+
+_DBFI_GATE_ENV = "DBFI_GATE_URL_PREFIX"
+_DBFI_STREAMDOCS_ENV = "DBFI_STREAMDOCS_URL_PREFIX"
+_DBFI_VIEWER_BASE_ENV = "DBFI_VIEWER_BASE_URL"
+
+
+def _join_url(base: str, path: str) -> str:
+    return f"{base.rstrip('/')}/{path.lstrip('/')}" if base else ""
+
+
+def _dbfi_viewer_base_from_config() -> str:
+    try:
+        from models.ConfigManager import config
+
+        dbfi_config = config.get_urls("DBfi_19")
+        if isinstance(dbfi_config, dict):
+            return (dbfi_config.get("viewer_base_url") or "").rstrip("/")
+    except Exception:
+        return ""
+    return ""
+
+
+def _sql_literal(value: str) -> str:
+    return value.replace("'", "''")
 
 
 class SecReportsManager(LibrarySecReportsManager):
@@ -12,20 +37,35 @@ class SecReportsManager(LibrarySecReportsManager):
 
     REPORTS_READ_VIEW = "public.v_sec_reports_canonical"
 
-    DBFI_READY_CONDITION = """
-        (
-            firm_id != 19
-            OR (
-                firm_id = 19
-                AND telegram_url LIKE 'https://whub.dbsec.co.kr/pv/gate%%'
-                AND pdf_url LIKE 'https://whub.dbsec.co.kr/streamdocs/v4/documents/%%'
-            )
+    @classmethod
+    def dbfi_url_prefixes(cls) -> tuple[str, str]:
+        viewer_base = (
+            os.getenv(_DBFI_VIEWER_BASE_ENV, "").rstrip("/")
+            or _dbfi_viewer_base_from_config()
         )
-    """
+        gate_prefix = os.getenv(_DBFI_GATE_ENV, "").rstrip("/") or _join_url(viewer_base, "pv/gate")
+        streamdocs_prefix = (
+            os.getenv(_DBFI_STREAMDOCS_ENV, "").rstrip("/")
+            or _join_url(viewer_base, "streamdocs/v4/documents")
+        )
+        return gate_prefix, streamdocs_prefix
 
     @classmethod
     def dbfi_ready_condition(cls, table_alias=None):
-        condition = cls.DBFI_READY_CONDITION.strip()
+        gate_prefix, streamdocs_prefix = cls.dbfi_url_prefixes()
+        if gate_prefix and streamdocs_prefix:
+            condition = (
+                "(\n"
+                "    firm_id != 19\n"
+                "    OR (\n"
+                "        firm_id = 19\n"
+                f"        AND telegram_url LIKE '{_sql_literal(gate_prefix)}%%'\n"
+                f"        AND pdf_url LIKE '{_sql_literal(streamdocs_prefix)}%%'\n"
+                "    )\n"
+                ")"
+            )
+        else:
+            condition = "(firm_id != 19)"
         if not table_alias:
             return condition
         for column in ("firm_id", "telegram_url", "pdf_url"):
@@ -51,7 +91,6 @@ class SecReportsManager(LibrarySecReportsManager):
         """scraper 전용 INSERT — ssh_library 부모 클래스 오버라이드.
 
         부모와의 차이:
-        - 네이버/조선비즈 차단 (firm_nm 기반 필터)
         - telegram_sent = false 하드코딩 (신규 레포트는 미발송)
         - ON CONFLICT 시 telegram_sent 보존 (COALESCE로 기존값 유지)
         - pdf_url fallback: telegram_url 사용
@@ -59,15 +98,6 @@ class SecReportsManager(LibrarySecReportsManager):
         if table_name is None:
             table_name = self.table_name
         table_name = self._TABLE_MAP.get(table_name, table_name)
-
-        # ── 중앙 차단: 뉴스/미디어는 PostgreSQL에 insert 금지 ──
-        EXCLUDED_FIRMS = {"네이버", "조선비즈"}
-        original_count = len(json_data_list)
-        json_data_list = [e for e in json_data_list if e.get("firm_nm") not in EXCLUDED_FIRMS]
-        if len(json_data_list) < original_count:
-            logger.info(
-                f"[SCRAPER-DB] Stripped {original_count - len(json_data_list)} rows (네이버/조선비즈 excluded)"
-            )
 
         # Do not reset send status during upsert; see _reset_duplicate_send_yn.
         self._reset_duplicate_send_yn(json_data_list, table_name)
@@ -201,9 +231,9 @@ class SecReportsManager(LibrarySecReportsManager):
         return {"status": "success"}
 
     async def select_reports_ready_for_telegram(self, date_str=None, type=None):
-        """텔레그램 발송 대상 레포트 조회. DBfi streamdocs PDF 확정 완료 + 미발송 + 뉴스 제외.
+        """텔레그램 발송 대상 레포트 조회. DBfi streamdocs PDF 확정 완료 + 미발송.
 
-        type='send': 미발송 + DBfi-ready + 뉴스 제외
+        type='send': 미발송 + DBfi-ready
         type='download': 발송 완료 + pdf_sync 미완료
         """
         if date_str is None:
@@ -219,7 +249,6 @@ class SecReportsManager(LibrarySecReportsManager):
             cond = f"""
                 (telegram_sent IS NOT true)
                 AND {self.dbfi_ready_condition_for_read_view()}
-                AND firm_nm NOT IN ('네이버', '조선비즈')
                 AND (
                     firm_id = 19
                     OR COALESCE(telegram_url, '') <> ''

@@ -17,7 +17,7 @@ from utils.sqlite_util import convert_sql_to_telegram_message_chunks
 from models.db_factory import get_db
 
 # business modules
-from modules.LS_0 import LS_checkNewArticle, LS_detail
+from modules.LS_0 import LS_checkNewArticle, LS_detail, LS_enrich
 from modules.ShinHanInvest_1 import ShinHanInvest_checkNewArticle
 from modules.NHQV_2 import NHQV_checkNewArticle               # GA 이관됨 (full-scrape fallback)
 from modules.HANA_3 import HANA_checkNewArticle
@@ -36,7 +36,7 @@ from modules.TOSSinvest_15 import TOSSinvest_checkNewArticle   # GA 이관됨 (f
 from modules.Leading_16 import Leading_checkNewArticle          # GA 이관됨 (full-scrape fallback)
 from modules.Daeshin_17 import Daeshin_checkNewArticle
 from modules.iMfnsec_18 import iMfnsec_checkNewArticle
-from modules.DBfi_19 import DBfi_checkNewArticle, DBfi_enrich_and_persist_details
+from modules.DBfi_19 import DBfi_checkNewArticle, DBfi_enrich
 from modules.MERITZ_20 import MERITZ_checkNewArticle
 from modules.Hanwhawm_21 import Hanwha_checkNewArticle         # GA 이관됨 (full-scrape fallback)
 from modules.Hygood_22 import Hanyang_checkNewArticle           # GA 이관됨 (full-scrape fallback)
@@ -226,72 +226,6 @@ def log_scraper_health(name, rows):
         SCRAPER_HEALTH_ERRORS.append(msg)
         logger.error(msg)
 
-async def _enrich_dbfi(db, records, firm_info, is_idle_time):
-    """DBfi enrichment: gate URL 복구 + 유휴시간 backlog"""
-    update_records = await DBfi_enrich_and_persist_details(articles=records, firm_info=firm_info, db=db)
-    success_count = sum(1 for r in update_records if r.get('telegram_url', '').startswith('https://whub.dbsec.co.kr/pv/gate'))
-    if success_count:
-        logger.success(f"[DBfi] {success_count}/{len(update_records)}건 gate URL 복구 완료")
-    if is_idle_time:
-        backlog = db._fetchall('''
-            SELECT report_id, article_title, writer, telegram_url, report_date AS reg_dt, key
-            FROM v_sec_reports_canonical
-            WHERE firm_id = 19 AND (telegram_url IS NULL OR telegram_url = ''
-               OR telegram_url NOT LIKE 'https://whub.dbsec.co.kr/pv/gate%%')
-              AND key IS NOT NULL AND key != ''
-            ORDER BY save_at DESC LIMIT 200
-        ''')
-        if backlog:
-            logger.info(f"[DBfi][유휴] 전체 backlog {len(backlog)}건 재처리...")
-            fixed = await DBfi_enrich_and_persist_details(articles=backlog, firm_info=firm_info, db=db)
-            fc = sum(1 for r in fixed if r.get('telegram_url', '').startswith('https://whub.dbsec.co.kr/pv/gate'))
-            logger.success(f"[DBfi][유휴] {fc}/{len(backlog)}건 gate URL 복구 완료")
-
-
-async def _enrich_ls(db, records, firm_info, is_idle_time):
-    """LS enrichment: msg URL 복구 + upload fallback + 유휴시간 backlog"""
-    update_records = await LS_detail(articles=records, firm_info=firm_info)
-    tasks = [db.update_telegram_url(r['report_id'], r['telegram_url'], r.get('article_title'),
-              pdf_url=r.get('pdf_url') or r['telegram_url']) for r in update_records if r.get('telegram_url')]
-    if tasks:
-        await asyncio.gather(*tasks)
-
-    fallback_records = db._fetchall('''
-        SELECT report_id, article_title, writer, telegram_url, report_date AS reg_dt, key
-        FROM v_sec_reports_canonical
-        WHERE firm_id = 0 AND telegram_url LIKE 'https://www.ls-sec.co.kr/upload/%%'
-          AND save_at >= NOW() - INTERVAL '1 day' AND key IS NOT NULL AND key != ''
-        ORDER BY save_at DESC LIMIT 50
-    ''')
-    if fallback_records:
-        logger.info(f"[LS] upload/ fallback {len(fallback_records)}건 재시도...")
-        refixed = await LS_detail(articles=fallback_records, firm_info=firm_info)
-        tasks = [db.update_telegram_url(r['report_id'], r['telegram_url'], r.get('article_title'),
-                  pdf_url=r.get('pdf_url') or r['telegram_url']) for r in refixed
-                 if r.get('telegram_url', '').startswith('https://msg.ls-sec.co.kr/')]
-        if tasks:
-            await asyncio.gather(*tasks)
-            logger.success(f"[LS] upload/ fallback {len(tasks)}건 msg URL 재복구 완료")
-
-    if is_idle_time:
-        backlog = db._fetchall('''
-            SELECT report_id, article_title, writer, telegram_url, report_date AS reg_dt, key
-            FROM v_sec_reports_canonical
-            WHERE firm_id = 0 AND (telegram_url IS NULL OR telegram_url = ''
-               OR telegram_url NOT LIKE 'https://msg.ls-sec.co.kr/%%')
-              AND key IS NOT NULL AND key != ''
-            ORDER BY save_at DESC LIMIT 200
-        ''')
-        if backlog:
-            logger.info(f"[LS][유휴] 전체 backlog {len(backlog)}건 재처리...")
-            fixed = await LS_detail(articles=backlog, firm_info=firm_info)
-            tasks = [db.update_telegram_url(r['report_id'], r['telegram_url'], r.get('article_title'),
-                      pdf_url=r.get('pdf_url') or r['telegram_url']) for r in fixed
-                     if r.get('telegram_url', '').startswith('https://msg.ls-sec.co.kr/')]
-            if tasks:
-                await asyncio.gather(*tasks)
-                logger.success(f"[LS][유휴] {len(tasks)}건 msg URL 복구 완료")
-
 
 async def enrich_data():
     logger.info("Starting data enrichment process...")
@@ -315,9 +249,9 @@ async def enrich_data():
         logger.info(f"[{firm_name}] Found {len(records)} records for enrichment (최근 3일).")
         try:
             if firm_id == 19:
-                await _enrich_dbfi(db, records, firm_info, is_idle_time)
+                await DBfi_enrich(db, records, firm_info, is_idle_time)
             elif firm_id == 0:
-                await _enrich_ls(db, records, firm_info, is_idle_time)
+                await LS_enrich(db, records, firm_info, is_idle_time)
             elif firm_id == 11:
                 pass  # DS
             logger.success(f"[{firm_name}] Enrichment completed.")

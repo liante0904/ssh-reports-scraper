@@ -115,7 +115,9 @@ def test_daily_update_data_delegates_send_status_to_mark_reports_sent(monkeypatc
     assert seen == [rows]
 
 
-def test_select_reports_ready_for_telegram_requires_dbfi_streamdocs_pdf():
+def test_select_reports_ready_for_telegram_requires_dbfi_streamdocs_pdf(monkeypatch):
+    monkeypatch.setenv("DBFI_GATE_URL_PREFIX", "https://dbfi.example.test/pv/gate")
+    monkeypatch.setenv("DBFI_STREAMDOCS_URL_PREFIX", "https://dbfi.example.test/streamdocs/v4/documents")
     from models.SecReportsManager import SecReportsManager
 
     manager = object.__new__(SecReportsManager)
@@ -139,12 +141,15 @@ def test_select_reports_ready_for_telegram_requires_dbfi_streamdocs_pdf():
     assert "report_key" not in sql
     assert "notification_sent" not in sql
     assert "firm_id = 19" in sql
-    assert "telegram_url LIKE 'https://whub.dbsec.co.kr/pv/gate%%'" in sql
-    assert "pdf_url LIKE 'https://whub.dbsec.co.kr/streamdocs/v4/documents/%%'" in sql
+    assert "telegram_url LIKE 'https://dbfi.example.test/pv/gate%%'" in sql
+    assert "pdf_url LIKE 'https://dbfi.example.test/streamdocs/v4/documents%%'" in sql
+    assert "firm_nm NOT IN" not in sql
     assert "WHEN firm_id = 19 THEN pdf_url" in sql
 
 
-def test_keyword_fetch_requires_dbfi_streamdocs_pdf():
+def test_keyword_fetch_requires_dbfi_streamdocs_pdf(monkeypatch):
+    monkeypatch.setenv("DBFI_GATE_URL_PREFIX", "https://dbfi.example.test/pv/gate")
+    monkeypatch.setenv("DBFI_STREAMDOCS_URL_PREFIX", "https://dbfi.example.test/streamdocs/v4/documents")
     from models.SecReportsManager import SecReportsManager
 
     manager = object.__new__(SecReportsManager)
@@ -162,9 +167,20 @@ def test_keyword_fetch_requires_dbfi_streamdocs_pdf():
     sql, params = calls[0]
     assert params == ("123", "%방산%", "%방산%", "2026-06-26")
     assert "r.firm_id = 19" in sql
-    assert "r.telegram_url LIKE 'https://whub.dbsec.co.kr/pv/gate%%'" in sql
-    assert "r.pdf_url LIKE 'https://whub.dbsec.co.kr/streamdocs/v4/documents/%%'" in sql
+    assert "r.telegram_url LIKE 'https://dbfi.example.test/pv/gate%%'" in sql
+    assert "r.pdf_url LIKE 'https://dbfi.example.test/streamdocs/v4/documents%%'" in sql
     assert "WHEN r.firm_id = 19 THEN r.pdf_url" in sql
+
+
+def test_dbfi_ready_condition_blocks_dbfi_when_prefix_missing(monkeypatch):
+    monkeypatch.delenv("DBFI_GATE_URL_PREFIX", raising=False)
+    monkeypatch.delenv("DBFI_STREAMDOCS_URL_PREFIX", raising=False)
+    monkeypatch.delenv("DBFI_VIEWER_BASE_URL", raising=False)
+    from models import SecReportsManager as manager_module
+
+    monkeypatch.setattr(manager_module, "_dbfi_viewer_base_from_config", lambda: "")
+
+    assert manager_module.SecReportsManager.dbfi_ready_condition() == "(firm_id != 19)"
 
 
 def test_duplicate_reset_does_not_mutate_send_status():

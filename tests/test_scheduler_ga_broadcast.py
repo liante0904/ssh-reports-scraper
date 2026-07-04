@@ -144,6 +144,8 @@ def test_broadcast_ga_reports_filters_unresolved_dbfi(monkeypatch):
 
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET", "mock_token")
     monkeypatch.setenv("TELEGRAM_CHANNEL_ID_REPORT_ALARM", "mock_chat_id")
+    monkeypatch.setenv("DBFI_GATE_URL_PREFIX", "https://dbfi.example.test/pv/gate")
+    monkeypatch.setenv("DBFI_STREAMDOCS_URL_PREFIX", "https://dbfi.example.test/streamdocs/v4/documents")
 
     keys = ["dbfi_unresolved", "dbfi_ready"]
     mock_rows = [
@@ -153,8 +155,8 @@ def test_broadcast_ga_reports_filters_unresolved_dbfi(monkeypatch):
             "firm_nm": "DB증권",
             "article_title": "미확정 DBFI",
             "report_unique_key": "dbfi_unresolved",
-            "telegram_url": "https://whub.dbsec.co.kr/pv/gate?q=abc",
-            "pdf_url": "https://whub.dbsec.co.kr/pv/gate?q=abc",
+            "telegram_url": "https://dbfi.example.test/pv/gate?q=abc",
+            "pdf_url": "https://dbfi.example.test/pv/gate?q=abc",
         },
         {
             "report_id": 2,
@@ -162,18 +164,19 @@ def test_broadcast_ga_reports_filters_unresolved_dbfi(monkeypatch):
             "firm_nm": "DB증권",
             "article_title": "확정 DBFI",
             "report_unique_key": "dbfi_ready",
-            "telegram_url": "https://whub.dbsec.co.kr/pv/gate?q=def",
-            "pdf_url": "https://whub.dbsec.co.kr/streamdocs/v4/documents/doc-id",
+            "telegram_url": "https://dbfi.example.test/pv/gate?q=def",
+            "pdf_url": "https://dbfi.example.test/streamdocs/v4/documents/doc-id",
         },
     ]
 
     class FilteringMockDB(MockDB):
         def _fetchall(self, sql, params):
-            assert "pdf_url LIKE 'https://whub.dbsec.co.kr/streamdocs/v4/documents/%%'" in sql
+            assert "pdf_url LIKE 'https://dbfi.example.test/streamdocs/v4/documents%%'" in sql
+            assert "firm_nm NOT IN" not in sql
             return [
                 r for r in self.rows
                 if (r.get("report_unique_key") or r.get("key")) in params
-                and r.get("pdf_url", "").startswith("https://whub.dbsec.co.kr/streamdocs/v4/documents/")
+                and r.get("pdf_url", "").startswith("https://dbfi.example.test/streamdocs/v4/documents/")
             ]
 
     db = FilteringMockDB(mock_rows)
@@ -185,5 +188,5 @@ def test_broadcast_ga_reports_filters_unresolved_dbfi(monkeypatch):
     assert len(sender.sent_messages) == 1
     assert "확정 DBFI" in sender.sent_messages[0]
     assert "미확정 DBFI" not in sender.sent_messages[0]
-    assert "https://whub.dbsec.co.kr/streamdocs/v4/documents/doc-id" in sender.sent_messages[0]
+    assert "https://dbfi.example.test/streamdocs/v4/documents/doc-id" in sender.sent_messages[0]
     assert db.daily_update_calls[0][0][0]["report_id"] == 2

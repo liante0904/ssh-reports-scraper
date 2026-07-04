@@ -1,7 +1,6 @@
 from loguru import logger
 
 
-EXCLUDED_FIRMS = {"네이버", "조선비즈"}
 EMOJI_PICK = u'\U0001F449'
 
 
@@ -43,8 +42,6 @@ def convert_sql_to_telegram_message_chunks(fetched_rows, message_limit=3500):
 
     for row in fetched_rows:
         firm_nm = row.get('firm_nm')
-        if firm_nm in EXCLUDED_FIRMS:
-            continue
 
         firm_header = ""
         if firm_nm and firm_nm != last_firm_nm:
@@ -75,9 +72,6 @@ def format_message_sql(data_list):
     EMOJI_PICK = u'\U0001F449'  # 이모지 설정
     formatted_messages = []
 
-    # 특정 FIRM_NM을 제외할 리스트
-    EXCLUDED_FIRMS = {"네이버", "조선비즈"}
-
     last_firm_nm = None  # 마지막으로 출력된 FIRM_NM을 저장하는 변수
 
     for data in data_list:
@@ -92,10 +86,9 @@ def format_message_sql(data_list):
         
         # 'firm_nm'이 존재하는 경우에만 포함
         if firm_nm:
-            if firm_nm not in EXCLUDED_FIRMS:
-                if firm_nm != last_firm_nm:
-                    sendMessageText += "\n\n" + "●" + firm_nm + "\n"
-                    last_firm_nm = firm_nm
+            if firm_nm != last_firm_nm:
+                sendMessageText += "\n\n" + "●" + firm_nm + "\n"
+                last_firm_nm = firm_nm
         
         # 게시글 제목(굵게)
         sendMessageText += "*" + article_title.replace("_", " ").replace("*", "") + "*" + "\n"

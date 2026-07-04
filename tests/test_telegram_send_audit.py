@@ -83,7 +83,7 @@ class TestSelectReportsReadyForTelegram:
         assert "COALESCE(telegram_url, '') <> ''" in sql, (
             "send query must exclude rows with no URL"
         )
-        assert "firm_nm NOT IN" in sql
+        assert "firm_nm NOT IN" not in sql
 
     def test_hana_ready_row_shape_is_allowed_by_query(self):
         """Hana-style non-DBfi rows with telegram_url remain eligible when unsent."""

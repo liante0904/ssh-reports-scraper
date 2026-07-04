@@ -11,6 +11,10 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from utils.logger_util import setup_logger
 setup_logger("keyword_alert")
 
+KEYWORD_ALERT_SCRIPT = "run/keyword_alert.py"
+KEYWORD_ALERT_CRON_MINUTE = "*/5"
+
+
 def run_job():
     logger.info("--- Keyword Alert Job Start ---")
     try:
@@ -19,7 +23,7 @@ def run_job():
         env["RUN_ONCE"] = "true"
 
         result = subprocess.run(
-            [sys.executable, "run/keyword_alert.py"],
+            [sys.executable, KEYWORD_ALERT_SCRIPT],
             env=env,
             check=False
         )
@@ -30,12 +34,13 @@ def run_job():
     except Exception as e:
         logger.error(f"Error during job execution: {e}")
 
+
 scheduler = BlockingScheduler()
 
 # 5분마다 실행 (*/5 * * * *)
 scheduler.add_job(
     run_job,
-    CronTrigger(minute='*/5'),
+    CronTrigger(minute=KEYWORD_ALERT_CRON_MINUTE),
     id="keyword_alert_job"
 )
 

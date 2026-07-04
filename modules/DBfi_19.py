@@ -28,6 +28,12 @@ else:
     VIEWER_BASE = ""
     URL_PATHS = []
 
+DBFI_VIEWER_BASE = (os.getenv("DBFI_VIEWER_BASE_URL") or VIEWER_BASE).rstrip("/")
+DBFI_GATE_PREFIX = (
+    os.getenv("DBFI_GATE_URL_PREFIX", "").rstrip("/")
+    or (f"{DBFI_VIEWER_BASE}/pv/gate" if DBFI_VIEWER_BASE else "")
+)
+
 HEADERS_TEMPLATE = {
     "User-Agent": "Mozilla/5.0 (iPad; CPU OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148",
     "Content-Type": "application/x-www-form-urlencoded;charset=utf-8"
@@ -542,6 +548,31 @@ async def DBfi_enrich_and_persist_details(articles, firm_info=None, db=None):
         logger.success(f"[DBfi][Pass2] 완료: {pass2_ok}건 pdf_url streamdocs로 갱신")
 
     return articles
+
+
+async def DBfi_enrich(db, records, firm_info, is_idle_time):
+    """DBfi enrichment: gate URL 복구 + 유휴시간 backlog"""
+    update_records = await DBfi_enrich_and_persist_details(articles=records, firm_info=firm_info, db=db)
+    success_count = sum(
+        1 for r in update_records
+        if DBFI_GATE_PREFIX and r.get('telegram_url', '').startswith(DBFI_GATE_PREFIX)
+    )
+    if success_count:
+        logger.success(f"[DBfi] {success_count}/{len(update_records)}건 gate URL 복구 완료")
+    if is_idle_time and DBFI_GATE_PREFIX:
+        backlog = db._fetchall('''
+            SELECT report_id, article_title, writer, telegram_url, report_date AS reg_dt, key
+            FROM v_sec_reports_canonical
+            WHERE firm_id = 19 AND (telegram_url IS NULL OR telegram_url = ''
+               OR telegram_url NOT LIKE %s)
+              AND key IS NOT NULL AND key != ''
+            ORDER BY save_at DESC LIMIT 200
+        ''', (f"{DBFI_GATE_PREFIX}%",))
+        if backlog:
+            logger.info(f"[DBfi][유휴] 전체 backlog {len(backlog)}건 재처리...")
+            fixed = await DBfi_enrich_and_persist_details(articles=backlog, firm_info=firm_info, db=db)
+            fc = sum(1 for r in fixed if r.get('telegram_url', '').startswith(DBFI_GATE_PREFIX))
+            logger.success(f"[DBfi][유휴] {fc}/{len(backlog)}건 gate URL 복구 완료")
 
 
 # Backward-compat alias. 새 코드는 DBfi_enrich_and_persist_details를 직접 import하십시오.
