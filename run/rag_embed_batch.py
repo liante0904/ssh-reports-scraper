@@ -376,14 +376,21 @@ def save_embeddings(conn, embeddings: list[dict]) -> int:
                 """
                 INSERT INTO tbl_report_embeddings
                     (report_id, chunk_id, chunk_text, embedding)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT (report_id, chunk_id) DO NOTHING
+                SELECT %s, %s, %s, %s
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM tbl_report_embeddings
+                    WHERE report_id = %s
+                      AND chunk_id = %s
+                )
                 """,
                 (
                     emb["report_id"],
                     emb["chunk_id"],
                     emb["chunk_text"],
                     db_val,
+                    emb["report_id"],
+                    emb["chunk_id"],
                 ),
             )
             inserted_count += cur.rowcount

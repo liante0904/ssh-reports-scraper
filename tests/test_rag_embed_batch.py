@@ -91,10 +91,69 @@ def test_validate_embedding_response_index_out_of_order_sorted():
     assert vectors == [[0.1, 0.2], [0.3, 0.4]]
 
 
+def test_validate_embedding_response_index_missing():
+    # index 키가 아예 없는 경우
+    data = {
+        "data": [
+            {"embedding": [0.1, 0.2]},
+        ]
+    }
+    with pytest.raises(ValueError, match="missing 'index' key"):
+        batch._validate_embedding_response(data, 1)
+
+
+def test_validate_embedding_response_index_duplicate():
+    # index가 중복된 경우
+    data = {
+        "data": [
+            {"embedding": [0.1, 0.2], "index": 0},
+            {"embedding": [0.3, 0.4], "index": 0},
+        ]
+    }
+    with pytest.raises(ValueError, match="duplicate embedding index"):
+        batch._validate_embedding_response(data, 2)
+
+
 def test_generate_embeddings_raises_on_no_api_key(monkeypatch):
-    monkeypatch.setattr(batch, "EMBED_API_KEY", "")
+    monkeypatch.setattr(batch, "EMBED_PROVIDER", "openai")
+    monkeypatch.setattr(batch, "OPENAI_EMBED_API_KEY", "")
     with pytest.raises(RuntimeError, match="OPENAI_API_KEY.*is not set"):
         batch.generate_embeddings(["test"])
+
+
+def test_validate_gemini_embedding_response_success():
+    data = {
+        "embeddings": [
+            {"values": [0.1, 0.2]},
+            {"values": [0.3, 0.4]},
+        ]
+    }
+
+    vectors = batch._validate_gemini_embedding_response(data, 2)
+
+    assert vectors == [[0.1, 0.2], [0.3, 0.4]]
+
+
+def test_generate_gemini_embeddings_uses_gemini_api_key(monkeypatch):
+    calls = []
+
+    def fake_post(url, *, headers, payload):
+        calls.append((url, headers, payload))
+        return {"embeddings": [{"values": [0.1]}, {"values": [0.2]}]}
+
+    monkeypatch.setattr(batch, "EMBED_PROVIDER", "gemini")
+    monkeypatch.setattr(batch, "GEMINI_EMBED_API_KEY", "gemini-key")
+    monkeypatch.setattr(batch, "GEMINI_EMBED_API_URL", "https://generativelanguage.googleapis.com/v1beta")
+    monkeypatch.setattr(batch, "_post_embedding_request", fake_post)
+
+    vectors = batch.generate_embeddings(["a", "b"], dim=768)
+
+    assert vectors == [[0.1], [0.2]]
+    url, headers, payload = calls[0]
+    assert url.endswith("/models/gemini-embedding-001:batchEmbedContents")
+    assert headers["x-goog-api-key"] == "gemini-key"
+    assert payload["requests"][0]["content"]["parts"][0]["text"] == "a"
+    assert payload["requests"][0]["outputDimensionality"] == 768
 
 
 def test_save_embeddings_json_type(monkeypatch):
@@ -138,7 +197,8 @@ def test_save_embeddings_rollback_on_error():
 
 
 def test_main_live_run_fail_fast_on_no_api_key(monkeypatch):
-    monkeypatch.setattr(batch, "EMBED_API_KEY", "")
+    monkeypatch.setattr(batch, "EMBED_PROVIDER", "openai")
+    monkeypatch.setattr(batch, "OPENAI_EMBED_API_KEY", "")
     import sys
     exit_code = None
     def fake_exit(code):
