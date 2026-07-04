@@ -22,10 +22,13 @@ private-hub의 tbl_report_embeddings에 저장.
     uv run python run/rag_embed_batch.py --firm 4 --days 30  # KB증권 최근 30일
 
 환경변수:
-    OPENAI_API_KEY          — OpenAI API 키 (필수)
-    EMBED_MODEL             — 모델명 (기본: text-embedding-3-small)
+    EMBED_PROVIDER          — openai 또는 gemini (기본: openai)
+    OPENAI_API_KEY          — OpenAI API 키
+    GEMINI_API_KEY          — Gemini API 키
+    EMBED_API_KEY           — provider별 API 키 대신 명시적 override
+    EMBED_MODEL             — provider별 모델명 override
     EMBED_API_URL           — API URL (기본: https://api.openai.com/v1/embeddings)
-    EMBED_API_KEY           — OPENAI_API_KEY 대신 명시적 override
+    GEMINI_EMBED_API_URL    — Gemini API URL prefix
     EMBED_BATCH_SIZE        — API 한 번에 보낼 텍스트 수 (기본: 20)
     POSTGRES_HOST/PORT/DB/USER/PASSWORD — DB 접속
 """
@@ -42,13 +45,44 @@ import requests
 
 
 # ── 설정 ──
-EMBED_MODEL = os.getenv("EMBED_MODEL", "text-embedding-3-small")
-EMBED_API_KEY = os.getenv("EMBED_API_KEY") or os.getenv("OPENAI_API_KEY", "")
+EMBED_PROVIDER = os.getenv("EMBED_PROVIDER", "openai").strip().lower()
+_MODEL_OVERRIDE = os.getenv("EMBED_MODEL")
+EMBED_MODEL = (
+    os.getenv("OPENAI_EMBED_MODEL")
+    or (_MODEL_OVERRIDE if EMBED_PROVIDER == "openai" and _MODEL_OVERRIDE else None)
+    or "text-embedding-3-small"
+)
+GEMINI_EMBED_MODEL = (
+    os.getenv("GEMINI_EMBED_MODEL")
+    or (_MODEL_OVERRIDE if EMBED_PROVIDER == "gemini" and _MODEL_OVERRIDE else None)
+    or "gemini-embedding-001"
+)
+OPENAI_EMBED_API_KEY = os.getenv("EMBED_API_KEY") or os.getenv("OPENAI_API_KEY", "")
+GEMINI_EMBED_API_KEY = os.getenv("EMBED_API_KEY") or os.getenv("GEMINI_API_KEY", "")
 EMBED_API_URL = os.getenv(
     "EMBED_API_URL", "https://api.openai.com/v1/embeddings"
 )
+GEMINI_EMBED_API_URL = os.getenv(
+    "GEMINI_EMBED_API_URL", "https://generativelanguage.googleapis.com/v1beta"
+).rstrip("/")
 API_BATCH_SIZE = int(os.getenv("EMBED_BATCH_SIZE", "20"))
 EMBED_DIM = int(os.getenv("EMBED_DIM", "0") or "0")  # 0 = 첫 응답에서 자동 감지
+
+
+def get_embedding_api_key() -> str:
+    if EMBED_PROVIDER == "gemini":
+        return GEMINI_EMBED_API_KEY
+    if EMBED_PROVIDER == "openai":
+        return OPENAI_EMBED_API_KEY
+    raise ValueError(f"Unsupported EMBED_PROVIDER: {EMBED_PROVIDER}")
+
+
+def _format_missing_key_message() -> str:
+    if EMBED_PROVIDER == "gemini":
+        return "GEMINI_API_KEY (or EMBED_API_KEY) is required for live run."
+    if EMBED_PROVIDER == "openai":
+        return "OPENAI_API_KEY (or EMBED_API_KEY) is required for live run."
+    return f"Unsupported EMBED_PROVIDER: {EMBED_PROVIDER}"
 
 
 def _validate_embedding_response(
@@ -72,21 +106,23 @@ def _validate_embedding_response(
 
     # Validate each item and build (index, vector) pairs
     indexed: list[tuple[int, list[float]]] = []
-    for item in items:
+    for idx_in_list, item in enumerate(items):
         if not isinstance(item, dict):
             raise ValueError(
-                f"data item is not an object: {type(item).__name__}"
+                f"data item at {idx_in_list} is not an object: {type(item).__name__}"
             )
         vec = item.get("embedding")
         if vec is None:
-            raise ValueError("data item missing 'embedding' key")
+            raise ValueError(f"data item at {idx_in_list} missing 'embedding' key")
         if not isinstance(vec, list):
             raise ValueError(
-                f"data item.embedding is not a list: {type(vec).__name__}"
+                f"data item at {idx_in_list}.embedding is not a list: {type(vec).__name__}"
             )
-        idx = item.get("index", len(indexed))
+        idx = item.get("index")
+        if idx is None:
+            raise ValueError(f"data item at {idx_in_list} missing 'index' key")
         if not isinstance(idx, int):
-            raise ValueError(f"data item.index is not an int: {type(idx).__name__}")
+            raise ValueError(f"data item at {idx_in_list}.index is not an int: {type(idx).__name__}")
         indexed.append((idx, vec))
 
     # Sort by index to handle out-of-order responses safely
@@ -108,6 +144,36 @@ def _validate_embedding_response(
         raise ValueError(f"missing embedding indices: {sorted(missing)}")
 
     return [vec for _, vec in indexed]
+
+
+def _validate_gemini_embedding_response(data: dict, expected_count: int) -> list[list[float]]:
+    try:
+        embeddings = data["embeddings"]
+    except (KeyError, TypeError) as exc:
+        raise ValueError(f"Gemini embedding response missing 'embeddings' key: {exc}") from exc
+
+    if not isinstance(embeddings, list):
+        raise ValueError(
+            f"Gemini embedding response 'embeddings' is not a list: {type(embeddings).__name__}"
+        )
+    if len(embeddings) != expected_count:
+        raise ValueError(
+            f"Gemini embedding count mismatch: expected {expected_count}, got {len(embeddings)}"
+        )
+
+    vectors = []
+    for index, item in enumerate(embeddings):
+        if not isinstance(item, dict):
+            raise ValueError(
+                f"Gemini embedding item at {index} is not an object: {type(item).__name__}"
+            )
+        values = item.get("values")
+        if not isinstance(values, list):
+            raise ValueError(
+                f"Gemini embedding item at {index}.values is not a list: {type(values).__name__}"
+            )
+        vectors.append(values)
+    return vectors
 
 
 def get_db():
@@ -167,65 +233,95 @@ def fetch_reports(conn, days=None, firm=None, limit=1000, inserted_date=None):
     return cur.fetchall()
 
 
-def generate_embeddings(
+def _post_embedding_request(url: str, *, headers: dict, payload: dict) -> dict:
+    last_exc = None
+    for attempt in range(3):
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=60)
+            resp.raise_for_status()
+            return resp.json()
+        except requests.HTTPError as e:
+            last_exc = e
+            status = e.response.status_code if e.response is not None else 0
+            if status == 429:
+                wait = int(e.response.headers.get("Retry-After", 2 ** attempt))
+                print(f"  Rate limited (429), waiting {wait}s...", file=sys.stderr)
+                time.sleep(wait)
+            elif status >= 500:
+                time.sleep(2 ** attempt)
+            else:
+                raise
+        except requests.RequestException as e:
+            last_exc = e
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+    raise RuntimeError(f"Embedding API failed after 3 attempts: {last_exc}") from last_exc
+
+
+def generate_openai_embeddings(
     texts: list[str], *, model: str = EMBED_MODEL, dim: int | None = None,
 ) -> list[list[float]]:
-    """OpenAI 호환 embedding API 호출. texts는 빈 리스트 금지."""
-    if not texts:
-        raise ValueError("generate_embeddings called with empty texts")
-
-    if not EMBED_API_KEY:
-        raise RuntimeError(
-            "OPENAI_API_KEY (or EMBED_API_KEY) is not set. "
-            "Set the environment variable and retry."
-        )
-
+    api_key = OPENAI_EMBED_API_KEY
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY (or EMBED_API_KEY) is not set. Set the environment variable and retry.")
     headers = {
-        "Authorization": f"Bearer {EMBED_API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
     payload: dict = {"model": model, "input": texts}
     if dim:
         payload["dimensions"] = dim
+    data = _post_embedding_request(EMBED_API_URL, headers=headers, payload=payload)
+    return _validate_embedding_response(data, len(texts))
 
-    last_exc = None
-    for attempt in range(3):
-        try:
-            resp = requests.post(
-                EMBED_API_URL, headers=headers, json=payload, timeout=60
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            vectors = _validate_embedding_response(data, len(texts))
-            return vectors
-        except requests.HTTPError as e:
-            status = e.response.status_code if e.response is not None else 0
-            if status == 429:
-                wait = int(
-                    e.response.headers.get("Retry-After", 2 ** attempt)
-                )
-                print(
-                    f"  Rate limited (429), waiting {wait}s...",
-                    file=sys.stderr,
-                )
-                time.sleep(wait)
-            elif status >= 500:
-                time.sleep(2 ** attempt)
-            else:
-                raise  # 4xx (except 429) → retry pointless
-        except (requests.RequestException, ValueError) as e:
-            last_exc = e
-            if attempt < 2:
-                time.sleep(2 ** attempt)
-        else:
-            break
-    else:
-        raise RuntimeError(
-            f"Embedding API failed after 3 attempts: {last_exc}"
-        ) from last_exc
 
-    # unreachable — satisfy type checker
-    raise RuntimeError("Embedding API failed")
+def _gemini_model_resource(model: str) -> str:
+    return model if model.startswith("models/") else f"models/{model}"
+
+
+def generate_gemini_embeddings(
+    texts: list[str], *, model: str = GEMINI_EMBED_MODEL, dim: int | None = None,
+) -> list[list[float]]:
+    api_key = GEMINI_EMBED_API_KEY
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY (or EMBED_API_KEY) is not set. Set the environment variable and retry.")
+
+    model_resource = _gemini_model_resource(model)
+    endpoint = f"{GEMINI_EMBED_API_URL}/{model_resource}:batchEmbedContents"
+    requests_payload = []
+    for text in texts:
+        request = {
+            "model": model_resource,
+            "content": {"parts": [{"text": text}]},
+            "taskType": "RETRIEVAL_DOCUMENT",
+        }
+        if dim:
+            request["outputDimensionality"] = dim
+        requests_payload.append(request)
+
+    data = _post_embedding_request(
+        endpoint,
+        headers={
+            "x-goog-api-key": api_key,
+            "Content-Type": "application/json",
+        },
+        payload={"requests": requests_payload},
+    )
+    return _validate_gemini_embedding_response(data, len(texts))
+
+
+def generate_embeddings(
+    texts: list[str], *, model: str | None = None, dim: int | None = None,
+) -> list[list[float]]:
+    """Provider별 embedding API 호출. texts는 빈 리스트 금지."""
+    if not texts:
+        raise ValueError("generate_embeddings called with empty texts")
+
+    if EMBED_PROVIDER == "gemini":
+        return generate_gemini_embeddings(texts, model=model or GEMINI_EMBED_MODEL, dim=dim)
+    if EMBED_PROVIDER == "openai":
+        return generate_openai_embeddings(texts, model=model or EMBED_MODEL, dim=dim)
+    raise RuntimeError(f"Unsupported EMBED_PROVIDER: {EMBED_PROVIDER}")
 
 
 _embedding_type = None
@@ -348,12 +444,14 @@ def main():
     except ValueError as e:
         parser.error(str(e))
 
+    try:
+        api_key = get_embedding_api_key()
+    except ValueError as e:
+        parser.error(str(e))
+
     # ── Live run guard: API key required (before DB connection) ──
-    if not args.dry_run and not EMBED_API_KEY:
-        print(
-            "FATAL: OPENAI_API_KEY (or EMBED_API_KEY) is required for live run.",
-            file=sys.stderr,
-        )
+    if not args.dry_run and not api_key:
+        print(f"FATAL: {_format_missing_key_message()}", file=sys.stderr)
         sys.exit(1)
 
     conn = None
@@ -407,11 +505,8 @@ def main():
                 f"(no API calls, no DB writes)"
             )
             # API 키 없어도 dry-run은 정상 종료
-            if not EMBED_API_KEY:
-                print(
-                    "[WARN] OPENAI_API_KEY not set — live run will fail.",
-                    file=sys.stderr,
-                )
+            if not api_key:
+                print(f"[WARN] {_format_missing_key_message()}", file=sys.stderr)
             return
 
         # ── Live run: offset 없이 반복 (embedding 저장 후 재조회하면 자연 감소) ──
