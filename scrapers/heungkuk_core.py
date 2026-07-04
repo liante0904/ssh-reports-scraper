@@ -238,7 +238,7 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
             download_url = dl or ""
             pdf_url = dl or ""
             result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
-                firm_nm=cfg["firm_nm"],reg_dt=rd,download_url=download_url,telegram_url=telegram_url,pdf_url=pdf_url,
+                firm_nm=cfg["firm_nm"],report_date=rd,download_url=download_url,telegram_url=telegram_url,pdf_url=pdf_url,
                 article_title=title,article_url=au,writer=writer,report_unique_key=au,
                 save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
     print(f"[heungkuk] {len(result)} articles collected (pre-duplicate-guard)", file=sys.stderr)
