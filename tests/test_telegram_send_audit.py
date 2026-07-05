@@ -6,7 +6,7 @@ import asyncio
 
 SCRAPER_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SCRAPER_DIR)
-os.environ["DB_BACKEND"] = "sqlite"
+os.environ["DB_BACKEND"] = "static"
 
 
 class TestMarkReportsSentSafety:

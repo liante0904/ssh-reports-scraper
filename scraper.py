@@ -132,7 +132,7 @@ _ENRICHMENT_SKIP_FIRM_IDS = frozenset({FIRM_ID_DS})
 
 def _filter_ga_enabled(mapping: dict) -> dict:
     """PostgreSQL tbm_sec_firm_info.ga_enabled_yn='Y'인 firm만 반환.
-    메타데이터 로드 실패, SQLite/static fallback, 또는 예외 발생 시
+    메타데이터 로드 실패, static fallback, 또는 예외 발생 시
     전체 mapping 반환 — GA fallback이 완전히 죽지 않도록 보호."""
     try:
         from models.firm_utils import ga_enabled_orders

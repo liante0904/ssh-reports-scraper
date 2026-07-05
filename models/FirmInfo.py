@@ -23,18 +23,18 @@ class FirmInfo(metaclass=MetaFirmInfo):
     _firm_data = {}
     _board_data = {}
     _is_loaded = False
-    _metadata_source = None  # "postgres" | "sqlite" | "static" — signals DB reliability
+    _metadata_source = None  # "postgres" | "static" — signals DB reliability
 
     @classmethod
     def load_data_from_db(cls):
         if cls._is_loaded:
             return
 
-        backend = os.getenv("DB_BACKEND", "sqlite").lower()
+        backend = os.getenv("DB_BACKEND", "postgres").lower()
         if backend == "postgres":
             cls._load_from_postgres()
         else:
-            cls._load_from_sqlite()
+            cls._load_static_fallback()
 
     @classmethod
     def _load_from_postgres(cls):
@@ -71,55 +71,6 @@ class FirmInfo(metaclass=MetaFirmInfo):
             logger.debug("FirmInfo: Data successfully loaded from PostgreSQL.")
         except Exception as e:
             logger.error(f"FirmInfo Error: Failed to load data from PostgreSQL: {e}")
-
-    @classmethod
-    def _load_from_sqlite(cls):
-        import sqlite3
-        db_path = config.DB_PATH
-        try:
-            conn = sqlite3.connect(db_path, check_same_thread=False)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-
-            cursor.execute("SELECT firm_id, firm_nm, telegram_update_yn FROM v_sec_firm_info ORDER BY firm_id")
-            rows = cursor.fetchall()
-            # ga_enabled_yn은 SQLite 스키마에 없을 수 있으므로 graceful fallback
-            has_ga_col = False
-            try:
-                cursor.execute("SELECT ga_enabled_yn FROM v_sec_firm_info LIMIT 0")
-                has_ga_col = True
-            except sqlite3.OperationalError:
-                pass
-
-            if has_ga_col:
-                cursor.execute("SELECT firm_id, firm_nm, telegram_update_yn, ga_enabled_yn FROM v_sec_firm_info ORDER BY firm_id")
-                for row in cursor.fetchall():
-                    cls._firm_data[row['firm_id']] = {
-                        "name": row['firm_nm'],
-                        "update_required": row['telegram_update_yn'] == 'Y',
-                        "ga_enabled": row['ga_enabled_yn'] == 'Y',
-                    }
-            else:
-                for row in rows:
-                    cls._firm_data[row['firm_id']] = {
-                        "name": row['firm_nm'],
-                        "update_required": row['telegram_update_yn'] == 'Y',
-                        "ga_enabled": False,
-                    }
-
-            cursor.execute("SELECT firm_id, board_id, board_nm, board_cd, label_nm FROM v_sec_firm_board_info")
-            for row in cursor.fetchall():
-                cls._board_data[(row['firm_id'], row['board_id'])] = {
-                    "name": row['board_nm'],
-                    "code": row['board_cd'] or "",
-                    "label": row['label_nm'] or ""
-                }
-            cls._is_loaded = True
-            cls._metadata_source = "sqlite"
-            logger.debug(f"FirmInfo: Data successfully loaded from SQLite ({db_path}).")
-            conn.close()
-        except Exception as e:
-            logger.warning(f"FirmInfo: DB unavailable ({e}), using static fallback")
             cls._load_static_fallback()
 
     @classmethod

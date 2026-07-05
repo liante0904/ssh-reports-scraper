@@ -5,7 +5,7 @@ import pytest
 
 SCRAPER_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SCRAPER_DIR)
-os.environ["DB_BACKEND"] = "sqlite"
+os.environ["DB_BACKEND"] = "static"
 
 
 class TestFilterGaEnabled:
@@ -90,8 +90,8 @@ class TestGaFirmsMapping:
 class TestGaEnabledUtility:
     """firm_utils.ga_enabled() 기능 검증 (static fallback)."""
 
-    def test_ga_enabled_false_in_sqlite_env(self):
-        """SQLite/fallback 환경에서 ga_enabled()는 항상 False."""
+    def test_ga_enabled_false_in_static_env(self):
+        """Static fallback 환경에서 ga_enabled()는 항상 False."""
         from models.FirmInfo import FirmInfo
         from models.firm_utils import ga_enabled
         FirmInfo._is_loaded = False

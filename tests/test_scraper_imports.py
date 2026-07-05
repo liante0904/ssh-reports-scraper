@@ -70,7 +70,7 @@ def fake_urls_config():
 def configure_fake_urls(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("urls", json.dumps(fake_urls_config()))
-    monkeypatch.setenv("DB_BACKEND", "sqlite")
+    monkeypatch.setenv("DB_BACKEND", "static")
 
     from models.ConfigManager import ConfigManager
 

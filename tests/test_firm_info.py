@@ -6,8 +6,8 @@ import pytest
 SCRAPER_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SCRAPER_DIR)
 
-# Force DB_BACKEND=sqlite before importing FirmInfo, so it hits static fallback
-os.environ["DB_BACKEND"] = "sqlite"
+# Force static fallback before importing FirmInfo.
+os.environ["DB_BACKEND"] = "static"
 
 
 class TestFirmInfoGaEnabled:
@@ -66,13 +66,13 @@ class TestFirmUtilsGaEnabled:
         assert callable(ga_enabled)
 
 
-class TestFirmInfoSqliteFallbackGraceful:
-    """SQLite 컬럼 없는 환경에서 graceful fallback 검증."""
+class TestFirmInfoStaticFallbackGraceful:
+    """DB 없는 환경에서 static fallback 검증."""
 
     def test_static_fallback_sets_ga_enabled_false(self):
         """DB 접근 불가 → static fallback → ga_enabled=False.
         이미 TestFirmInfoGaEnabled에서 검증 완료. 이 클래스는
-        향후 SQLite fixture 기반 테스트를 위한 자리 확보용."""
+        향후 fallback fixture 기반 테스트를 위한 자리 확보용."""
         pass  # covered by TestFirmInfoGaEnabled.test_ga_enabled_false_in_static_fallback
 
 
@@ -84,8 +84,15 @@ class TestFirmInfoPostgresGaEnabled:
         import psycopg2
 
         class FakeCursor:
-            def execute(self, query, *args, **kwargs): pass
+            def __init__(self):
+                self._call_count = 0
+
+            def execute(self, query, *args, **kwargs):
+                self._call_count += 1
+
             def fetchall(self):
+                if self._call_count > 1:
+                    return []
                 return [
                     {"firm_id": 2, "firm_nm": "NH", "telegram_update_yn": "Y", "ga_enabled_yn": "Y"},
                     {"firm_id": 4, "firm_nm": "KB", "telegram_update_yn": "N", "ga_enabled_yn": "N"},
@@ -117,8 +124,15 @@ class TestFirmInfoPostgresGaEnabled:
         import psycopg2
 
         class FakeCursor:
-            def execute(self, query, *args, **kwargs): pass
+            def __init__(self):
+                self._call_count = 0
+
+            def execute(self, query, *args, **kwargs):
+                self._call_count += 1
+
             def fetchall(self):
+                if self._call_count > 1:
+                    return []
                 return [{"firm_id": 4, "firm_nm": "KB", "telegram_update_yn": "N", "ga_enabled_yn": "Y"}]
             def __enter__(self): return self
             def __exit__(self, *args): pass
@@ -153,14 +167,14 @@ class TestGaEnabledOrders:
         from models.firm_utils import ga_enabled_orders
         assert ga_enabled_orders() is None
 
-    def test_returns_none_for_sqlite(self, monkeypatch):
-        """SQLite → ga_enabled_orders() returns None."""
-        monkeypatch.setenv("DB_BACKEND", "sqlite")
+    def test_returns_none_for_static_backend(self, monkeypatch):
+        """Static fallback → ga_enabled_orders() returns None."""
+        monkeypatch.setenv("DB_BACKEND", "static")
 
         from models.FirmInfo import FirmInfo
         FirmInfo._is_loaded = False
         FirmInfo._firm_data = {}
-        FirmInfo._metadata_source = "sqlite"
+        FirmInfo._metadata_source = "static"
 
         from models.firm_utils import ga_enabled_orders
         assert ga_enabled_orders() is None

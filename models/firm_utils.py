@@ -34,13 +34,13 @@ def telegram_update_required(firm_id: int) -> bool:
 
 def ga_enabled(firm_id: int) -> bool:
     """GA(GitHub Actions) 이관 여부. PostgreSQL v_sec_firm_info.ga_enabled_yn 기준.
-    SQLite/fallback 시 False 반환."""
+    Static fallback 시 False 반환."""
     return FirmInfo(firm_id, 0).ga_enabled
 
 
 def ga_enabled_orders() -> set[int] | None:
     """PostgreSQL에서 ga_enabled_yn='Y'인 모든 firm_id set 반환.
-    PostgreSQL 메타데이터가 로드되지 않았거나 static/sqlite fallback이면 None 반환.
+    PostgreSQL 메타데이터가 로드되지 않았거나 static fallback이면 None 반환.
     None은 "알 수 없음"을 의미 — 호출자는 전체 후보를 fallback으로 사용해야 한다."""
     fi = FirmInfo.__new__(FirmInfo)  # 인스턴스 생성 없이 클래스 속성 접근
     if not FirmInfo._is_loaded:

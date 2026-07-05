@@ -9,7 +9,7 @@ from loguru import logger
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # 테스트 수행 시 운영 데이터 보호 및 실제 알림 소음 방지를 위해 환경 변수 강제 설정
-os.environ["DB_BACKEND"] = "sqlite"
+os.environ["DB_BACKEND"] = "static"
 os.environ["ENV"] = "dev"
 
 # 텔레그램 알림용
