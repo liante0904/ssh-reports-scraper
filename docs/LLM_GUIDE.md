@@ -382,6 +382,9 @@ Codex가 직접 토큰을 많이 써야 하는 경우:
 | E | 옛 컬럼 드랍 (save_time, reg_dt, main_ch_send_yn, key) | 🟢 | 1주일 검증 후 (의도적 보류) |
 | F | ORM `v_sec_reports_full` 매핑 | 🟡 | Backend submodule 작업. 컬럼 드랍 전 필수 |
 | G | URL 컬럼 통합 (4개→2개) | 🟡 | DB증권 같은 특수케이스 있어서 신중히 |
+| H | `json_util` / `report_json_store` 통합 | 🔴 | telegram/local-json 호환 계약 보존을 위해 보류(보존) |
+| I | `validate_scrape_result` 규칙 개편 | 🟡 | 결과 유효성 검증 규칙 호환 계약 보존을 위해 보류(보존) |
+| J | `BNKfn_23` / `LS_0` standalone 및 모듈 | 🔴 | bnk/ls standalone 스크랩 호환 계약 보존을 위해 보류(보존) |
 
 ---
 

@@ -18,9 +18,9 @@
 | 10 | 스크래퍼 | 한화(21) GA fallback | GA standalone은 있는데 서버 fallback 없음 | `_GA_FIRMS_ASYNC`에 추가 | 하 | ✅ 완료 |
 | 11 | 문서 | 21개 마크다운 | LLM_* 6개, 운영문서 중복 | 10개로 통합 | 하 | ✅ 완료 |
 | 12 | 코드 | `_TEMPLATE.py` 예제 | `sec_firm_order`, `article_board_order` 그대로 | `firm_id`, `board_id`로 교체 | 하 | 🔶 보류 |
-| 13 | 코드 | `run/colab/bnk_scraper.py` | 동일 | 동일 | 하 | 🔶 agy |
-| 14 | 코드 | `scripts/standalone_bnk_scraper.py` | 동일 | 동일 | 하 | 🔶 agy |
-| 15 | 코드 | `scripts/standalone_ls_scraper.py` | `"key": key` | `"report_unique_key": key` | 하 | 🔶 agy |
+| 13 | 코드 | `run/colab/bnk_scraper.py` | 동일 | 동일 | 하 | 🔶 보류 (호환 계약) |
+| 14 | 코드 | `scripts/standalone_bnk_scraper.py` | 동일 | 동일 | 하 | 🔶 보류 (호환 계약) |
+| 15 | 코드 | `scripts/standalone_ls_scraper.py` | `"key": key` | `"report_unique_key": key` | 하 | 🔶 보류 (호환 계약) |
 | 16 | DB | `save_time` TEXT | `save_at` TIMESTAMPTZ와 중복, 매번 ISO 파싱 | DROP `save_time` → `save_at` 통일 | 중 | 🔲 DDL 배치 |
 | 17 | DB | `main_ch_send_yn` CHAR(1) | `telegram_sent` BOOLEAN이 이미 대체 | DROP COLUMN | 하 | 🔲 DDL 배치 |
 | 18 | DB | `key` 컬럼 | `report_unique_key`가 대체, INSERT가 양쪽 다 씀 | INSERT에서 제거 → DROP | 하 | 🔲 DDL 배치 |
@@ -57,3 +57,6 @@
 | 49 | 테스트 | `tests/ls.py`, `tests/diagnose_ls_urls.py` | legacy test | archive | 하 | 🔲 검토 |
 | 50 | DB | `tbl_sec_reports` 컬럼 30개+ | 정규화 부족 (tags, stock_names JSONB) | 검토 | 상 | 🔲 검토 |
 | 51 | 코드 | standalone news | 뉴스가 별도 컨테이너로 이관됨 | workflow/core/entrypoint 제거 | 하 | ✅ 완료 |
+| 52 | 코드 | `utils/json_util.py` / `utils/report_json_store.py` | telegram/local-json 처리 이중화 | 호환 계약 보존을 위해 보류 | 하 | 🔶 보류 (호환 계약) |
+| 53 | 코드 | `validate_scrape_result.py` | 결과 검증 규칙 | 호환 계약 보존을 위해 보류 | 하 | 🔶 보류 (호환 계약) |
+| 54 | 코드 | `modules/LS_0.py` / `modules/BNKfn_23.py` | LS 및 BNK 모듈 내 스크래핑 | 호환 계약 보존을 위해 보류 | 하 | 🔶 보류 (호환 계약) |
