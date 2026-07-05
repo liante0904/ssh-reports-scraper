@@ -154,6 +154,23 @@ def test_format_legacy_message_chunks_matches_json_util_chunk_shape():
     assert store.format_legacy_message_chunks(reports, message_limit=55) == expected_messages
 
 
+def test_format_legacy_message_chunks_defaults_to_3500_char_limit():
+    reports = [
+        {
+            "firm_nm": "테스트증권",
+            "article_title": f"{i:02d}-" + ("A" * 70),
+            "telegram_url": f"https://example.test/{i}.pdf",
+        }
+        for i in range(30)
+    ]
+
+    default_chunks = store.format_legacy_message_chunks(reports)
+
+    assert default_chunks == store.format_legacy_message_chunks(reports, message_limit=3500)
+    assert len(default_chunks) == 1
+    assert len(store.format_legacy_message_chunks(reports, message_limit=3000)) > 1
+
+
 def test_json_util_unsent_local_json_keeps_legacy_chunk_text(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(json_util, "datetime", FixedDatetime)

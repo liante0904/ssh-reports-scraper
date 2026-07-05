@@ -97,7 +97,7 @@ def format_report_messages(reports, *, include_firm_headers=True):
     return "".join(messages)
 
 
-def format_legacy_message_chunks(reports, *, message_limit=3000):
+def format_legacy_message_chunks(reports, *, message_limit=3500):
     """Mirror json_util.get_unsent_main_ch_data_to_local_json chunk formatting."""
     messages = []
     current_message = ""

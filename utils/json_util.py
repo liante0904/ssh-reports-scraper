@@ -145,7 +145,7 @@ def get_unsent_main_ch_data_to_local_json(filename):
     # 디버깅 로그 추가
     print(f"\n필터링된 unsent_data: {unsent_data}")
 
-    return report_json_store.format_legacy_message_chunks(unsent_data, message_limit=3000)
+    return report_json_store.format_legacy_message_chunks(unsent_data, message_limit=3500)
 
 def update_telegram_sent(file_path, target_date=None):
     directory = os.path.dirname(file_path)

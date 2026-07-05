@@ -30,7 +30,7 @@ new_entrypoints:
   - format_report_message(report, include_firm_header=False)
   - format_report_messages(reports, include_firm_headers=True)
   - format_legacy_message(reports)
-  - format_legacy_message_chunks(reports, message_limit=3000)
+  - format_legacy_message_chunks(reports, message_limit=3500)
   - build_report_payload(...)
   - append_report_if_new(path, report)
   - select_unsent_reports(reports, target_date, excluded_firms=None)
@@ -39,7 +39,7 @@ compatibility_rule:
   - migrating old callers must use format_legacy_message first
   - do not replace json_util.format_message with format_report_messages unless output differences are accepted
   - format_legacy_message output must match utils.json_util.format_message exactly
-  - format_legacy_message_chunks mirrors the old 3000-char local-json telegram chunking shape
+  - format_legacy_message_chunks mirrors the local-json telegram chunking shape with the same 3500-char default as DB telegram sends
   - legacy wrappers are allowed only after 1:1 compatibility tests pass
 risks:
   - used mostly as legacy CLI; external callers may depend on current names
