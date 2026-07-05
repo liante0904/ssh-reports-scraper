@@ -51,10 +51,7 @@
 # db_factory.py
 def get_db():
     backend = os.getenv("DB_BACKEND", "postgres")
-    if backend == "postgres":
-        return PostgreSQLManager()
-    # SQLite는 레거시/검증용
-    return SQLiteManager()
+    return SecReportsManager()
 ```
 
 ### 4. 시크릿 관리
@@ -122,7 +119,6 @@ ssh-reports-scraper/
 │   ├── ConfigManager.py            # 환경별 설정 싱글톤
 │   ├── FirmInfo.py                 # 증권사/게시판 메타 (DB 기반)
 │   ├── PostgreSQLManager.py        # PostgreSQL CRUD
-│   ├── SQLiteManager.py            # SQLite CRUD (레거시/검증용)
 │   ├── db_factory.py               # DB_BACKEND 팩토리
 │   └── WebScraper.py               # HTTP/Selenium 공통 추상화
 ├── docs/

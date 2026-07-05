@@ -33,9 +33,8 @@ import time
 import traceback
 from datetime import datetime
 
-# ── 환경 설정 (DB 백엔드를 sqlite로 해도 write는 안 함) ──
-os.environ.setdefault("DB_BACKEND", "sqlite")
-os.environ.setdefault("SQLITE_DB_PATH", "/tmp/telegram_standalone.db")
+# ── 환경 설정 (DB write는 하지 않음) ──
+os.environ.setdefault("DB_BACKEND", "static")
 os.environ.setdefault("LOG_BASE_DIR", "/tmp")
 os.environ.setdefault("SOCKS_PROXY_URL", "")  # GitHub Actions에서는 프록시 불필요
 os.environ.setdefault("SCRAPER_STALE_DAYS", "30")  # stale 체크 완화

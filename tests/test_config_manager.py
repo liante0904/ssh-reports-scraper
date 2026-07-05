@@ -74,12 +74,10 @@ def test_fallback_to_legacy_prod_section(monkeypatch, tmp_path):
             "TELEGRAM_CHANNEL_ID_REPORT_ALARM": "common_channel_id"
         },
         "dev": {
-            "DB_PATH": "~/sqlite3/telegram_dev.db",
             "BOT_TOKEN": "dev_bot_token",
             "CHANNEL_ID": "dev_channel_id"
         },
         "prod": {
-            "DB_PATH": "~/sqlite3/telegram_prod_legacy.db",
             "BOT_TOKEN": "legacy_prod_bot_token",
             "CHANNEL_ID": "legacy_prod_channel_id"
         }
@@ -100,5 +98,3 @@ def test_fallback_to_legacy_prod_section(monkeypatch, tmp_path):
     assert config.ENV == "production"
     assert config.BOT_TOKEN == "legacy_prod_bot_token"
     assert config.CHANNEL_ID == "legacy_prod_channel_id"
-    assert config.DB_PATH.endswith("telegram_prod_legacy.db")
-

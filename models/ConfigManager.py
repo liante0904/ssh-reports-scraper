@@ -57,22 +57,6 @@ class ConfigManager:
         return env_secrets or {}
 
     @property
-    def DB_PATH(self):
-        # 1순위: 환경변수 SQLITE_DB_PATH
-        env_path = os.getenv('SQLITE_DB_PATH')
-        if env_path: return os.path.expanduser(env_path)
-        
-        # 2순위: 환경별 전용 DB_PATH (dev -> telegram_dev.db / production -> telegram.db)
-        env_secrets = self._get_env_secrets()
-        path = env_secrets.get("DB_PATH")
-        
-        if not path:
-            # 3순위: 공통 설정 (common -> SQLITE_DB_PATH)
-            path = self._secrets.get("common", {}).get("SQLITE_DB_PATH")
-            
-        return os.path.expanduser(path or "~/sqlite3/telegram.db")
-
-    @property
     def BOT_TOKEN(self):
         return self._get_env_secrets().get("BOT_TOKEN") or self._secrets.get("common", {}).get("TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET")
 
@@ -146,5 +130,4 @@ if __name__ == "__main__":
     # 디버깅 출력 추가
     # print(f"Raw Secrets Dev: {config._secrets.get('dev')}")
     print(f"Current ENV: {config.ENV}")
-    print(f"DB Path: {config.DB_PATH}")
     print(f"Token (First 5): {str(config.BOT_TOKEN)[:5]}...")

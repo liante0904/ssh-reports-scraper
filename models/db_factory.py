@@ -5,13 +5,8 @@ def get_db():
     """Return a DB manager based on DB_BACKEND.
 
     DB_BACKEND=ssh_library  — SecReportsManager (production default)
-    DB_BACKEND=sqlite       — SQLiteManager (legacy/test only)
     DB_BACKEND=postgres     — legacy alias for the scraper SecReportsManager
     """
-    backend = os.getenv("DB_BACKEND", "ssh_library").lower()
-    if backend == "sqlite":
-        from models.SQLiteManager import SQLiteManager
-        return SQLiteManager()
     # default/postgres: scraper compatibility wrapper around ssh_library
     from models.SecReportsManager import SecReportsManager
     return SecReportsManager(
