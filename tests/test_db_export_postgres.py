@@ -12,7 +12,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 os.environ["DB_BACKEND"] = "postgres"
 load_dotenv(override=False)
 
-from models.PostgreSQLManager import PostgreSQLManager
+from models.SecReportsManager import SecReportsManager
 from tests.db_test_utils import postgres_available
 
 if not postgres_available():
@@ -25,10 +25,10 @@ async def export_postgres_to_json():
     """
     logger.info("Starting PostgreSQL data export for reverse sync...")
     
-    db = PostgreSQLManager()
+    db = SecReportsManager()
     
     # 모든 데이터 조회
-    query = f'SELECT * FROM {db.main_table_name} ORDER BY "save_time" DESC'
+    query = f'SELECT * FROM {db.table_name} ORDER BY save_at DESC'
 
     try:
         results = db._fetchall(query)
@@ -43,7 +43,7 @@ async def export_postgres_to_json():
         json_dir = os.path.join(os.path.dirname(__file__), '..', 'json')
         os.makedirs(json_dir, exist_ok=True)
         
-        file_path = os.path.join(json_dir, "postgres_to_sqlite_sync.json")
+        file_path = os.path.join(json_dir, "postgres_reports_export.json")
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(results, f, ensure_ascii=False, indent=4)
 

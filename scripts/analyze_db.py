@@ -13,8 +13,7 @@ from datetime import datetime
 # 프로젝트 루트 경로를 Python Path에 추가하여 모델 모듈을 임포트할 수 있도록 설정
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from models.ConfigManager import config
-from models.PostgreSQLManager import PostgreSQLManager
+from models.SecReportsManager import SecReportsManager
 from loguru import logger
 
 def analyze_database():
@@ -27,18 +26,10 @@ def analyze_database():
     if db_backend.lower() != "postgres":
         logger.warning("DB_BACKEND가 postgres가 아닙니다. 하지만 운영 DB 분석을 위해 PostgreSQL 연결을 시도합니다.")
 
-    # PostgreSQLManager 인스턴스 생성 및 사용자 규칙에 따른 접속 자격 증명 덮어쓰기
+    # 환경 변수 기반 운영 DB 연결. 접속 정보는 코드에 두지 않는다.
     try:
-        db_manager = PostgreSQLManager()
-        
-        # oci2(10.0.0.164)에서 oci(10.0.0.111) 운영 DB를 안전하게 조회(Read)하기 위한 강제 설정
-        db_manager.host = "10.0.0.111"
-        db_manager.port = "5432"
-        db_manager.user = "oci2_readonly"
-        db_manager.password = "dlrtmrja!"
-        db_manager.database = "ssh_reports_hub"
-
-        logger.info(f"DB 연결 정보 (사용자 규칙 기반 oci2_readonly) - Host: {db_manager.host}, DB: {db_manager.database}, User: {db_manager.user}")
+        db_manager = SecReportsManager()
+        logger.info("DB 연결 정보는 환경 변수/secret 설정을 사용합니다.")
         conn = db_manager.get_connection()
     except Exception as e:
         logger.error(f"PostgreSQL 연결 실패: {e}")
@@ -101,9 +92,9 @@ def analyze_database():
                         if table == "tbl_sec_reports":
                             # 최신 리포트 정보 3개 및 최종 수집 시간
                             cur.execute("""
-                                SELECT firm_id, firm_nm, article_title, writer, reg_dt, save_time
+                                SELECT firm_id, firm_nm, article_title, writer, report_date, save_at
                                 FROM tbl_sec_reports
-                                ORDER BY save_time DESC NULLS LAST
+                                ORDER BY save_at DESC NULLS LAST
                                 LIMIT 3;
                             """)
                             latest_rows = cur.fetchall()
@@ -113,8 +104,8 @@ def analyze_database():
                                     "firm_nm": r[1],
                                     "article_title": r[2],
                                     "writer": r[3],
-                                    "reg_dt": r[4],
-                                    "save_time": str(r[5]) if r[5] else None
+                                    "report_date": str(r[4]) if r[4] else None,
+                                    "save_at": str(r[5]) if r[5] else None
                                 } for r in latest_rows
                             ]
                         elif table == "tbm_sec_firm_info":

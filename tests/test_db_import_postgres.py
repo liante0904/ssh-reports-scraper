@@ -13,7 +13,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 os.environ["DB_BACKEND"] = "postgres"
 load_dotenv(override=False)
 
-from models.PostgreSQLManager import PostgreSQLManager
+from models.SecReportsManager import SecReportsManager
 from tests.db_test_utils import postgres_available
 
 if not postgres_available():
@@ -46,8 +46,8 @@ async def import_json_to_postgres():
         logger.error(f"Failed to load JSON file: {e}")
         return
 
-    # 4. PostgreSQL 인서트 (명시적으로 PostgreSQLManager 사용)
-    db = PostgreSQLManager()
+    # 4. PostgreSQL 인서트
+    db = SecReportsManager()
     
     try:
         # PostgreSQL 인서트 수행

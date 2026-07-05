@@ -13,19 +13,13 @@ from datetime import datetime
 # 프로젝트 루트 경로 추가
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from models.PostgreSQLManager import PostgreSQLManager
+from models.SecReportsManager import SecReportsManager
 from loguru import logger
 
 def analyze_reports_details():
     logger.info("tbl_sec_reports 데이터 심층 분석 쿼리를 시작합니다.")
     
-    db_manager = PostgreSQLManager()
-    # oci2_readonly 자격 증명 설정
-    db_manager.host = "10.0.0.111"
-    db_manager.port = "5432"
-    db_manager.user = "oci2_readonly"
-    db_manager.password = "dlrtmrja!"
-    db_manager.database = "ssh_reports_hub"
+    db_manager = SecReportsManager()
 
     try:
         conn = db_manager.get_connection()
@@ -98,7 +92,7 @@ def analyze_reports_details():
                 cur.execute("""
                     SELECT 
                         CASE 
-                            WHEN LENGTH(reg_dt) >= 4 THEN SUBSTRING(reg_dt, 1, 4)
+                            WHEN report_date IS NOT NULL THEN EXTRACT(YEAR FROM report_date)::text
                             ELSE 'Unknown'
                         END as yr, 
                         COUNT(*) as cnt,

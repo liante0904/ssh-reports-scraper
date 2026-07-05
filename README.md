@@ -99,7 +99,7 @@ API 키, DB 비밀번호, 수집 대상 URL(경쟁 우위 정보)을 소스코�
 | Language | Python 3.12, uv |
 | Scraping | aiohttp, BeautifulSoup4, Selenium (headless) |
 | Scheduler | APScheduler |
-| Database | PostgreSQL (운영), SQLite (레거시/검증/마이그레이션 보조) |
+| Database | PostgreSQL (운영 단일 DB) |
 | AI / Data | Gemini API (요약), Enricher (태그/섹터 추출) |
 | Network | aiohttp, requests (SOCKS5/WARP fallback) |
 | Logging | Loguru (날짜별 자동 로테이션) |
@@ -118,7 +118,7 @@ ssh-reports-scraper/
 ├── models/
 │   ├── ConfigManager.py            # 환경별 설정 싱글톤
 │   ├── FirmInfo.py                 # 증권사/게시판 메타 (DB 기반)
-│   ├── PostgreSQLManager.py        # PostgreSQL CRUD
+│   ├── SecReportsManager.py        # PostgreSQL CRUD
 │   ├── db_factory.py               # DB_BACKEND 팩토리
 │   └── WebScraper.py               # HTTP/Selenium 공통 추상화
 ├── docs/
