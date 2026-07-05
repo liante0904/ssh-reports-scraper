@@ -495,16 +495,8 @@ def build_scraper_function_lists(is_full):
     return sync_scraper_funcs, async_scraper_funcs
 
 
-async def main(date_str=None):
-    logger.info("=================== SCRAPER START ===================")
+async def run_scraper_batches(db, sync_scraper_funcs, async_scraper_funcs):
     scraped_reports = []
-    db = get_db()
-
-    await run_ls_scraper(db)
-
-    sync_scraper_funcs, async_scraper_funcs = build_scraper_function_lists(
-        is_full=_is_full_scrape_hour()
-    )
 
     await run_sync_scrapers(sync_scraper_funcs, scraped_reports)
     try:
@@ -519,6 +511,19 @@ async def main(date_str=None):
             await sync_scraped_reports_to_db(db, scraped_reports, label="Async scrapers")
         except Exception as e:
             logger.error(f"[Async scrapers] DB error: {e}")
+
+
+async def main(date_str=None):
+    logger.info("=================== SCRAPER START ===================")
+    db = get_db()
+
+    await run_ls_scraper(db)
+
+    sync_scraper_funcs, async_scraper_funcs = build_scraper_function_lists(
+        is_full=_is_full_scrape_hour()
+    )
+
+    await run_scraper_batches(db, sync_scraper_funcs, async_scraper_funcs)
 
     await enrich_data()
     
