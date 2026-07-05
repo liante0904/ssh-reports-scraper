@@ -47,6 +47,26 @@ bash scripts/ops_tail_errors.sh --firm-order 3 --firm-name 'HANA|하나|hana' --
 
 `firm hits=0`이고 최신 row가 오래됐다면 스케줄러/GA policy/regular path에서 제외됐을 가능성이 높다.
 
+## 운영 scraper exec
+
+운영 호스트에서 실행 중인 blue/green scraper 컨테이너를 자동 선택할 때는 `ops_scraper_exec.sh`를 쓴다.
+
+```bash
+bash scripts/ops_scraper_exec.sh list
+bash scripts/ops_scraper_exec.sh name
+bash scripts/ops_scraper_exec.sh sh '.venv/bin/python --version'
+bash scripts/ops_scraper_exec.sh py <<'PY'
+print("hello from active scraper")
+PY
+```
+
+규칙:
+
+- `ssh-reports-scraper-main-scraper-*` 실행 컨테이너를 자동 선택한다.
+- 강제 지정이 필요하면 `SCRAPER_CONTAINER=ssh-reports-scraper-main-scraper-green`을 붙인다.
+- `py`는 `/app`에서 `.venv/bin/python -`로 stdin 스크립트를 실행한다.
+- 운영 DB write나 텔레그램 실발송은 사용자 승인이 있는 경우에만 수행한다.
+
 ## LLM 사용 규칙
 
 LLM은 운영 로그 확인 요청을 받으면, 사용자가 로그를 복붙하기 전에 이 스크립트를 먼저 사용한다.
