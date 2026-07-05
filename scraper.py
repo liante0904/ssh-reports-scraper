@@ -432,11 +432,7 @@ async def sync_scraped_reports_to_db(db, scraped_reports, label="DB"):
     return await insert_scraped_reports(db, reports_by_unique_key.values(), label=label)
 
 
-async def main(date_str=None):
-    logger.info("=================== SCRAPER START ===================")
-    scraped_reports = []
-    db = get_db()
-    
+async def run_ls_scraper(db):
     # ── LS증권: 목록 2p 스크래핑 → DB 키 비교 → 신규만 detail ──
     # LS_0: local server IP 차단됨 (BLOCKED_BY_SOURCE_IP).
     # GA WARP 우회 가능하나 로컬 fallback에서는 skip.
@@ -475,7 +471,8 @@ async def main(date_str=None):
         except Exception as e:
             logger.error(f"[LS] DB error: {e}")
 
-    is_full = _is_full_scrape_hour()
+
+def build_scraper_function_lists(is_full):
     if is_full:
         logger.info("⏰ FULL-SCRAPE MODE: KST {1,7,13,21}시 — GA 이관 증권사 포함 전체 29개사 스크래핑")
     else:
@@ -494,6 +491,20 @@ async def main(date_str=None):
         sync_scraper_funcs.extend(_filter_ga_enabled(_GA_FIRMS_SYNC).values())
         async_scraper_funcs.extend(_filter_ga_enabled(_GA_FIRMS_ASYNC).values())
         logger.info(f"[Full-Scrape] sync={len(sync_scraper_funcs)}, async={len(async_scraper_funcs)} total={len(sync_scraper_funcs) + len(async_scraper_funcs)}")
+
+    return sync_scraper_funcs, async_scraper_funcs
+
+
+async def main(date_str=None):
+    logger.info("=================== SCRAPER START ===================")
+    scraped_reports = []
+    db = get_db()
+
+    await run_ls_scraper(db)
+
+    sync_scraper_funcs, async_scraper_funcs = build_scraper_function_lists(
+        is_full=_is_full_scrape_hour()
+    )
 
     await run_sync_scrapers(sync_scraper_funcs, scraped_reports)
     try:
