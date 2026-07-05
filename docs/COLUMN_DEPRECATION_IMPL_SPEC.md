@@ -159,7 +159,7 @@ Phase 1의 fallback (`entry.get("save_at") or entry.get("save_time")`) 덕분에
 | `scrapers/nhqv_core.py` | 74 |
 | `scrapers/hana_core.py` | 84 |
 | `scrapers/shinhan_core.py` | 66 |
-| `scrapers/news_core.py` | 59, 93, 127 |
+| `scrapers/news_core.py` | 제거됨 (뉴스 수집은 naver-stock-news 담당) |
 
 **예시** (LS_0.py:189):
 ```python

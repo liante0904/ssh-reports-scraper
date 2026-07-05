@@ -5,7 +5,7 @@
 
 ## 결론
 
-**ssh-reports-scraper에서 `scrape-news.yml` schedule을 제거하고 `workflow_dispatch` only로 전환할 것을 권장한다.**
+**ssh-reports-scraper에서는 `scrape-news.yml`, `run/standalone/news.py`, `scrapers/news_core.py`를 제거한다.**
 
 이유:
 1. ssh-reports-scraper의 뉴스 SCP 경로는 서버 import 단계에서 전량 필터링되어 DB에 insert되지 않는다. 현재 기준으로 비활성 경로에 가깝다.
@@ -13,7 +13,7 @@
 3. `*/5 * * * *` cron은 월 ~8,640회 실행되어 private repo 전환 시 Actions 2,000분 무료 한도를 단독으로 초과한다 (약 13,000분/월 예상).
 4. 공개 레포에 SSH_PRIVATE_KEY를 두는 SCP 패턴은 보안 위험이 크다. naver-stock-news의 SCP도 제거하는 것이 안전하다.
 
-**naver-stock-news 공개 레포 이관은 이미 완료된 상태다.** naver-stock-news는 자체 Docker 컨테이너 + 직접 Telegram 발송으로 독립 운영 중이며, ssh-reports-scraper에 의존하지 않는다. 추가 이관 작업은 필요하지 않다. 다만 양쪽 레포 모두 불필요한 SCP 경로를 정리하는 후속 PR이 필요하다.
+**naver-stock-news 공개 레포 이관은 이미 완료된 상태다.** naver-stock-news는 자체 Docker 컨테이너 + 직접 Telegram 발송으로 독립 운영 중이며, ssh-reports-scraper에 의존하지 않는다. ssh-reports-scraper 쪽 뉴스 workflow/standalone/core는 2026-07-05에 제거 완료했다.
 
 ---
 
@@ -172,8 +172,8 @@ naver-stock-news의 Docker 컨테이너(`app.py`)가 이미 5분 주기로 뉴�
 - `TELEGRAM_CHANNEL_ID_CHOSUNBIZBOT` 등 3개 채널 ID (이미 .env에 존재)
 
 **ssh-reports-scraper 변경점:**
-- `scrape-news.yml` cron 제거 (`workflow_dispatch` only 또는 파일 삭제)
-- `scrapers/news_core.py`, `run/standalone/news.py` 보존 또는 삭제 (결정 필요)
+- `scrape-news.yml` 파일 삭제
+- `scrapers/news_core.py`, `run/standalone/news.py` 삭제
 
 ### Option B: naver-stock-news 공개 레포에서 SCP (보안 보완 필요)
 
@@ -252,10 +252,9 @@ ssh-reports-scraper에서 news_core.py, run/standalone/news.py, scrape-news.yml�
 - `scheduler.py`: `run_ga_import()` 내 EXCLUDED_FIRMS 로그를 `INFO`에서 `DEBUG`로 낮추거나, news_result.json 자체를 incoming에서 무시
 - **근거**: SCP 중단 후에도 남아있는 필터링 로직 정리
 
-### PR 5: ssh-reports-scraper에서 news_core/standalone 정리 (결정 필요)
-- `scrapers/news_core.py`, `run/standalone/news.py` 보존 또는 삭제
-- **보존 시**: 추후 emergency fallback 용도로 주석 처리
-- **삭제 시**: `Dockerfile`, `verify_standalones.sh`에서 news.py 참조 제거 필요
+### PR 5: ssh-reports-scraper에서 news_core/standalone 정리 (완료)
+- `scrapers/news_core.py`, `run/standalone/news.py`, `.github/workflows/scrape-news.yml` 삭제
+- `Dockerfile`, `verify_standalones.sh`에는 news.py 참조가 없어 추가 수정 없음
 
 ---
 
@@ -267,4 +266,4 @@ ssh-reports-scraper에서 news_core.py, run/standalone/news.py, scrape-news.yml�
 | 2 | 뉴스 Telegram 채널을 별도로 쓸지 | **별도 채널 유지** — 이미 조선비즈/네이버속보/네이버랭킹 3개 채널 운영 중 |
 | 3 | 공개 레포에 SSH secret을 둘지 | **제거 권장** — naver-stock-news의 SCP step 삭제 (PR 3). Docker direct로 충분 |
 | 4 | 서버로 SCP할지 직접 Telegram 발송할지 | **Telegram direct** — 이미 동작 중. SCP는 현재 구조에서 불필요 |
-| 5 | ssh-reports-scraper에서 news_core.py를 삭제할지 보존할지 | **보존 후 검토** — 1개월간 naver-stock-news Docker 안정성 확인 후 삭제 결정 |
+| 5 | ssh-reports-scraper에서 news_core.py를 삭제할지 보존할지 | **삭제 완료** — naver-stock-news Docker가 뉴스 발송 책임을 가진다 |
