@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from utils import report_json_store as store
+from utils import json_util
 
 
 def test_format_report_messages_groups_by_firm():
@@ -34,6 +35,75 @@ def test_format_report_messages_groups_by_firm():
     assert message.count("●KB증권") == 1
     assert "*A B*" in message
     assert "[링크](https://example.test/b.pdf)" in message
+
+
+def test_format_legacy_message_matches_json_util_for_single_report():
+    report = {
+        "firm_nm": "하나증권",
+        "article_title": "A_B*",
+        "telegram_url": "",
+        "pdf_url": "https://example.test/a.pdf",
+    }
+
+    assert store.format_legacy_message(report) == json_util.format_message(report)
+
+
+def test_format_legacy_message_matches_json_util_for_report_list():
+    reports = [
+        {
+            "firm_nm": "하나증권",
+            "article_title": "A",
+            "telegram_url": "https://example.test/a.pdf",
+        },
+        {
+            "firm_nm": "KB증권",
+            "article_title": "B",
+            "telegram_url": "https://example.test/b.pdf",
+        },
+    ]
+
+    assert store.format_legacy_message(reports) == json_util.format_message(reports)
+
+
+def test_format_legacy_message_chunks_matches_json_util_chunk_shape():
+    reports = [
+        {
+            "firm_nm": "하나증권",
+            "article_title": "A" * 20,
+            "telegram_url": "https://example.test/a.pdf",
+        },
+        {
+            "firm_nm": "KB증권",
+            "article_title": "B" * 20,
+            "telegram_url": "https://example.test/b.pdf",
+        },
+    ]
+
+    expected_messages = []
+    current_message = ""
+    previous_firm_name = None
+    first_record = True
+    for report in reports:
+        firm_name = report.get("firm_nm", "알 수 없음")
+        message_part = json_util.format_message(report)
+        if first_record:
+            current_message += f"●{firm_name}\n"
+            first_record = False
+            previous_firm_name = firm_name
+        elif firm_name != previous_firm_name:
+            if previous_firm_name is not None:
+                current_message += "\n"
+            current_message += f"\n●{firm_name}\n"
+            previous_firm_name = firm_name
+        if len(current_message) + len(message_part) > 55:
+            expected_messages.append(current_message)
+            current_message = message_part
+        else:
+            current_message += message_part
+    if current_message:
+        expected_messages.append(current_message)
+
+    assert store.format_legacy_message_chunks(reports, message_limit=55) == expected_messages
 
 
 def test_append_report_if_new_writes_once(tmp_path):

@@ -60,6 +60,31 @@ def format_report_message(report, *, include_firm_header=False):
     return message
 
 
+def format_legacy_message(reports):
+    """Return the same text as utils.json_util.format_message."""
+    if isinstance(reports, dict):
+        reports = [reports]
+
+    message_text = ""
+    last_firm_name = None
+    for report in reports:
+        title = report.get("article_title", "")
+        report_url = best_report_url(report)
+
+        message_text = ""
+        if "firm_nm" in report:
+            firm_name = report["firm_nm"]
+            if len(reports) > 1 and firm_name != last_firm_name:
+                message_text += "\n\n" + "●" + firm_name + "\n"
+                last_firm_name = firm_name
+
+    if title:
+        message_text += "*" + title.replace("_", " ").replace("*", "") + "*" + "\n"
+    if report_url:
+        message_text += EMOJI_PICK + "[링크]" + "(" + report_url + ")" + "\n"
+    return message_text
+
+
 def format_report_messages(reports, *, include_firm_headers=True):
     messages = []
     last_firm_name = None
@@ -70,6 +95,38 @@ def format_report_messages(reports, *, include_firm_headers=True):
         if firm_name:
             last_firm_name = firm_name
     return "".join(messages)
+
+
+def format_legacy_message_chunks(reports, *, message_limit=3000):
+    """Mirror json_util.get_unsent_main_ch_data_to_local_json chunk formatting."""
+    messages = []
+    current_message = ""
+    previous_firm_name = None
+    first_record = True
+
+    for report in reports:
+        firm_name = report.get("firm_nm", "알 수 없음")
+        message_part = format_legacy_message(report)
+
+        if first_record:
+            current_message += f"●{firm_name}\n"
+            first_record = False
+            previous_firm_name = firm_name
+        elif firm_name != previous_firm_name:
+            if previous_firm_name is not None:
+                current_message += "\n"
+            current_message += f"\n●{firm_name}\n"
+            previous_firm_name = firm_name
+
+        if len(current_message) + len(message_part) > message_limit:
+            messages.append(current_message)
+            current_message = message_part
+        else:
+            current_message += message_part
+
+    if current_message:
+        messages.append(current_message)
+    return messages
 
 
 def build_report_payload(

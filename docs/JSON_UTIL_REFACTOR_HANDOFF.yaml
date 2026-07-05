@@ -29,10 +29,17 @@ new_entrypoints:
   - best_report_url(report)
   - format_report_message(report, include_firm_header=False)
   - format_report_messages(reports, include_firm_headers=True)
+  - format_legacy_message(reports)
+  - format_legacy_message_chunks(reports, message_limit=3000)
   - build_report_payload(...)
   - append_report_if_new(path, report)
   - select_unsent_reports(reports, target_date, excluded_firms=None)
   - mark_reports_sent_for_date(path, target_date)
+compatibility_rule:
+  - migrating old callers must use format_legacy_message first
+  - do not replace json_util.format_message with format_report_messages unless output differences are accepted
+  - format_legacy_message output must match utils.json_util.format_message exactly
+  - format_legacy_message_chunks mirrors the old 3000-char local-json telegram chunking shape
 risks:
   - used mostly as legacy CLI; external callers may depend on current names
   - save_data_to_local_json returns formatted message string, not just write status
@@ -42,6 +49,7 @@ risks:
 low_side_effect_plan:
   - keep utils/json_util.py untouched
   - add tests for utils/report_json_store.py only
+  - compare compatibility functions against utils/json_util.py before caller migration
   - migrate callers one by one in later commits
   - convert utils/json_util.py to wrappers only after callers are known
 acceptance_tests:
