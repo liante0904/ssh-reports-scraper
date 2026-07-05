@@ -94,7 +94,7 @@ _GA_FIRMS_SYNC = {
 _GA_FIRMS_ASYNC = {
     2: NHQV_checkNewArticle,          # NH투자증권
     # 하나증권(firm_id=3)은 GA 러너 IP가 www.hanaw.com에서 차단되어
-    # GA로는 수집 불가. 서버 전용 regular async_functions에서 직접 호출한다.
+    # GA로는 수집 불가. 서버 전용 regular async scraper list에서 직접 호출한다.
     # _GA_FIRMS_ASYNC에 넣으면 ga_enabled_yn='N'일 때 full-scrape에서도 제외되어
     # 완전히 누락되므로 절대 GA fallback 목록에 포함시키지 않는다.
     # 3: HANA_checkNewArticle,          # 하나증권 — 서버 전용
@@ -308,23 +308,23 @@ async def daily_send_report(date_str=None):
 
     logger.info(f"Daily report send complete: sent_marked={sent_count}, unmarked_failed={failed_count}")
 
-async def run_sync_scrapers(sync_funcs, total_data):
-    for func in sync_funcs:
+async def run_sync_scrapers(sync_scraper_funcs, scraped_reports):
+    for scraper_func in sync_scraper_funcs:
         try:
-            logger.info(f"Scraping (Sync): {func.__name__}")
-            res = await asyncio.wait_for(
-                asyncio.to_thread(func),
+            logger.info(f"Scraping (Sync): {scraper_func.__name__}")
+            scraper_result = await asyncio.wait_for(
+                asyncio.to_thread(scraper_func),
                 timeout=SCRAPER_SYNC_TIMEOUT_SECONDS,
             )
-            if res:
-                total_data.extend(res)
-            log_scraper_health(func.__name__, res)
+            if scraper_result:
+                scraped_reports.extend(scraper_result)
+            log_scraper_health(scraper_func.__name__, scraper_result)
             await asyncio.sleep(1)
         except asyncio.TimeoutError:
-            msg = f"Sync Scraper Timeout ({func.__name__}): {SCRAPER_SYNC_TIMEOUT_SECONDS}s"
+            msg = f"Sync Scraper Timeout ({scraper_func.__name__}): {SCRAPER_SYNC_TIMEOUT_SECONDS}s"
             logger.warning(msg)  # 외부 네트워크 이슈 → ERROR 아님
         except Exception as e:
-            msg = f"Sync Scraper Error ({func.__name__}): {e}"
+            msg = f"Sync Scraper Error ({scraper_func.__name__}): {e}"
             if _is_external_error(str(e)):
                 logger.warning(msg)
             else:
@@ -338,83 +338,83 @@ async def call_async_scraper(func):
     name = func.__name__
     try:
         if inspect.iscoroutinefunction(func):
-            res = await asyncio.wait_for(func(), timeout=SCRAPER_ASYNC_TIMEOUT_SECONDS)
+            scraper_result = await asyncio.wait_for(func(), timeout=SCRAPER_ASYNC_TIMEOUT_SECONDS)
         else:
             # sync 함수가 async 리스트에 잘못 들어온 경우 → to_thread로 안전하게
-            res = await asyncio.to_thread(func)
-        return name, res, None
+            scraper_result = await asyncio.to_thread(func)
+        return name, scraper_result, None
     except asyncio.TimeoutError:
         return name, None, f"Async Scraper Timeout ({name}): {SCRAPER_ASYNC_TIMEOUT_SECONDS}s"
     except Exception as e:
         return name, None, f"Async Scraper Error ({name}): {e}"
 
 
-async def run_async_scrapers(async_funcs, total_data, max_concurrency=3):
-    logger.info(f"Launching {len(async_funcs)} async scrapers (max concurrency: {max_concurrency})...")
+async def run_async_scrapers(async_scraper_funcs, scraped_reports, max_concurrency=3):
+    logger.info(f"Launching {len(async_scraper_funcs)} async scrapers (max concurrency: {max_concurrency})...")
     sem = asyncio.Semaphore(max_concurrency)
     
-    async def sem_call(func):
+    async def sem_call(scraper_func):
         async with sem:
-            return await call_async_scraper(func)
+            return await call_async_scraper(scraper_func)
             
     tasks = []
     
-    for f in async_funcs:
-        if not callable(f):
+    for scraper_func in async_scraper_funcs:
+        if not callable(scraper_func):
             continue
-        tasks.append(sem_call(f))
+        tasks.append(sem_call(scraper_func))
 
     if not tasks:
         return
 
     logger.debug(f"Gathering {len(tasks)} scraper tasks with Semaphore")
     results = await asyncio.gather(*tasks)
-    for name, res, error in results:
+    for name, scraper_result, error in results:
         if error:
             if _is_external_error(str(error)):
                 logger.warning(f"{name}: {error}")  # 외부 네트워크 이슈 → WARNING
             else:
                 SCRAPER_HEALTH_ERRORS.append(error)
                 logger.error(error)
-        elif isinstance(res, list):
-            total_data.extend(res)
-            log_scraper_health(name, res)
-        elif res is not None:
-            msg = f"{name} returned non-list result: {type(res)}"
+        elif isinstance(scraper_result, list):
+            scraped_reports.extend(scraper_result)
+            log_scraper_health(name, scraper_result)
+        elif scraper_result is not None:
+            msg = f"{name} returned non-list result: {type(scraper_result)}"
             SCRAPER_HEALTH_ERRORS.append(msg)
             logger.error(msg)
 
 
-async def sync_reports_to_db(db, total_data, label="DB"):
-    if not total_data:
+async def normalize_and_sync_reports_to_db(db, scraped_reports, label="DB"):
+    if not scraped_reports:
         return 0, 0
 
     import html as _html
     import re as _re
 
-    for data in total_data:
-        title = data.get("article_title")
+    for report_payload in scraped_reports:
+        title = report_payload.get("article_title")
         if title:
             if any(entity in title for entity in ("&amp;", "&lt;", "&gt;", "&quot;")):
-                data["article_title"] = _html.unescape(title)
-            mkt = data.get("mkt_tp", "")
-            if mkt in ("GLOBAL", "global", "US", "JP"):
+                report_payload["article_title"] = _html.unescape(title)
+            market_type = report_payload.get("mkt_tp", "")
+            if market_type in ("GLOBAL", "global", "US", "JP"):
                 if _re.search(r"\([0-9]{5,6}\.K[QS]\)", title) or _re.search(r"코스피|코스닥|국내", title):
-                    data["mkt_tp"] = "KR"
+                    report_payload["mkt_tp"] = "KR"
 
-    unique = {}
-    for data in total_data:
-        unique_key = data.get("report_unique_key") or data.get("key") or data.get("article_url")
+    reports_by_unique_key = {}
+    for report_payload in scraped_reports:
+        unique_key = report_payload.get("report_unique_key") or report_payload.get("key") or report_payload.get("article_url")
         if unique_key:
-            data["report_unique_key"] = unique_key
-            unique[unique_key] = data
+            report_payload["report_unique_key"] = unique_key
+            reports_by_unique_key[unique_key] = report_payload
 
-    total_data.clear()
-    if not unique:
+    scraped_reports.clear()
+    if not reports_by_unique_key:
         logger.warning(f"[{label}] No reports with a usable unique key.")
         return 0, 0
 
-    inserted, updated = db.insert_json_data_list(list(unique.values()))
+    inserted, updated = db.insert_json_data_list(list(reports_by_unique_key.values()))
     logger.success(f"[{label}] DB Sync: {inserted} new, {updated} updated.")
     await asyncio.sleep(1)
     return inserted, updated
@@ -422,7 +422,7 @@ async def sync_reports_to_db(db, total_data, label="DB"):
 
 async def main(date_str=None):
     logger.info("=================== SCRAPER START ===================")
-    total_data = []
+    scraped_reports = []
     db = get_db()
     
     # ── LS증권: 목록 2p 스크래핑 → DB 키 비교 → 신규만 detail ──
@@ -469,8 +469,8 @@ async def main(date_str=None):
     else:
         logger.info("📡 REGULAR MODE: GA 미이관 증권사만 스크래핑 (GA standalone이 처리)")
 
-    sync_funcs = _regular_sync_functions()
-    async_functions = _regular_async_functions()
+    sync_scraper_funcs = _regular_sync_functions()
+    async_scraper_funcs = _regular_async_functions()
 
     # BNKfn_23: BLOCKED_BY_SOURCE_IP — GA & server IP 모두 차단됨.
     # Parser rewrite로 해결 불가. 재활성화는 source IP 변경 후에만 고려.
@@ -479,21 +479,21 @@ async def main(date_str=None):
         logger.info("[Local] SKIP_BNK env set (BNK already BLOCKED_BY_SOURCE_IP).")
 
     if is_full:
-        sync_funcs.extend(_filter_ga_enabled(_GA_FIRMS_SYNC).values())
-        async_functions.extend(_filter_ga_enabled(_GA_FIRMS_ASYNC).values())
-        logger.info(f"[Full-Scrape] sync={len(sync_funcs)}, async={len(async_functions)} total={len(sync_funcs) + len(async_functions)}")
+        sync_scraper_funcs.extend(_filter_ga_enabled(_GA_FIRMS_SYNC).values())
+        async_scraper_funcs.extend(_filter_ga_enabled(_GA_FIRMS_ASYNC).values())
+        logger.info(f"[Full-Scrape] sync={len(sync_scraper_funcs)}, async={len(async_scraper_funcs)} total={len(sync_scraper_funcs) + len(async_scraper_funcs)}")
 
-    await run_sync_scrapers(sync_funcs, total_data)
+    await run_sync_scrapers(sync_scraper_funcs, scraped_reports)
     try:
-        await sync_reports_to_db(db, total_data, label="Sync scrapers")
+        await normalize_and_sync_reports_to_db(db, scraped_reports, label="Sync scrapers")
     except Exception as e:
         logger.error(f"[Sync scrapers] DB error: {e}")
 
-    await run_async_scrapers(async_functions, total_data)
+    await run_async_scrapers(async_scraper_funcs, scraped_reports)
 
-    if total_data:
+    if scraped_reports:
         try:
-            await sync_reports_to_db(db, total_data, label="Async scrapers")
+            await normalize_and_sync_reports_to_db(db, scraped_reports, label="Async scrapers")
         except Exception as e:
             logger.error(f"[Async scrapers] DB error: {e}")
 
