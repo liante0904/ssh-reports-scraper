@@ -385,10 +385,7 @@ async def run_async_scrapers(async_scraper_funcs, scraped_reports, max_concurren
             logger.error(msg)
 
 
-async def normalize_and_sync_reports_to_db(db, scraped_reports, label="DB"):
-    if not scraped_reports:
-        return 0, 0
-
+def normalize_scraped_report_payloads(scraped_reports):
     import html as _html
     import re as _re
 
@@ -402,22 +399,37 @@ async def normalize_and_sync_reports_to_db(db, scraped_reports, label="DB"):
                 if _re.search(r"\([0-9]{5,6}\.K[QS]\)", title) or _re.search(r"코스피|코스닥|국내", title):
                     report_payload["mkt_tp"] = "KR"
 
+
+def dedupe_reports_by_unique_key(scraped_reports):
     reports_by_unique_key = {}
     for report_payload in scraped_reports:
         unique_key = report_payload.get("report_unique_key") or report_payload.get("key") or report_payload.get("article_url")
         if unique_key:
             report_payload["report_unique_key"] = unique_key
             reports_by_unique_key[unique_key] = report_payload
+    return reports_by_unique_key
 
+
+async def insert_scraped_reports(db, reports, label="DB"):
+    inserted, updated = db.insert_json_data_list(list(reports))
+    logger.success(f"[{label}] DB Sync: {inserted} new, {updated} updated.")
+    await asyncio.sleep(1)
+    return inserted, updated
+
+
+async def sync_scraped_reports_to_db(db, scraped_reports, label="DB"):
+    if not scraped_reports:
+        return 0, 0
+
+    normalize_scraped_report_payloads(scraped_reports)
+    reports_by_unique_key = dedupe_reports_by_unique_key(scraped_reports)
     scraped_reports.clear()
+
     if not reports_by_unique_key:
         logger.warning(f"[{label}] No reports with a usable unique key.")
         return 0, 0
 
-    inserted, updated = db.insert_json_data_list(list(reports_by_unique_key.values()))
-    logger.success(f"[{label}] DB Sync: {inserted} new, {updated} updated.")
-    await asyncio.sleep(1)
-    return inserted, updated
+    return await insert_scraped_reports(db, reports_by_unique_key.values(), label=label)
 
 
 async def main(date_str=None):
@@ -485,7 +497,7 @@ async def main(date_str=None):
 
     await run_sync_scrapers(sync_scraper_funcs, scraped_reports)
     try:
-        await normalize_and_sync_reports_to_db(db, scraped_reports, label="Sync scrapers")
+        await sync_scraped_reports_to_db(db, scraped_reports, label="Sync scrapers")
     except Exception as e:
         logger.error(f"[Sync scrapers] DB error: {e}")
 
@@ -493,7 +505,7 @@ async def main(date_str=None):
 
     if scraped_reports:
         try:
-            await normalize_and_sync_reports_to_db(db, scraped_reports, label="Async scrapers")
+            await sync_scraped_reports_to_db(db, scraped_reports, label="Async scrapers")
         except Exception as e:
             logger.error(f"[Async scrapers] DB error: {e}")
 

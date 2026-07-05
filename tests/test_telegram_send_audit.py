@@ -222,3 +222,66 @@ def test_daily_send_report_marks_only_successful_chunks(monkeypatch):
 
     assert calls == ["chunk1", "chunk2"]
     assert db.marked == [1]
+
+
+def test_sync_scraped_reports_normalizes_dedupes_inserts_and_clears():
+    import scraper
+
+    class FakeDB:
+        def __init__(self):
+            self.inserted_payloads = None
+
+        def insert_json_data_list(self, report_payloads):
+            self.inserted_payloads = report_payloads
+            return 1, 1
+
+    scraped_reports = [
+        {
+            "article_title": "국내 반도체 &amp; 장비 (123456.KQ)",
+            "mkt_tp": "GLOBAL",
+            "key": "same-key",
+        },
+        {
+            "article_title": "최신 전략",
+            "mkt_tp": "US",
+            "article_url": "same-key",
+        },
+        {
+            "article_title": "No key",
+        },
+    ]
+    db = FakeDB()
+
+    result = asyncio.run(scraper.sync_scraped_reports_to_db(db, scraped_reports, label="test"))
+
+    assert result == (1, 1)
+    assert scraped_reports == []
+    assert len(db.inserted_payloads) == 1
+    inserted = db.inserted_payloads[0]
+    assert inserted["report_unique_key"] == "same-key"
+    assert inserted["article_title"] == "최신 전략"
+
+
+def test_scraped_report_helpers_normalize_and_dedupe():
+    import scraper
+
+    scraped_reports = [
+        {
+            "article_title": "국내 반도체 &amp; 장비 (123456.KQ)",
+            "mkt_tp": "GLOBAL",
+            "key": "first-key",
+        },
+        {
+            "article_title": "해외 전략",
+            "mkt_tp": "US",
+            "article_url": "second-key",
+        },
+    ]
+
+    scraper.normalize_scraped_report_payloads(scraped_reports)
+    reports_by_unique_key = scraper.dedupe_reports_by_unique_key(scraped_reports)
+
+    assert scraped_reports[0]["article_title"] == "국내 반도체 & 장비 (123456.KQ)"
+    assert scraped_reports[0]["mkt_tp"] == "KR"
+    assert reports_by_unique_key["first-key"]["report_unique_key"] == "first-key"
+    assert reports_by_unique_key["second-key"]["report_unique_key"] == "second-key"
