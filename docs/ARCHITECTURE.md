@@ -405,7 +405,7 @@ EMERGENCY_SCRAPE=1 uv run scheduler.py &
 - **GitHub Actions 탭**: 각 workflow 실행 이력, 성공/실패, 소요 시간
 - **Artifact**: 가장 최근 성공한 run의 JSON 데이터 (1일 보관)
 - **서버 로그**: `~/logs/YYYYMMDD/YYYYMMDD_scheduler.log`
-- **DB**: `tbl_sec_reports` 테이블의 `save_time` 컬럼으로 최신 import 시간 확인
+- **DB**: `tbl_sec_reports` 테이블의 `save_at` 컬럼으로 최신 import 시간 확인
 
 ---
 
@@ -428,10 +428,10 @@ DB증권(19)은 텔레그램용 URL과 다운로드용 URL이 다르다 (gate vi
 
 | 컴포넌트 | READ | WRITE (tbl_sec_reports) | WRITE (다른 테이블) |
 |------|------|------|------|
-| **scraper** (29개 모듈) | - | `report_id`, `firm_id`, `board_id`, `firm_nm`, `article_title`, `article_url`, `download_url`, `telegram_url`, `pdf_url`, `reg_dt`, `writer`, `mkt_tp`, `report_unique_key`, `save_at`, `telegram_sent` | - |
+| **scraper** (29개 모듈) | - | `report_id`, `firm_id`, `board_id`, `firm_nm`, `article_title`, `article_url`, `download_url`, `telegram_url`, `pdf_url`, `report_date`, `writer`, `mkt_tp`, `report_unique_key`, `save_at`, `telegram_sent` | - |
 | **enricher** (tag_extractor) | `article_title`, `firm_nm` | `tags`, `stock_names`, `stock_tickers`, `sector`, `gemini_summary`, `summary_time`, `summary_model`, `target_price`, `rating`, `revision_type`, `report_type`, `fnguide_summary_id`, `sync_status` | `tbl_report_enricher_tags`, `tbl_report_ai_summaries`, `tbl_report_price_targets` |
 | **pdf-archiver** | `download_url` | `pdf_sync_status`, `download_status_yn`, `pdf_hash` | `tbl_sec_reports_pdf_archive` (26컬럼 전체) |
-| **scraper.py enrich_data()** | `telegram_url`, `report_unique_key`, `writer`, `reg_dt` | `telegram_url` (DBfi gate/LS msg URL 복구) | - |
+| **scraper.py enrich_data()** | `telegram_url`, `report_unique_key`, `writer`, `report_date` | `telegram_url` (DBfi gate/LS msg URL 복구) | - |
 | **scheduler.py** | `telegram_sent`, `telegram_url`, `article_title` | `telegram_sent=true` (발송 완료) | - |
 
 ---
@@ -454,7 +454,7 @@ DB증권(19)은 텔레그램용 URL과 다운로드용 URL이 다르다 (gate vi
 ### 7.3 `tbl_sec_reports` — upsert 로직 (report_unique_key 기반)
 ```sql
 INSERT INTO tbl_sec_reports (
-    firm_id, board_id, firm_nm, reg_dt,
+    firm_id, board_id, firm_nm, report_date,
     article_title, article_url, telegram_sent, download_url,
     telegram_url, pdf_url, writer, mkt_tp, report_unique_key, save_at
 ) VALUES %s
@@ -462,7 +462,7 @@ ON CONFLICT (report_unique_key) DO UPDATE SET
     firm_id             = EXCLUDED.firm_id,
     firm_nm             = EXCLUDED.firm_nm,
     article_title       = EXCLUDED.article_title,
-    reg_dt              = EXCLUDED.reg_dt,
+    report_date         = EXCLUDED.report_date,
     writer              = EXCLUDED.writer,
     mkt_tp              = EXCLUDED.mkt_tp,
     download_url        = COALESCE(NULLIF(EXCLUDED.download_url, ''), tbl_sec_reports.download_url),

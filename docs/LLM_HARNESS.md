@@ -139,7 +139,7 @@ uv run python scripts/harness.py --firm kb --offline
 - workflow result filename과 validate/SCP filename이 일치하는지
 - fake config 또는 fixture config로 core가 type error 없이 실행되는지
 - 결과가 list[dict]인지
-- `report_unique_key`, `reg_dt`, `firm_nm` 필수 필드가 있는지
+- `report_unique_key`, `report_date`, `firm_nm` 필수 필드가 있는지
 - `scripts/validate_scrape_result.py` 정책과 manifest empty policy가 일치하는지
 - Dockerfile COPY 누락이 없는지
 

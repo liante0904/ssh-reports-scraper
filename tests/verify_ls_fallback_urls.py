@@ -29,15 +29,15 @@ async def verify_ls_urls():
     
     # 1. 대상 데이터 추출 (msg. 방식이 아닌 LS 리포트)
     query = """
-        SELECT report_id, "article_title", "telegram_url", "reg_dt"
-        FROM "tbl_sec_reports"
-        WHERE "firm_nm" = 'LS증권'
-          AND "telegram_url" NOT LIKE 'https://msg.ls-sec.co.kr/%'
-          AND "telegram_url" LIKE 'https://www.ls-sec.co.kr/upload/%'
-        ORDER BY "reg_dt" DESC
+        SELECT report_id, article_title, telegram_url, report_date
+        FROM tbl_sec_reports
+        WHERE firm_nm = 'LS증권'
+          AND telegram_url NOT LIKE 'https://msg.ls-sec.co.kr/%'
+          AND telegram_url LIKE 'https://www.ls-sec.co.kr/upload/%'
+        ORDER BY report_date DESC
     """
     
-    records = await db.execute_query(query)
+    records = db._fetchall(query)
     total = len(records)
     logger.info(f"검증 대상 LS Fallback URL (upload/ 방식): {total}건")
     
@@ -61,7 +61,7 @@ async def verify_ls_urls():
         for i, is_valid in enumerate(results):
             record = samples[i]
             status = "✅ [OK]" if is_valid else "❌ [FAILED]"
-            logger.info(f"{status} | {record['reg_dt']} | {record['article_title'][:30]}... | {record['telegram_url']}")
+            logger.info(f"{status} | {record['report_date']} | {record['article_title'][:30]}... | {record['telegram_url']}")
             if is_valid:
                 success_count += 1
 

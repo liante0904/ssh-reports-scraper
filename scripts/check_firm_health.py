@@ -12,7 +12,7 @@ conn = db.get_connection()
 cur = conn.cursor()
 cur.execute("""
     SELECT firm_id, firm_nm, COUNT(*) as total,
-           MAX(reg_dt) as last_reg_dt, MAX(save_time::date) as last_save
+           MAX(report_date) as last_report_date, MAX(save_at::date) as last_save
     FROM tbl_sec_reports WHERE firm_id IS NOT NULL
     GROUP BY firm_id, firm_nm ORDER BY firm_id
 """)
@@ -21,19 +21,19 @@ today = date.today()
 URGENT_DAYS = 30
 WARN_DAYS = 7
 
-print(f"{'ord':>3} {'firm':<22} {'total':>7} {'last_reg_dt':>12} {'last_save':>12} {'days_ago':>9} status")
+print(f"{'ord':>3} {'firm':<22} {'total':>7} {'last_report':>12} {'last_save':>12} {'days_ago':>9} status")
 print("-" * 85)
 
 alerts = []
 for r in cur.fetchall():
-    o, nm, total, reg_dt, save_dt = r
-    reg_str = str(reg_dt or "-")
+    o, nm, total, report_date, save_dt = r
+    report_date_str = str(report_date or "-")
     save_str = str(save_dt or "-")
 
     try:
-        last_date = date(int(reg_str[:4]), int(reg_str[4:6]), int(reg_str[6:8]))
+        last_date = report_date if isinstance(report_date, date) else date.fromisoformat(report_date_str)
         days_ago = (today - last_date).days
-    except:
+    except Exception:
         days_ago = -1
 
     if days_ago >= URGENT_DAYS:
@@ -47,7 +47,7 @@ for r in cur.fetchall():
     else:
         status = "OK"
 
-    print(f"{o:>3} {str(nm or '?'):<22} {total:>7} {reg_str:>12} {save_str:>12} {days_ago:>8}d {status}")
+    print(f"{o:>3} {str(nm or '?'):<22} {total:>7} {report_date_str:>12} {save_str:>12} {days_ago:>8}d {status}")
 
 conn.close()
 
