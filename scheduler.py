@@ -92,20 +92,17 @@ def run_scraper():
                 pass
 
 
-def run_ga_import():
-    """GA에서 SCP로 전송된 JSON 파일을 DB에 import.
+def _discover_ga_files():
+    """GA import 대상 디렉토리 확인 후 JSON 파일 목록과 경로들을 반환.
 
-    대상 디렉토리: /app/incoming/ga-scrapes/
-    처리 완료된 파일은 archive/ 로 이동, 실패 파일은 failed/ 로 이동.
+    Returns:
+        (json_files, archive_dir, failed_dir) — 파일이 없으면 ([], None, None)
     """
-    import json
-    import shutil
     from pathlib import Path
-    from models.db_factory import get_db
 
     incoming_dir = Path("/app/incoming/ga-scrapes")
     if not incoming_dir.exists():
-        return  # 디렉토리 없으면 스킵 (아직 GA 연동 안 됐을 수 있음)
+        return [], None, None
 
     archive_dir = incoming_dir / "archive"
     failed_dir = incoming_dir / "failed"
@@ -113,41 +110,70 @@ def run_ga_import():
     failed_dir.mkdir(exist_ok=True)
 
     json_files = sorted(incoming_dir.glob("*.json"))
+    if json_files:
+        logger.info(f"[GA-Import] {len(json_files)} file(s) found in {incoming_dir}")
+    return json_files, archive_dir, failed_dir
+
+
+def _process_ga_file(fpath, db) -> tuple[int, list[str]]:
+    """GA JSON 파일 1개를 읽어 DB에 insert.
+
+    Returns:
+        (inserted_count, new_keys) — new_keys는 이번에 새로 insert된 report_unique_key 목록.
+    Raises:
+        ValueError: JSON 형식 오류.
+        Exception: 그 외 DB/IO 오류 (호출자가 archive/failed 결정).
+    """
+    import json
+
+    data = json.loads(fpath.read_text(encoding="utf-8"))
+    if not isinstance(data, list):
+        raise ValueError(f"Expected JSON array, got {type(data).__name__}")
+
+    # 배치 내 중복 제거 (같은 게시판 중복 등재 방지)
+    deduped = {}
+    for d in data:
+        k = d.get("report_unique_key")
+        if k and k not in deduped:
+            deduped[k] = d
+    deduped_list = list(deduped.values())
+    if len(deduped_list) < len(data):
+        logger.info(f"[GA-Import] {fpath.name}: deduped {len(data)} → {len(deduped_list)}")
+
+    ins, upd = db.insert_json_data_list(deduped_list)
+    logger.success(f"[GA-Import] {fpath.name}: {ins} inserted, {upd} updated")
+
+    new_keys = getattr(db, "_last_inserted_keys", []) if ins > 0 else []
+    return ins, new_keys
+
+
+def run_ga_import():
+    """GA에서 SCP로 전송된 JSON 파일을 DB에 import → 텔레그램 발송.
+
+    흐름: 파일 발견 → 개별 처리(read→dedup→insert) → broadcast → archive/failed.
+    """
+    import shutil
+    from models.db_factory import get_db
+
+    json_files, archive_dir, failed_dir = _discover_ga_files()
     if not json_files:
         return
 
-    logger.info(f"[GA-Import] {len(json_files)} file(s) found in {incoming_dir}")
     db = get_db()
-
     for fpath in json_files:
-        # 💡 자가 치유 가드: 다른 프로세스가 이미 파일을 처리하여 가로챈 경우, 예외 없이 스킵합니다.
+        # 💡 자가 치유 가드: 다른 프로세스가 이미 파일을 처리한 경우 스킵
         if not fpath.exists():
             logger.info(f"[GA-Import] {fpath.name} already processed by another instance. Skipping.")
             continue
         try:
-            data = json.loads(fpath.read_text(encoding="utf-8"))
-            if not isinstance(data, list):
-                raise ValueError(f"Expected JSON array, got {type(data).__name__}")
-            # 배치 내 중복 제거 (같은 게시판 중복 등재 방지)
-            deduped = {}
-            for d in data:
-                k = d.get("report_unique_key")
-                if k and k not in deduped:
-                    deduped[k] = d
-            deduped_list = list(deduped.values())
-            if len(deduped_list) < len(data):
-                logger.info(f"[GA-Import] {fpath.name}: deduped {len(data)} → {len(deduped_list)}")
-            ins, upd = db.insert_json_data_list(deduped_list)
-            logger.success(f"[GA-Import] {fpath.name}: {ins} inserted, {upd} updated")
+            ins, new_keys = _process_ga_file(fpath, db)
             if ins > 0:
                 invalidate_api_cache()
-                # 신규 insert건만 텔레그램 채널 발송 (db._last_inserted_keys 사용)
-                try:
-                    new_keys = getattr(db, "_last_inserted_keys", [])
-                    if new_keys:
+                if new_keys:
+                    try:
                         _broadcast_ga_reports(db, new_keys)
-                except Exception as e:
-                    logger.warning(f"[GA-Import] broadcast failed (non-fatal): {e}")
+                    except Exception as e:
+                        logger.warning(f"[GA-Import] broadcast failed (non-fatal): {e}")
             shutil.move(str(fpath), str(archive_dir / fpath.name))
         except Exception as e:
             logger.error(f"[GA-Import] {fpath.name} failed: {e}")

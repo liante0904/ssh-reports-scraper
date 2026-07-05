@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from models.db_factory import get_db
-from models.FirmInfo import FirmInfo
+from models.firm_utils import firm_name as _firm_name
 from utils.telegram_util import sendMarkDownText
 from utils.telegram_message_builder import build_telegram_messages
 
@@ -26,7 +26,7 @@ async def reset_and_send(firm_order, date_str, board_order=None, do_send=False):
     # 1. 상태 초기화
     await db.reset_send_status(firm_order, date_str, board_order)
     
-    firm_name = FirmInfo.firm_names[firm_order] if firm_order < len(FirmInfo.firm_names) else f"Unknown({firm_order})"
+    firm_name = _firm_name(firm_order)
     logger.success(f"[{date_str}] {firm_name} 발송 상태 초기화 완료.")
 
     # 2. 즉시 발송 처리

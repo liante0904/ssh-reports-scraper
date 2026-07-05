@@ -15,13 +15,54 @@
 
 ## 고정 파일
 
-LLM 지시와 결과는 아래 네 파일만 사용한다.
+LLM 지시와 결과는 아래 네 파일만 사용한다. **JSON 우선** (토큰 절약, 키 짧게, 중복 없이, 구조화).
 
 ```text
-.agent_tasks/deepseek_next.md
-.agent_tasks/deepseek_result.md
-.agent_tasks/gemini_agy_next.md
-.agent_tasks/gemini_agy_result.md
+.agent_tasks/deepseek_next.json   ← DeepSeek 작업 지시 (JSON)
+.agent_tasks/deepseek_result.json ← DeepSeek 작업 결과 (JSON)
+.agent_tasks/gemini_agy_next.json ← Gemini/AGY 작업 지시 (JSON)
+.agent_tasks/gemini_agy_result.json ← Gemini/AGY 작업 결과 (JSON)
+```
+
+기존 `.md` 파일은 deprecated — 새로운 작업은 항상 `.json`으로 작성한다.
+
+### JSON 스키마 (compact)
+
+**Task file** (`_next.json`):
+```json
+{
+  "agt": "deepseek|gemini",
+  "ver": "ISO8601 KST",
+  "typ": "impl|investigate|audit|doc|review",
+  "goal": "한문장 목표",
+  "ctx": "배경 컨텍스트 (짧게)",
+  "src": ["읽기전용 파일목록"],
+  "mod": [{"f": "파일경로", "do": "무엇을 바꾸는지"}],
+  "ban": ["금지파일", "op:db_write", "op:deploy", "op:main_merge", "op:push"],
+  "tst": ["검증명령어"],
+  "br": "브랜치명",
+  "msg": "커밋메시지",
+  "out": "결과파일경로"
+}
+```
+
+Key 약어:
+- `agt`=agent, `ver`=version/ts, `typ`=type, `ctx`=context
+- `src`=source(read-only), `mod`=modifications, `ban`=forbidden
+- `tst`=tests, `br`=branch, `msg`=commit message, `out`=output
+
+**Result file** (`_result.json`):
+```json
+{
+  "agt": "deepseek|gemini",
+  "ts": "ISO8601 KST",
+  "sum": "한문단 요약",
+  "files": ["변경된 파일 목록"],
+  "ok": true,
+  "tst": [{"cmd": "검증명령어", "ok": true}],
+  "blk": [{"what": "블로커 설명"}],
+  "next": "다음 추천 작업"
+}
 ```
 
 새로운 `_next.md`, `_result.md`, 임시 markdown 파일을 만들지 않는다.
@@ -67,13 +108,13 @@ LLM 지시와 결과는 아래 네 파일만 사용한다.
 DeepSeek:
 
 ```text
-/home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/.agent_tasks/deepseek_next.md 를 읽고 그대로 수행해. 결과는 /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/.agent_tasks/deepseek_result.md 에 작성해. 결과에는 Agent 이름(DeepSeek)과 완료 시각을 YYYY-MM-DD HH:MM:SS KST 형식으로 초 단위까지 반드시 포함해.
+/home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/.agent_tasks/deepseek_next.json 을 읽고 그대로 수행해. 결과는 /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/.agent_tasks/deepseek_result.json 에 JSON으로 작성해. "agt":"deepseek","ts":"ISO8601 KST" 반드시 포함.
 ```
 
 Gemini/AGY:
 
 ```text
-/home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/.agent_tasks/gemini_agy_next.md 를 읽고 그대로 수행해. 결과는 /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/.agent_tasks/gemini_agy_result.md 에 작성해. 결과에는 Agent 이름(Gemini/AGY)과 완료 시각을 YYYY-MM-DD HH:MM:SS KST 형식으로 초 단위까지 반드시 포함해.
+/home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/.agent_tasks/gemini_agy_next.json 을 읽고 그대로 수행해. 결과는 /home/ubuntu/workspace/external.reports-hub/apps/scrapers/ssh-reports-scraper/.agent_tasks/gemini_agy_result.json 에 JSON으로 작성해. "agt":"gemini","ts":"ISO8601 KST" 반드시 포함.
 ```
 
 ## tmux 자동 송신
@@ -106,78 +147,53 @@ bash scripts/llm_dispatch.sh gemini --send --wait
 - 배포
 - LLM CLI가 입력 대기 중인지 확인되지 않은 상태
 
-## DeepSeek 작업서 템플릿
+## DeepSeek 작업서 템플릿 (JSON)
 
-```markdown
-# DeepSeek Next Task
-
-## Agent
-
-DeepSeek
-
-## Requested At
-
-YYYY-MM-DD HH:MM:SS KST
-
-## Task Type
-
-조사 | 구현 | 검증 | 문서화 | 배포준비
-
-## Goal
-
-한 문단으로 목표를 쓴다.
-
-## Inputs
-
-읽을 파일과 확인할 명령만 적는다.
-
-## Required Changes
-
-수정이 필요한 파일과 범위를 좁게 적는다.
-
-## Forbidden
-
-하지 말아야 할 일을 명시한다.
-
-## Validation
-
-반드시 실행할 검증 명령을 적는다.
-
-## Commit / Push
-
-브랜치명, 커밋 메시지, push 여부를 적는다.
-main merge는 명시 승인 전 금지한다.
-
-## Output
-
-결과는 `.agent_tasks/deepseek_result.md`에만 작성한다.
+`.agent_tasks/deepseek_next.json`:
+```json
+{
+  "agt": "deepseek",
+  "ver": "ISO8601 KST",
+  "typ": "impl|investigate|doc|review",
+  "goal": "한 문단으로 목표",
+  "ctx": "배경 컨텍스트",
+  "src": ["읽을 파일"],
+  "mod": [{"f": "파일", "do": "변경내용"}],
+  "ban": ["금지파일", "op:db_write", "op:deploy", "op:main_merge"],
+  "tst": ["검증명령어"],
+  "br": "브랜치명",
+  "msg": "커밋메시지",
+  "out": ".agent_tasks/deepseek_result.json"
+}
 ```
 
-## 결과 형식
+## 결과 형식 (JSON)
 
-DeepSeek 결과에는 반드시 포함한다.
-
-```text
-Agent:
-Completed At:
-Branch:
-Commit:
-Changed Files:
-Validation:
-Main touched:
-Blockers:
-Next Recommended Step:
+DeepSeek 결과 (`deepseek_result.json`):
+```json
+{
+  "agt": "deepseek",
+  "ts": "ISO8601 KST",
+  "sum": "한문단 요약",
+  "br": "브랜치명",
+  "cm": "커밋해시",
+  "files": ["변경파일"],
+  "tst": [{"cmd": "명령어", "ok": true}],
+  "blk": [{"what": "블로커"}],
+  "next": "다음 추천 작업"
+}
 ```
 
-Gemini/AGY 결과에는 반드시 포함한다.
-
-```text
-Agent:
-Completed At:
-요약:
-사람이 확인할 것:
-중단 조건:
-승인 문장:
+Gemini/AGY 결과 (`gemini_agy_result.json`):
+```json
+{
+  "agt": "gemini",
+  "ts": "ISO8601 KST",
+  "sum": "한문단 요약",
+  "review": ["사람이 확인할 항목"],
+  "blk": ["중단 조건"],
+  "ok": "승인 문장"
+}
 ```
 
 ## 운영 로그 조사 규칙
@@ -212,7 +228,7 @@ Codex는 매번 전체 코드를 길게 재분석하지 않고, 하위 LLM에게
 
 ### 1단계: DeepSeek 조사 큐
 
-DeepSeek에게 맡기는 작업:
+DeepSeek에게 맡기는 작업 (`deepseek_next.json` → `deepseek_result.json`):
 
 - 특정 장애나 기술부채 후보를 파일 단위로 조사
 - 영향 파일, 호출부, 테스트 범위 목록화
@@ -228,7 +244,7 @@ DeepSeek에게 맡기지 않는 작업:
 
 ### 2단계: Gemini/AGY 압축 큐
 
-Gemini/AGY에게 맡기는 작업:
+Gemini/AGY에게 맡기는 작업 (`gemini_agy_next.json` → `gemini_agy_result.json`):
 
 - DeepSeek 결과를 사람이 승인하기 쉬운 문장으로 축약
 - 위험도, 중단 조건, 승인 문장 정리
@@ -247,8 +263,8 @@ Gemini/AGY에게 맡기지 않는 작업:
 Codex는 아래 입력만 보고 판단하는 것을 목표로 한다.
 
 ```text
-1. deepseek_result.md
-2. gemini_agy_result.md
+1. deepseek_result.json
+2. gemini_agy_result.json
 3. git diff --stat
 4. 필요한 경우 해당 diff의 핵심 파일 일부
 ```

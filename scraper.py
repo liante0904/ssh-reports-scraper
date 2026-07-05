@@ -1,4 +1,4 @@
-# -*- coding:utf-8 -*- 
+# -*- coding:utf-8 -*-
 import os
 import sys
 import asyncio
@@ -15,6 +15,16 @@ setup_logger("scraper")
 from utils.telegram_util import sendMarkDownText
 from utils.telegram_message_builder import build_telegram_message_chunks
 from models.db_factory import get_db
+
+# scraper configuration (env vars, timeouts, constants)
+from scraper_config import (
+    SCRAPER_STALE_DAYS, SCRAPER_SYNC_TIMEOUT_SECONDS, SCRAPER_ASYNC_TIMEOUT_SECONDS,
+    LS_LIST_TIMEOUT_SECONDS, LS_DETAIL_TIMEOUT_SECONDS,
+    TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
+    BLOCKED_BY_SOURCE_IP, KNOWN_EXTERNAL_ERRORS,
+    FIRM_ID_LS, FIRM_ID_DS, FIRM_ID_DBFI,
+    FULL_SCRAPE_HOURS, STALE_OVERRIDES,
+)
 
 # business modules
 from modules.LS_0 import LS_checkNewArticle, LS_detail, LS_enrich
@@ -48,34 +58,14 @@ from modules.Yuanta_27 import Yuanta_checkNewArticle
 from modules.Heungkuk_28 import Heungkuk_checkNewArticle       # GA 이관됨 (full-scrape fallback)
 
 load_dotenv()
-token = os.getenv('TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET')
-chat_id = os.getenv('TELEGRAM_CHANNEL_ID_REPORT_ALARM')
-SCRAPER_STALE_DAYS = int(os.getenv("SCRAPER_STALE_DAYS", "5"))
-SCRAPER_SYNC_TIMEOUT_SECONDS = int(os.getenv("SCRAPER_SYNC_TIMEOUT_SECONDS", "180"))
-SCRAPER_ASYNC_TIMEOUT_SECONDS = int(os.getenv("SCRAPER_ASYNC_TIMEOUT_SECONDS", "300"))
-LS_LIST_TIMEOUT_SECONDS = int(os.getenv("LS_LIST_TIMEOUT_SECONDS", "900"))
-LS_DETAIL_TIMEOUT_SECONDS = int(os.getenv("LS_DETAIL_TIMEOUT_SECONDS", "900"))
+token = TELEGRAM_BOT_TOKEN
+chat_id = TELEGRAM_CHAT_ID
 SCRAPER_HEALTH_ERRORS = []
-
-# BLOCKED_BY_SOURCE_IP — source IP 차단으로 인해 모든 automated fallback에서 제외
-# BNKfn_23: GA & server 모두 source IP 차단. Parser rewrite로 해결 불가.
-# LS_0: local server IP 차단. GA WARP 우회 가능하나, 로컬 fallback에선 skip.
-_BLOCKED_BY_SOURCE_IP = frozenset({"BNKfn_23", "LS_0"})
-
-# Watchdog ERROR 알림 제외 패턴 — 외부 이슈로 인한 알람 노이즈 방지
-_KNOWN_EXTERNAL_ERRORS = [
-    "LS 직접 접속 실패",       # LS 사이트 서버 IP 차단 → WARP 우회
-    "ConnectTimeoutError",      # 네트워크 타임아웃
-    "WARP",                     # WARP 관련
-    "BNK.*0건",                # BNK IP 차단 (외부 이슈)
-    "blocked by source",        # IP 차단
-    "Max retries exceeded",     # requests 재시도 초과
-]
 
 def _is_external_error(msg: str) -> bool:
     """외부 네트워크/차단 이슈로 인한 에러인지 확인 (watchdog 알람 제외 대상)"""
     import re
-    return any(re.search(pattern, msg) for pattern in _KNOWN_EXTERNAL_ERRORS)
+    return any(re.search(pattern, msg) for pattern in KNOWN_EXTERNAL_ERRORS)
 
 # GA 이관 증권사 — 평시(30분 간격)에는 GA standalone이 처리, 서버는 full-scrape 시간대에만 fallback 실행
 # {firm_id: func} 매핑. PostgreSQL tbm_sec_firm_info.ga_enabled_yn='Y' 여부로 필터링.
@@ -118,10 +108,6 @@ _GA_FIRMS_ASYNC = {
 }
 
 
-FIRM_ID_LS = 0
-FIRM_ID_DS = 11
-FIRM_ID_DBFI = 19
-
 
 _ENRICHERS = {
     FIRM_ID_LS: LS_enrich,
@@ -145,33 +131,16 @@ def _filter_ga_enabled(mapping: dict) -> dict:
         logger.warning("ga_enabled lookup failed, falling back to all GA candidates")
         return dict(mapping)
 
-# KST 1시, 7시, 13시, 21시 — GA 장애 대비 전체 증권사 스크래핑
-_FULL_SCRAPE_HOURS = frozenset({1, 7, 13, 21})
-
 def _is_full_scrape_hour():
     """현재 KST 시각이 full-scrape 시간대(1,7,13,21시)인지 반환"""
     try:
         import pytz
         kst_now = datetime.datetime.now(pytz.timezone("Asia/Seoul"))
-        return kst_now.hour in _FULL_SCRAPE_HOURS
+        return kst_now.hour in FULL_SCRAPE_HOURS
     except ImportError:
-        # pytz 없으면 KST = UTC+9 근사
         utc_now = datetime.datetime.now(datetime.timezone.utc)
         kst_hour = (utc_now.hour + 9) % 24
-        return kst_hour in _FULL_SCRAPE_HOURS
-
-# 모듈별 stale 임계값 오버라이드 (예: "TOSSinvest_checkNewArticle=30,OtherScraper=14")
-_STALE_OVERRIDES = {}
-_raw_overrides = os.getenv("SCRAPER_STALE_OVERRIDES", "")
-if _raw_overrides:
-    for pair in _raw_overrides.split(","):
-        pair = pair.strip()
-        if "=" in pair:
-            k, v = pair.split("=", 1)
-            try:
-                _STALE_OVERRIDES[k.strip()] = int(v.strip())
-            except ValueError:
-                pass
+        return kst_hour in FULL_SCRAPE_HOURS
 
 
 def _regular_sync_functions():
@@ -224,7 +193,7 @@ def log_scraper_health(name, rows):
 
     try:
         max_date = datetime.datetime.strptime(max_reg_dt, "%Y%m%d").date()
-        stale_days = _STALE_OVERRIDES.get(name, SCRAPER_STALE_DAYS)
+        stale_days = STALE_OVERRIDES.get(name, SCRAPER_STALE_DAYS)
         stale_cutoff = datetime.datetime.now().date() - datetime.timedelta(days=stale_days)
         if max_date < stale_cutoff:
             msg = (
@@ -242,32 +211,34 @@ def log_scraper_health(name, rows):
 async def enrich_data():
     logger.info("Starting data enrichment process...")
     db = get_db()
-    from models.FirmInfo import FirmInfo
+    from models.firm_utils import all_firm_names, firm_name as _firm_name, telegram_update_required
     import pytz
     from datetime import datetime
     kst_hour = datetime.now(pytz.timezone('Asia/Seoul')).hour
     is_idle_time = kst_hour >= 20 or kst_hour < 6
 
-    for firm_id in range(len(FirmInfo.firm_names)):
-        firm_info = FirmInfo(firm_id=firm_id, board_id=0)
-        firm_name = firm_info.get_firm_name()
-        if not (firm_name and firm_info.telegram_update_required):
+    for firm_id in range(len(all_firm_names())):
+        name = _firm_name(firm_id)
+        if not (name and telegram_update_required(firm_id)):
             continue
 
+        # FirmInfo 인스턴스는 db.fetch_all_empty_telegram_url_articles에 필요
+        from models.FirmInfo import FirmInfo
+        firm_info = FirmInfo(firm_id=firm_id, board_id=0)
         enrichment_targets = await db.fetch_all_empty_telegram_url_articles(firm_info=firm_info, days_limit=3)
         if not enrichment_targets:
             continue
 
-        logger.info(f"[{firm_name}] Found {len(enrichment_targets)} records for enrichment (최근 3일).")
+        logger.info(f"[{name}] Found {len(enrichment_targets)} records for enrichment (최근 3일).")
         try:
             enricher = _ENRICHERS.get(firm_id)
             if enricher:
                 await enricher(db, enrichment_targets, firm_info, is_idle_time)
             elif firm_id in _ENRICHMENT_SKIP_FIRM_IDS:
                 pass
-            logger.success(f"[{firm_name}] Enrichment completed.")
+            logger.success(f"[{name}] Enrichment completed.")
         except Exception as e:
-            logger.error(f"[{firm_name}] Enrichment failed: {e}")
+            logger.error(f"[{name}] Enrichment failed: {e}")
 
 
 async def daily_send_report(date_str=None):
