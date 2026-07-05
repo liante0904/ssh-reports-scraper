@@ -118,6 +118,18 @@ _GA_FIRMS_ASYNC = {
 }
 
 
+FIRM_ID_LS = 0
+FIRM_ID_DS = 11
+FIRM_ID_DBFI = 19
+
+
+_ENRICHERS = {
+    FIRM_ID_LS: LS_enrich,
+    FIRM_ID_DBFI: DBfi_enrich,
+}
+_ENRICHMENT_SKIP_FIRM_IDS = frozenset({FIRM_ID_DS})
+
+
 def _filter_ga_enabled(mapping: dict) -> dict:
     """PostgreSQL tbm_sec_firm_info.ga_enabled_yn='Y'인 firm만 반환.
     메타데이터 로드 실패, SQLite/static fallback, 또는 예외 발생 시
@@ -242,18 +254,17 @@ async def enrich_data():
         if not (firm_name and firm_info.telegram_update_required):
             continue
 
-        records = await db.fetch_all_empty_telegram_url_articles(firm_info=firm_info, days_limit=3)
-        if not records:
+        enrichment_targets = await db.fetch_all_empty_telegram_url_articles(firm_info=firm_info, days_limit=3)
+        if not enrichment_targets:
             continue
 
-        logger.info(f"[{firm_name}] Found {len(records)} records for enrichment (최근 3일).")
+        logger.info(f"[{firm_name}] Found {len(enrichment_targets)} records for enrichment (최근 3일).")
         try:
-            if firm_id == 19:
-                await DBfi_enrich(db, records, firm_info, is_idle_time)
-            elif firm_id == 0:
-                await LS_enrich(db, records, firm_info, is_idle_time)
-            elif firm_id == 11:
-                pass  # DS
+            enricher = _ENRICHERS.get(firm_id)
+            if enricher:
+                await enricher(db, enrichment_targets, firm_info, is_idle_time)
+            elif firm_id in _ENRICHMENT_SKIP_FIRM_IDS:
+                pass
             logger.success(f"[{firm_name}] Enrichment completed.")
         except Exception as e:
             logger.error(f"[{firm_name}] Enrichment failed: {e}")
