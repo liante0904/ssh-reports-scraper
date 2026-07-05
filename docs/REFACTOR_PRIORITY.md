@@ -1,6 +1,6 @@
 # Refactoring Priorities (LLM-Friendly Codebase)
 
-> 갱신: 2026-07-01 | 기준: LLM이 코드 읽을 때 헷갈리거나 컨텍스트 낭비를 유발하는 패턴
+> 갱신: 2026-07-05 | 기준: LLM이 코드 읽을 때 헷갈리거나 컨텍스트 낭비를 유발하는 패턴
 
 ## 전체 통합 테이블
 
@@ -17,7 +17,7 @@
 | 9 | 백엔드 | `.KQ`/`.KS` 필터 | `\(\d{5,6}\.K[QS]\)` 패턴이 `/매수` 변형 못 잡음 | `\([^)]+\.K[QS][^)]*\)` 추가 | 하 | ✅ 완료 |
 | 10 | 스크래퍼 | 한화(21) GA fallback | GA standalone은 있는데 서버 fallback 없음 | `_GA_FIRMS_ASYNC`에 추가 | 하 | ✅ 완료 |
 | 11 | 문서 | 21개 마크다운 | LLM_* 6개, 운영문서 중복 | 10개로 통합 | 하 | ✅ 완료 |
-| 12 | 코드 | `_TEMPLATE.py` 예제 | `sec_firm_order`, `article_board_order` 그대로 | `firm_id`, `board_id`로 교체 | 하 | 🔶 agy |
+| 12 | 코드 | `_TEMPLATE.py` 예제 | `sec_firm_order`, `article_board_order` 그대로 | `firm_id`, `board_id`로 교체 | 하 | 🔶 보류 |
 | 13 | 코드 | `run/colab/bnk_scraper.py` | 동일 | 동일 | 하 | 🔶 agy |
 | 14 | 코드 | `scripts/standalone_bnk_scraper.py` | 동일 | 동일 | 하 | 🔶 agy |
 | 15 | 코드 | `scripts/standalone_ls_scraper.py` | `"key": key` | `"report_unique_key": key` | 하 | 🔶 agy |
@@ -37,7 +37,7 @@
 | 29 | 코드 | `scripts/import_*_artifact.py` | `sec_firm_order=0` 하드코딩 | `firm_id=0` | 하 | ✅ 완료 |
 | 30 | 코드 | `modules/` + `scrapers/` | 29개씩 2개 디렉토리 분산 | 통합 검토 | 중 | 🔲 검토 |
 | 31 | 코드 | `checkNewArticle` 비동기/동기 혼재 | 모듈마다 `async def` / `def` 달라서 호출 패턴 다름 | 표준화 | 중 | 🔲 검토 |
-| 32 | 코드 | `models/db_factory.py` | SQLite/Postgres 분기 → ssh_library로 통합 | 삭제 검토 | 하 | 🔲 검토 |
+| 32 | 코드 | `models/db_factory.py` | 과거 SQLite/Postgres 분기 | `SecReportsManager` 단일 반환으로 정리 | 하 | ✅ 완료 |
 | 33 | 백엔드 | `BASE_SELECT_SQL` 600자 | 모든 엔드포인트가 복붙 | `v_reports_api` 뷰로 대체 | 하 | ✅ 완료 |
 | 34 | 백엔드 | `_execute_raw_psycopg2_query` | 매 요청마다 raw connection 새로 생성 | 커넥션풀 사용 | 중 | 🔲 검토 |
 | 35 | 백엔드 | `routers/reports.py` | 아직 ORM (`db.query()`) | raw SQL 전환 | 중 | 🔲 검토 |
@@ -56,9 +56,4 @@
 | 48 | 코드 | `models/WebScraper.py` | `firm_id` 기준 if/elif 10개 체인 | dict 기반 dispatch | 중 | 🔲 검토 |
 | 49 | 테스트 | `tests/ls.py`, `tests/diagnose_ls_urls.py` | legacy test | archive | 하 | 🔲 검토 |
 | 50 | DB | `tbl_sec_reports` 컬럼 30개+ | 정규화 부족 (tags, stock_names JSONB) | 검토 | 상 | 🔲 검토 |
-| 34 | 백엔드 | `_execute_raw_psycopg2_query` | 매 요청마다 raw connection 새로 생성 | 커넥션풀 사용 | 중 | 🔲 남음 |
-| 35 | 백엔드 | `routers/reports.py` | 아직 ORM (`db.query()`) | raw SQL 전환 | 중 | 🔲 남음 |
-| 36 | 백엔드 | `routers/admin.py` | ORM + `func.max/count` | raw SQL 전환 (집계 쿼리) | 중 | 🔲 남음 |
-| 37 | 백엔드 | `routers/favorites.py` | ORM | raw SQL 전환 | 하 | 🔲 남음 |
-| 38 | 스크래퍼 | `ConfigManager` 싱글톤 | 환경별 테스트 어려움 | DI 패턴 | 중 | 🔲 남음 |
-| 39 | 스크래퍼 | `FirmInfo.firm_names` | 첫 접근에 DB 전체 로드 (29건) | 지연 로딩 또는 캐시 | 하 | 🔲 남음 |
+| 51 | 코드 | standalone news | 뉴스가 별도 컨테이너로 이관됨 | workflow/core/entrypoint 제거 | 하 | ✅ 완료 |

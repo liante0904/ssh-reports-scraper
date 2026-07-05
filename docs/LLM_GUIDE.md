@@ -555,6 +555,8 @@ else:
 - 운영 DB 경로는 `SecReportsManager` 단일 경로다.
 - GA standalone/test에서 DB 접근이 필요 없으면 `DB_BACKEND=static`으로 메타데이터 static fallback만 사용한다.
 - `db_factory.py`는 더 이상 SQLite manager를 반환하지 않는다.
+- `models/PostgreSQLManager.py` alias도 제거됐다. 새 코드/문서는 `models.SecReportsManager` 또는 `models.db_factory.get_db()`를 사용한다.
+- 네이버/조선비즈 뉴스 workflow/core는 제거됐고, 뉴스 발송은 `naver-stock-news`가 담당한다.
 
 **권장**: 새 코드는 PostgreSQL/`SecReportsManager` 또는 명시적 static fallback만 사용한다.
 

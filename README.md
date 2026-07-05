@@ -45,14 +45,15 @@
 
 운영 중인 서비스의 DB를 바꾸는 건 까다롭다.  
 초기에는 SQLite로 로컬 데이터를 쌓았고, 이후 Oracle 검증 단계를 거쳐 현재는 PostgreSQL을 운영 단일 DB로 사용한다.
-`DB_BACKEND` 팩토리 패턴은 마이그레이션과 검증 과정에서 유지했지만, SQLite는 최신 운영 롤백 수단이 아니다.
+SQLite 관련 런타임/compose/tooling은 main에서 제거했고, 필요 시 `archive/sqlite-legacy-20260705` 브랜치에서 이력을 확인한다.
 
 ```python
 # db_factory.py
 def get_db():
-    backend = os.getenv("DB_BACKEND", "postgres")
     return SecReportsManager()
 ```
+
+뉴스(네이버/조선비즈) standalone workflow/core는 제거되었고, 뉴스 발송은 `naver-stock-news` 컨테이너가 담당한다.
 
 ### 4. 시크릿 관리
 

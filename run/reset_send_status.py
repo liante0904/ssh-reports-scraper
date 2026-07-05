@@ -23,7 +23,7 @@ chat_id = os.getenv('TELEGRAM_CHANNEL_ID_REPORT_ALARM')
 async def reset_and_send(firm_order, date_str, board_order=None, do_send=False):
     db = get_db()
     
-    # 1. 상태 초기화 (PostgreSQLManager 공통 메서드 사용)
+    # 1. 상태 초기화
     await db.reset_send_status(firm_order, date_str, board_order)
     
     firm_name = FirmInfo.firm_names[firm_order] if firm_order < len(FirmInfo.firm_names) else f"Unknown({firm_order})"
@@ -33,15 +33,25 @@ async def reset_and_send(firm_order, date_str, board_order=None, do_send=False):
     if do_send:
         logger.info(f"[{firm_name}] 즉시 발송을 시작합니다...")
         
-        # 해당 업체/날짜의 데이터를 다시 읽어옴 (PostgreSQLManager 표준 인터페이스 사용)
-        select_query = f"""
-        "report_id", "firm_id", "board_id", "firm_nm", "reg_dt",
-        "article_title", "article_url", "telegram_sent",
-        "download_url", "writer", "save_time", "telegram_url"
-        FROM "tbl_sec_reports" 
-        WHERE "firm_id" = %s AND DATE("save_time") = %s AND "telegram_sent" = false
+        # 해당 업체/날짜의 데이터를 다시 읽어옴
+        select_query = """
+        SELECT report_id, firm_id, board_id, firm_nm, report_date,
+               article_title, article_url, telegram_sent,
+               download_url, writer, save_at,
+               CASE WHEN firm_id = 19 THEN pdf_url ELSE telegram_url END AS telegram_url,
+               report_unique_key
+        FROM v_sec_reports_read
+        WHERE firm_id = %s
+          AND DATE(save_at) = %s
+          AND telegram_sent IS NOT true
         """
-        rows = await db.execute_query(select_query, [firm_order, date_str])
+        if board_order is not None:
+            select_query += " AND board_id = %s"
+            params = [firm_order, date_str, board_order]
+        else:
+            params = [firm_order, date_str]
+        select_query += " ORDER BY save_at DESC, report_id DESC"
+        rows = await db.execute_query(select_query, params)
         
         if rows:
             messages = build_telegram_messages(rows)

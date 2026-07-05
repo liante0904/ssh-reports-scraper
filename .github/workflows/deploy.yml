@@ -30,7 +30,7 @@ jobs:
               - 'scheduler_keyword_alert.py'
               - 'run/keyword_alert.py'
               - 'utils/**'
-              - 'models/PostgreSQLManager.py'
+              - 'models/SecReportsManager.py'
               - 'pyproject.toml'
               - 'uv.lock'
 

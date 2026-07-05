@@ -341,7 +341,7 @@ Do not drop `key`, `save_time`, or `main_ch_send_yn` until all steps are complet
 
 ### 1. `DB_BACKEND=postgres` bypassed the scraper override
 
-Production was configured with `DB_BACKEND=postgres`. Before the fix, that path returned `models.PostgreSQLManager`, which is only an alias to `ssh_library.PostgreSQLManager`.
+Production was configured with `DB_BACKEND=postgres`. Before the fix, that path returned `models.PostgreSQLManager`, which was only an alias to `ssh_library.PostgreSQLManager`. The alias was removed on 2026-07-05; use `models.SecReportsManager`/`models.db_factory.get_db()` for scraper DB access.
 
 Impact:
 
