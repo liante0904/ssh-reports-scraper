@@ -141,7 +141,7 @@ on:
 ```
 
 - `standalone_all_scraper.py` 실행 → JSON artifact (`all-scraped-data`)
-- `DB_BACKEND=sqlite`로 DB 접근 없이 실행 (GitHub Actions runner는 PostgreSQL 접근 불가)
+- `DB_BACKEND=static`으로 DB write 없이 실행 (GitHub Actions runner는 PostgreSQL 접근 불가)
 - `SOCKS_PROXY_URL=''` — GitHub Actions 클린 IP이므로 프록시 불필요
 - `retention-days: 1` — artifact 1일 보관 (서버 import가 완료되면 불필요)
 - `overwrite: true` — 동일 이름 artifact 덮어쓰기

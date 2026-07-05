@@ -20,7 +20,7 @@
 ### 변경 통계
 - **ssh_library**: `reports.py` — INSERT 4컬럼 + SELECT 10메서드 이관 (34줄)
 - **scraper 모듈**: 29개 모든 증권사 dict 키 이관 완료
-- **소비자 코드**: 6개 파일 폴백 처리 (SQLiteManager, scraper.py, validate.py, DBfi_19, shinhan_core, test_core_contract)
+- **소비자 코드**: canonical 컬럼 경로로 정리됨 (scraper.py, validate.py, DBfi_19, shinhan_core, test_core_contract)
 - **총 변경**: 67 files, +309/-215
 
 ---

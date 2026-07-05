@@ -212,7 +212,7 @@ LLM 작업 결과에는 반드시 아래가 있어야 한다.
 
 | Legacy alias | 새 이름 (canonical) | 파일 |
 |------|------|------|
-| `daily_select_data` | `select_reports_ready_for_telegram` | `models/SecReportsManager.py`, `models/SQLiteManager.py` |
+| `daily_select_data` | `select_reports_ready_for_telegram` | `models/SecReportsManager.py` |
 | `DBfi_detail` | `DBfi_enrich_and_persist_details` | `modules/DBfi_19.py` |
 
 새 코드 작성 시 legacy alias를 사용하지 않는다. 기존 호출자가 alias를 통해 동작하는 것은 허용된다.
@@ -1328,4 +1328,3 @@ touch .agent_tasks/gemini_agy_next.md .agent_tasks/gemini_agy_result.md
 
 
 ---
-

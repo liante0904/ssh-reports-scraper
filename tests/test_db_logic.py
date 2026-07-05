@@ -21,7 +21,7 @@ if not postgres_available():
 async def test_db_connection_and_structure():
     """
     1. DB 연결이 정상인지 확인
-    2. 기본 테이블(data_main_daily_send)에서 데이터 조회가 가능한지 확인
+    2. 기본 테이블(tbl_sec_reports)에서 데이터 조회가 가능한지 확인
     """
     db = get_db()
     
@@ -40,14 +40,14 @@ async def test_recent_data_exists():
     (스크래퍼가 정상 작동 중인지 간접 검증)
     """
     db = get_db()
-    table_name = getattr(db, 'main_table_name', 'data_main_daily_send')
+    table_name = getattr(db, 'main_table_name', 'tbl_sec_reports')
     
     seven_days_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
     
     query = f"""
     SELECT COUNT(*) as cnt 
     FROM {table_name} 
-    WHERE DATE(save_time) >= ?
+    WHERE DATE(save_at) >= ?
     """
     result = await db.execute_query(query, (seven_days_ago,))
     
@@ -61,15 +61,15 @@ async def test_data_integrity():
     가장 최근 데이터 1건을 가져와 필수 필드(firm_nm, article_title)가 채워져 있는지 확인
     """
     db = get_db()
-    table_name = getattr(db, 'main_table_name', 'data_main_daily_send')
+    table_name = getattr(db, 'main_table_name', 'tbl_sec_reports')
     
-    query = f"SELECT firm_nm, article_title, save_time FROM {table_name} ORDER BY save_time DESC LIMIT 1"
+    query = f"SELECT firm_nm, article_title, save_at FROM {table_name} ORDER BY save_at DESC LIMIT 1"
     result = await db.execute_query(query)
     
     if result:
         row = result[0]
         assert row['firm_nm'] is not None and row['firm_nm'] != "", "증권사 이름이 비어있습니다."
         assert row['article_title'] is not None and row['article_title'] != "", "기사 제목이 비어있습니다."
-        assert row['save_time'] is not None, "저장 시간이 비어있습니다."
+        assert row['save_at'] is not None, "저장 시간이 비어있습니다."
     else:
         pytest.skip("검증할 데이터가 없습니다.")

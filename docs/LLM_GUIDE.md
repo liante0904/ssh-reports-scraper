@@ -327,7 +327,7 @@ Codex가 직접 토큰을 많이 써야 하는 경우:
 | 1 | `*_URLS_JSON`이 이름과 달리 URL list일 수도, full config dict일 수도 있음 | `run/standalone/*.py`는 env secret을 직접 읽고, `modules/*.py`는 `ConfigManager.get_urls()`를 읽는다. 회사별 core는 selector/payload가 필요한 곳과 URL만 필요한 곳이 섞여 있다. | standalone은 `run/standalone/_runner.py`를 통해 실행하고, full config가 필요한 core는 명시적으로 required key를 검증한다. `KeyError` 그대로 노출 금지. |
 | 2 | `scripts/standalone_all_scraper.py` 문서/구조가 개별 `scrape-*.yml` 현실과 다름 | 과거 all-scraper artifact 방식 설명이 남아 있지만 현재는 회사별 workflow가 대부분 SCP로 서버에 직접 전송한다. | 장애 분석은 `.github/workflows/scrape-*.yml` + `run/standalone/{firm}.py`를 우선 본다. `standalone_all_scraper.py`는 보조/레거시로 취급한다. |
 | 3 | GA 이관 회사가 서버 full-scrape에도 다시 들어간다 | `scraper.py`는 KST 1/7/13/21시에 `_GA_FIRMS_*`를 다시 실행한다. 그래서 “GA 성공 후 서버 발송”과 “서버 fallback 발송” 시간이 섞인다. | 중복/발송 원인 분석 시 GitHub Actions만 보지 말고 `scraper.py` full-scrape 시간대와 서버 scheduler 로그를 같이 본다. |
-| 4 | 발송 상태 컬럼명이 아직 완전히 정리되지 않음 | PostgreSQL 경로는 `telegram_sent` 중심인데, SQLiteManager/docs/tests에는 `is_sent`, `main_ch_send_yn` 흔적이 남아 있다. | 새 코드는 `telegram_sent`/`report_unique_key`를 canonical로 사용한다. legacy 컬럼은 읽기 fallback 또는 마이그레이션 안전장치로만 본다. |
+| 4 | 발송 상태 컬럼 alias 흔적이 남아 있음 | 운영 경로는 `telegram_sent` 중심이지만, 과거 `is_sent`, `main_ch_send_yn` 이름을 기억한 코드/문서가 혼입되기 쉽다. | 새 코드는 `telegram_sent`/`report_unique_key`를 canonical로 사용한다. legacy 컬럼은 읽기 fallback 또는 마이그레이션 안전장치로만 본다. |
 | 5 | workflow 실패 로그가 실제 예외를 숨김 | 대부분 `uv run ... > result.json 2>log.txt` 뒤 `bash -e`라서 Python이 실패하면 `cat log.txt`가 실행되지 않는다. | workflow run step은 실패 시에도 stderr 파일을 출력하도록 `set +e` 패턴 또는 공통 composite action으로 바꾼다. |
 | 6 | `validate_scrape_result.py --require-non-empty`가 “장애”와 “장중 0건”을 구분하지 않음 | 사이트가 정상이어도 특정 시간/게시판은 0건일 수 있는데 workflow는 실패 처리한다. 반대로 실제 파싱 깨짐도 0건으로만 보일 수 있다. | 회사별 기대 수집 정책을 분리한다. “0건 허용 회사/시간대”와 “반드시 non-empty”를 config로 나눈다. |
 | 7 | 회사별 workflow env 이름이 통일되지 않음 | 대다수는 `FIRM_URLS_JSON`인데 LS/DS/Daeshin/KoreaInvestment는 `urls`를 쓴다. | 새 workflow는 `FIRM_URLS_JSON`만 사용한다. 레거시는 바꾸기 전까지 standalone entrypoint가 어떤 env를 읽는지 먼저 확인한다. |
@@ -542,22 +542,21 @@ _GA_FIRMS_ASYNC = {NHQV_checkNewArticle, KB_checkNewArticle, ...}
 
 ---
 
-## 8. DB_BACKEND 듀얼 모드 (⭐)
+## 8. DB_BACKEND 단일화 (⭐)
 
 ```python
-if os.getenv("DB_BACKEND", "sqlite").lower() == "postgres":
+if os.getenv("DB_BACKEND", "postgres").lower() == "postgres":
     cls._load_from_postgres()
 else:
-    cls._load_from_sqlite()
+    cls._load_static_fallback()
 ```
 
 **LLM 혼란 포인트**:
-- SQLite는 로컬 `.db` 파일, PostgreSQL은 원격 서버 → 완전히 다른 커넥션 관리
-- GA standalone에서는 `DB_BACKEND=sqlite`를 강제하는데, SQLite DB가 `/tmp/`에 임시로 생성됨
-- FirmInfo.load_data_from_db()는 PostgreSQL에서 `tbm_sec_firm_info`를 읽지만, SQLite에는 이 테이블이 없음 → `Unknown(N)`으로 표시됨
-- `db_factory.py`의 `get_db()`도 이 분기에 따라 다른 DB 매니저 반환
+- 운영 DB 경로는 `SecReportsManager` 단일 경로다.
+- GA standalone/test에서 DB 접근이 필요 없으면 `DB_BACKEND=static`으로 메타데이터 static fallback만 사용한다.
+- `db_factory.py`는 더 이상 SQLite manager를 반환하지 않는다.
 
-**권장**: PostgreSQL 전용으로 단일화. SQLite는 테스트 전용으로 명시적 분리.
+**권장**: 새 코드는 PostgreSQL/`SecReportsManager` 또는 명시적 static fallback만 사용한다.
 
 ---
 
@@ -791,4 +790,3 @@ if asyncio.iscoroutine(res):
 
 
 ---
-
