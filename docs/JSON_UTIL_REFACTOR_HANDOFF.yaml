@@ -1,0 +1,55 @@
+task: report_json_store_replacement
+goal: add a clean local-report-json helper beside legacy utils/json_util.py
+status: implemented_as_new_module
+why:
+  - legacy local-json telegram helper mixes formatting, file IO, filtering, mutation, CLI
+  - format_message loop/return shape is hard to reason about
+  - names hide side effects and date/file assumptions
+  - replacing in place is riskier than adding a clean module and migrating later
+scope:
+  allowed:
+    - utils/report_json_store.py
+    - tests/test_report_json_store.py
+    - docs/JSON_UTIL_REFACTOR_HANDOFF.yaml
+  forbidden:
+    - utils/json_util.py
+    - scraper.py
+    - scheduler.py
+    - run/rag_embed_batch.py
+    - modules/*
+legacy_entrypoints_do_not_change:
+  - format_message(data_list)
+  - save_data_to_local_json(...)
+  - get_unsent_main_ch_data_to_local_json(filename)
+  - update_telegram_sent(file_path, target_date=None)
+  - filter_news_by_save_time(filename)
+new_entrypoints:
+  - load_report_json_list(path)
+  - save_report_json_list(path, reports)
+  - best_report_url(report)
+  - format_report_message(report, include_firm_header=False)
+  - format_report_messages(reports, include_firm_headers=True)
+  - build_report_payload(...)
+  - append_report_if_new(path, report)
+  - select_unsent_reports(reports, target_date, excluded_firms=None)
+  - mark_reports_sent_for_date(path, target_date)
+risks:
+  - used mostly as legacy CLI; external callers may depend on current names
+  - save_data_to_local_json returns formatted message string, not just write status
+  - get_unsent_main_ch_data_to_local_json reads hardcoded json/data_main_daily_send.json
+  - update_telegram_sent mutates every item for target date
+  - format_message currently handles dict/list but effectively formats last loop item
+low_side_effect_plan:
+  - keep utils/json_util.py untouched
+  - add tests for utils/report_json_store.py only
+  - migrate callers one by one in later commits
+  - convert utils/json_util.py to wrappers only after callers are known
+acceptance_tests:
+  - uv run python -m py_compile utils/report_json_store.py tests/test_report_json_store.py
+  - uv run pytest tests/test_report_json_store.py -q
+  - git diff --check
+do_not:
+  - edit utils/json_util.py in this phase
+  - remove legacy public functions
+  - touch production scheduler/scraper paths
+  - migrate callers without a separate scoped commit
