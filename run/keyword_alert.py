@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils.logger_util import setup_logger
 setup_logger("send_report_by_keyword_to_user")
 
-from utils.sqlite_util import convert_sql_to_telegram_messages
+from utils.telegram_message_builder import build_telegram_messages
 from utils.telegram_util import sendMarkDownText
 from models.db_factory import get_db
 
@@ -58,7 +58,7 @@ async def run_once():
                 if found_reports:
                     logger.success(f"[{user_id}] Found {len(found_reports)} reports for '{keyword}'")
                     header = f"===== 알림 키워드 : {keyword} =====\n"
-                    chunks = convert_sql_to_telegram_messages(found_reports)
+                    chunks = build_telegram_messages(found_reports)
                     for i, chunk in enumerate(chunks):
                         msg = (header if i == 0 else "") + chunk
                         await sendMarkDownText(token=TOKEN, chat_id=user_id, sendMessageText=msg)

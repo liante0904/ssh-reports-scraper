@@ -113,24 +113,8 @@ class TestSelectReportsReadyForTelegram:
 
 
 class TestTelegramMessageChunks:
-    def test_new_builder_matches_legacy_sqlite_wrapper(self):
-        from utils.sqlite_util import convert_sql_to_telegram_message_chunks
-        from utils.telegram_message_builder import build_telegram_message_chunks
-
-        rows = [
-            {
-                "report_id": 1,
-                "firm_id": 3,
-                "firm_nm": "하나증권",
-                "article_title": "A",
-                "telegram_url": "https://example.test/a.pdf",
-            }
-        ]
-
-        assert build_telegram_message_chunks(rows) == convert_sql_to_telegram_message_chunks(rows)
-
     def test_chunks_keep_exact_rows_for_marking(self):
-        from utils.sqlite_util import convert_sql_to_telegram_message_chunks
+        from utils.telegram_message_builder import build_telegram_message_chunks
 
         rows = [
             {
@@ -149,7 +133,7 @@ class TestTelegramMessageChunks:
             },
         ]
 
-        chunks = convert_sql_to_telegram_message_chunks(rows)
+        chunks = build_telegram_message_chunks(rows)
 
         assert len(chunks) == 1
         assert chunks[0]["rows"] == rows
@@ -157,7 +141,7 @@ class TestTelegramMessageChunks:
         assert "https://example.test/a.pdf" in chunks[0]["message"]
 
     def test_chunks_split_rows_with_message_limit(self):
-        from utils.sqlite_util import convert_sql_to_telegram_message_chunks
+        from utils.telegram_message_builder import build_telegram_message_chunks
 
         rows = [
             {
@@ -176,14 +160,14 @@ class TestTelegramMessageChunks:
             },
         ]
 
-        chunks = convert_sql_to_telegram_message_chunks(rows, message_limit=90)
+        chunks = build_telegram_message_chunks(rows, message_limit=90)
 
         assert len(chunks) == 2
         assert [r["report_id"] for r in chunks[0]["rows"]] == [1]
         assert [r["report_id"] for r in chunks[1]["rows"]] == [2]
 
     def test_chunks_escape_parentheses_in_markdown_links(self):
-        from utils.sqlite_util import convert_sql_to_telegram_message_chunks
+        from utils.telegram_message_builder import build_telegram_message_chunks
 
         rows = [
             {
@@ -194,12 +178,12 @@ class TestTelegramMessageChunks:
             }
         ]
 
-        chunks = convert_sql_to_telegram_message_chunks(rows)
+        chunks = build_telegram_message_chunks(rows)
 
         assert "https://example.test/report%281%29.pdf" in chunks[0]["message"]
 
     def test_chunks_use_dbfi_pdf_url_for_links(self):
-        from utils.sqlite_util import convert_sql_to_telegram_message_chunks
+        from utils.telegram_message_builder import build_telegram_message_chunks
 
         rows = [
             {
@@ -212,7 +196,7 @@ class TestTelegramMessageChunks:
             }
         ]
 
-        chunks = convert_sql_to_telegram_message_chunks(rows)
+        chunks = build_telegram_message_chunks(rows)
 
         assert "streamdocs/v4/documents/new" in chunks[0]["message"]
         assert "pv/gate" not in chunks[0]["message"]

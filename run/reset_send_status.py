@@ -13,7 +13,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from models.db_factory import get_db
 from models.FirmInfo import FirmInfo
 from utils.telegram_util import sendMarkDownText
-from utils.sqlite_util import convert_sql_to_telegram_messages
+from utils.telegram_message_builder import build_telegram_messages
 
 # 환경 변수 로드
 load_dotenv()
@@ -44,7 +44,7 @@ async def reset_and_send(firm_order, date_str, board_order=None, do_send=False):
         rows = await db.execute_query(select_query, [firm_order, date_str])
         
         if rows:
-            messages = convert_sql_to_telegram_messages(rows)
+            messages = build_telegram_messages(rows)
             logger.info(f"Sending {len(messages)} message chunks to Telegram...")
             
             success = True
