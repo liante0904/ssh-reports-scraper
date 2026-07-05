@@ -488,7 +488,10 @@ async def main(date_str=None):
     logger.info("=================== SCRAPER START ===================")
     db = get_db()
 
-    await run_ls_scraper(db)
+    # LS_0: local server IP 차단됨 (BLOCKED_BY_SOURCE_IP).
+    # GA WARP 우회 가능하나 로컬 fallback에선 skip. Watchdog 에러 노이즈 방지.
+    # 재활성화 필요시 주석 해제 + SKIP_LS env 확인.
+    # await run_ls_scraper(db)
 
     sync_scraper_funcs, async_scraper_funcs = build_scraper_function_lists(
         is_full=_is_full_scrape_hour()
