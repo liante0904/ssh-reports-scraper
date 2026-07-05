@@ -40,6 +40,7 @@ compatibility_rule:
   - do not replace json_util.format_message with format_report_messages unless output differences are accepted
   - format_legacy_message output must match utils.json_util.format_message exactly
   - format_legacy_message_chunks mirrors the old 3000-char local-json telegram chunking shape
+  - legacy wrappers are allowed only after 1:1 compatibility tests pass
 risks:
   - used mostly as legacy CLI; external callers may depend on current names
   - save_data_to_local_json returns formatted message string, not just write status
@@ -51,9 +52,9 @@ low_side_effect_plan:
   - add tests for utils/report_json_store.py only
   - compare compatibility functions against utils/json_util.py before caller migration
   - migrate callers one by one in later commits
-  - convert utils/json_util.py to wrappers only after callers are known
+  - convert utils/json_util.py to wrappers delegating to report_json_store only after 1:1 compatibility tests pass
 acceptance_tests:
-  - uv run python -m py_compile utils/report_json_store.py tests/test_report_json_store.py
+  - uv run python -m py_compile utils/json_util.py utils/report_json_store.py tests/test_report_json_store.py
   - uv run pytest tests/test_report_json_store.py -q
   - git diff --check
 do_not:

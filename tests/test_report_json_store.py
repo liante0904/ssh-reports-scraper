@@ -10,6 +10,19 @@ from utils import report_json_store as store
 from utils import json_util
 
 
+class FixedDatetime:
+    @classmethod
+    def now(cls):
+        return cls()
+
+    def isoformat(self):
+        return "2026-07-05T09:00:00"
+
+    def strftime(self, fmt):
+        assert fmt == "%Y-%m-%d"
+        return "2026-07-05"
+
+
 def test_format_report_messages_groups_by_firm():
     reports = [
         {
@@ -48,6 +61,20 @@ def test_format_legacy_message_matches_json_util_for_single_report():
     assert store.format_legacy_message(report) == json_util.format_message(report)
 
 
+def test_json_util_format_message_keeps_legacy_single_report_text():
+    report = {
+        "firm_nm": "하나증권",
+        "article_title": "A_B*",
+        "telegram_url": "",
+        "pdf_url": "https://example.test/a.pdf",
+    }
+
+    assert json_util.format_message(report) == (
+        "*A B*\n"
+        "\U0001F449[링크](https://example.test/a.pdf)\n"
+    )
+
+
 def test_format_legacy_message_matches_json_util_for_report_list():
     reports = [
         {
@@ -63,6 +90,27 @@ def test_format_legacy_message_matches_json_util_for_report_list():
     ]
 
     assert store.format_legacy_message(reports) == json_util.format_message(reports)
+
+
+def test_json_util_format_message_keeps_legacy_list_last_item_behavior():
+    reports = [
+        {
+            "firm_nm": "하나증권",
+            "article_title": "A",
+            "telegram_url": "https://example.test/a.pdf",
+        },
+        {
+            "firm_nm": "KB증권",
+            "article_title": "B",
+            "telegram_url": "https://example.test/b.pdf",
+        },
+    ]
+
+    assert json_util.format_message(reports) == (
+        "\n\n●KB증권\n"
+        "*B*\n"
+        "\U0001F449[링크](https://example.test/b.pdf)\n"
+    )
 
 
 def test_format_legacy_message_chunks_matches_json_util_chunk_shape():
@@ -106,6 +154,43 @@ def test_format_legacy_message_chunks_matches_json_util_chunk_shape():
     assert store.format_legacy_message_chunks(reports, message_limit=55) == expected_messages
 
 
+def test_json_util_unsent_local_json_keeps_legacy_chunk_text(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(json_util, "datetime", FixedDatetime)
+    target = tmp_path / "reports.json"
+    target.write_text(
+        json.dumps(
+            [
+                {
+                    "firm_nm": "Alpha증권",
+                    "article_title": "A",
+                    "telegram_url": "https://example.test/a.pdf",
+                    "save_time": "2026-07-05T08:00:00",
+                    "telegram_sent": False,
+                },
+                {
+                    "firm_nm": "Beta증권",
+                    "article_title": "B",
+                    "telegram_url": "https://example.test/b.pdf",
+                    "save_time": "2026-07-05T08:10:00",
+                    "telegram_sent": False,
+                },
+            ],
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    assert json_util.get_unsent_main_ch_data_to_local_json(str(target)) == [
+        "●Alpha증권\n"
+        "*A*\n"
+        "\U0001F449[링크](https://example.test/a.pdf)\n"
+        "\n\n●Beta증권\n"
+        "*B*\n"
+        "\U0001F449[링크](https://example.test/b.pdf)\n"
+    ]
+
+
 def test_append_report_if_new_writes_once(tmp_path):
     target = tmp_path / "reports.json"
     report = store.build_report_payload(
@@ -124,6 +209,47 @@ def test_append_report_if_new_writes_once(tmp_path):
     assert len(stored) == 1
     assert stored[0]["article_url"] == "https://example.test/report.pdf"
     assert stored[0]["download_url"] == "https://example.test/report.pdf"
+
+
+def test_json_util_save_data_to_local_json_keeps_legacy_return_and_payload(tmp_path, monkeypatch):
+    monkeypatch.setattr(json_util, "datetime", FixedDatetime)
+    target = tmp_path / "reports.json"
+
+    message = json_util.save_data_to_local_json(
+        str(target),
+        firm_id=3,
+        board_id=0,
+        firm_nm="하나증권",
+        pdf_url="https://example.test/report.pdf",
+        article_title="Report_Title*",
+    )
+
+    assert message == (
+        "*Report Title*\n"
+        "\U0001F449[링크](https://example.test/report.pdf)\n"
+    )
+    stored = json.loads(target.read_text(encoding="utf-8"))
+    assert stored == [
+        {
+            "firm_id": 3,
+            "board_id": 0,
+            "firm_nm": "하나증권",
+            "article_title": "Report_Title*",
+            "article_url": "https://example.test/report.pdf",
+            "telegram_sent": False,
+            "download_url": "https://example.test/report.pdf",
+            "pdf_url": "https://example.test/report.pdf",
+            "save_time": "2026-07-05T09:00:00",
+        }
+    ]
+    assert json_util.save_data_to_local_json(
+        str(target),
+        firm_id=3,
+        board_id=0,
+        firm_nm="하나증권",
+        pdf_url="https://example.test/report.pdf",
+        article_title="Report_Title*",
+    ) == ""
 
 
 def test_select_unsent_reports_filters_date_sent_and_firm():

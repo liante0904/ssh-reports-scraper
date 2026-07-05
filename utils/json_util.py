@@ -3,6 +3,13 @@ import json
 from datetime import datetime, timedelta
 import argparse
 import tempfile
+from utils import report_json_store
+
+# Legacy public facade for JSON-backed Telegram report delivery.
+#
+# Keep these function names and return shapes stable: older scheduler/CLI callers
+# depend on them. New behavior should be implemented in report_json_store.py, where
+# the helpers are named by responsibility and covered by compatibility tests.
 
 def safe_json_dump(data, filename):
     """임시 파일을 사용하여 JSON을 안전하게 저장합니다 (Atomic Write)."""
@@ -22,47 +29,7 @@ def safe_json_dump(data, filename):
 EXCLUDED_FORWARD_REPORT_FIRMS = {"교보증권","IBK투자증권","SK증권","하나증권", "신한투자증권", "이베스트증권","이베스트투자증권", "미래에셋증권", "iM증권", "대신증권", "상상인증권", "LS증권","키움증권", "유진투자증권", "메리츠증권", "한화투자증권", "유안타증권"}
 
 def format_message(data_list):
-    EMOJI_PICK = u'\U0001F449'  # 이모지 설정
-    formatted_messages = []
-
-    # data_list가 단일 데이터 항목일 경우, 리스트로 감싸줍니다.
-    if isinstance(data_list, dict):
-        data_list = [data_list]
-
-    last_firm_nm = None  # 마지막으로 출력된 FIRM_NM을 저장하는 변수
-
-    for data in data_list:
-        article_title = data.get('article_title','')
-        article_url = data.get('telegram_url') or data.get('pdf_url') or data.get('download_url') or data.get('article_url','')
-        
-        sendMessageText = ""
-        
-        # 'firm_nm'이 존재하는 경우에만 포함
-        if 'firm_nm' in data:
-            firm_nm = data['firm_nm']
-            # data_list가 단건인 경우, 회사명 출력을 생략
-            if len(data_list) > 1:
-                # 새로운 FIRM_NM이거나 첫 번째 데이터일 때만 FIRM_NM을 포함
-                if firm_nm != last_firm_nm:
-                    sendMessageText += "\n\n" + "●" + firm_nm + "\n"
-                    last_firm_nm = firm_nm
-        
-
-    # 게시글 제목이 유효한 값인지 확인
-    if article_title:
-        sendMessageText += "*" + article_title.replace("_", " ").replace("*", "") + "*" + "\n"
-    else:
-        sendMessageText += ""  # 제목이 없을 경우의 처리
-
-    # 원문 링크가 유효한 값인지 확인
-    if article_url:
-        sendMessageText += EMOJI_PICK + "[링크]" + "(" + article_url + ")" + "\n"
-    else:
-        sendMessageText += ""  # 링크가 없을 경우의 처리
-
-    formatted_messages.append(sendMessageText)
-    # 모든 메시지를 하나의 문자열로 결합합니다.
-    return "\n".join(formatted_messages)
+    return report_json_store.format_legacy_message(data_list)
 
 
 def save_data_to_local_json(filename, firm_id, board_id, firm_nm, pdf_url, article_title, article_url=None, download_url=None, telegram_sent=False):
@@ -73,27 +40,17 @@ def save_data_to_local_json(filename, firm_id, board_id, firm_nm, pdf_url, artic
         os.makedirs(directory)
         print(f"\n디렉터리 '{directory}'를 생성했습니다.")
 
-    # 현재 시간을 저장합니다.
-    current_time = datetime.now().isoformat()
-    
-    # `article_url`가 None이면 pdf_url로 대체합니다. (임시 추후변경)
-    if article_url is None:
-        article_url = pdf_url
-    if download_url is None:
-        download_url = pdf_url
-        
-    # 새 데이터를 딕셔너리로 저장합니다.
-    new_data = {
-        "firm_id": firm_id,
-        "board_id": board_id,
-        "firm_nm": firm_nm,
-        "article_title": article_title,
-        "article_url": article_url,
-        "telegram_sent": telegram_sent,
-        "download_url": download_url,
-        "pdf_url": pdf_url,
-        "save_time": current_time
-    }
+    new_data = report_json_store.build_report_payload(
+        firm_id=firm_id,
+        board_id=board_id,
+        firm_nm=firm_nm,
+        pdf_url=pdf_url,
+        article_title=article_title,
+        article_url=article_url,
+        download_url=download_url,
+        telegram_sent=telegram_sent,
+        save_time=datetime.now().isoformat(),
+    )
 
 
     # 기존 데이터를 읽어옵니다.
@@ -119,9 +76,7 @@ def save_data_to_local_json(filename, firm_id, board_id, firm_nm, pdf_url, artic
 
     if not is_duplicate:
         existing_data.append(new_data)
-        
-        # 안전한 쓰기 방식 적용
-        safe_json_dump(existing_data, filename)
+        report_json_store.save_report_json_list(filename, existing_data)
         
         print(f"\n새 데이터가 {filename}에 성공적으로 저장되었습니다.")
         
@@ -181,48 +136,16 @@ def get_unsent_main_ch_data_to_local_json(filename):
     sent_firms.update(additional_firms)
     print(f"\n최종 firm_nm 목록: {sent_firms}")
 
-    # 조건에 맞는 데이터를 필터링합니다.
-    unsent_data = [
-        item for item in data
-        if item.get("save_time", "").startswith(today_str) and 
-           not item.get("telegram_sent", False) and 
-           item.get("firm_nm") not in sent_firms
-    ]
+    unsent_data = report_json_store.select_unsent_reports(
+        data,
+        target_date=today_str,
+        excluded_firms=sent_firms,
+    )
 
     # 디버깅 로그 추가
     print(f"\n필터링된 unsent_data: {unsent_data}")
 
-    messages = []
-    current_message = ""
-    previous_firm_nm = None
-    first_record = True  # 첫 번째 레코드인지 여부를 추적
-
-    for item in unsent_data:
-        firm_nm = item.get('firm_nm', '알 수 없음')
-        message_part = format_message(item)
-
-        # 첫 번째 레코드 처리
-        if first_record:
-            current_message += f"●{firm_nm}\n"
-            first_record = False
-            previous_firm_nm = firm_nm
-        elif firm_nm != previous_firm_nm:
-            if previous_firm_nm is not None:
-                current_message += "\n"
-            current_message += f"\n●{firm_nm}\n"
-            previous_firm_nm = firm_nm
-
-        # 메시지의 길이가 3000자를 넘으면 분리
-        if len(current_message) + len(message_part) > 3000:
-            messages.append(current_message)
-            current_message = message_part
-        else:
-            current_message += message_part
-
-    if current_message:
-        messages.append(current_message)
-
-    return messages
+    return report_json_store.format_legacy_message_chunks(unsent_data, message_limit=3000)
 
 def update_telegram_sent(file_path, target_date=None):
     directory = os.path.dirname(file_path)
@@ -247,13 +170,7 @@ def update_telegram_sent(file_path, target_date=None):
         if not isinstance(data, list):
             return
 
-        # 대상 날짜의 항목들에 대해 telegram_sent 값을 True로 설정합니다.
-        for item in data:
-            if item.get("save_time", "").startswith(target_date):
-                item["telegram_sent"] = True
-
-        # 안전한 쓰기 방식 적용
-        safe_json_dump(data, file_path)
+        report_json_store.mark_reports_sent_for_date(file_path, target_date)
         
         print(f"\n{file_path} 파일의 {target_date} 날짜 항목에 대해 telegram_sent 키가 True로 업데이트되었습니다.")
     except json.JSONDecodeError:
