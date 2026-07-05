@@ -5,6 +5,8 @@ EMOJI_PICK = u'\U0001F449'
 
 
 def _telegram_link_for_row(row):
+    if row.get('firm_id') == 19:
+        return row.get('pdf_url') or ""
     if row.get('firm_id') == 11:
         return row.get('telegram_url') if row.get('telegram_url') else "링크없음"
     return row.get('telegram_url') or row.get('download_url') or row.get('article_url') or ""
@@ -16,7 +18,8 @@ def _format_report_row(row):
     if link_url == "링크없음":
         link_text = "링크없음\n"
     else:
-        link_text = EMOJI_PICK + "[링크]" + "(" + link_url + ")" + "\n"
+        safe_url = link_url.replace("(", "%28").replace(")", "%29")
+        link_text = EMOJI_PICK + "[링크]" + "(" + safe_url + ")" + "\n"
     return "*" + title + "*" + "\n" + link_text
 
 

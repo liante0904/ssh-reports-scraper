@@ -166,6 +166,41 @@ class TestTelegramMessageChunks:
         assert [r["report_id"] for r in chunks[0]["rows"]] == [1]
         assert [r["report_id"] for r in chunks[1]["rows"]] == [2]
 
+    def test_chunks_escape_parentheses_in_markdown_links(self):
+        from utils.sqlite_util import convert_sql_to_telegram_message_chunks
+
+        rows = [
+            {
+                "report_id": 1,
+                "firm_nm": "테스트증권",
+                "article_title": "A",
+                "telegram_url": "https://example.test/report(1).pdf",
+            }
+        ]
+
+        chunks = convert_sql_to_telegram_message_chunks(rows)
+
+        assert "https://example.test/report%281%29.pdf" in chunks[0]["message"]
+
+    def test_chunks_use_dbfi_pdf_url_for_links(self):
+        from utils.sqlite_util import convert_sql_to_telegram_message_chunks
+
+        rows = [
+            {
+                "report_id": 19,
+                "firm_id": 19,
+                "firm_nm": "DB증권",
+                "article_title": "DBFI",
+                "telegram_url": "https://dbfi.example.test/pv/gate?q=old",
+                "pdf_url": "https://dbfi.example.test/streamdocs/v4/documents/new",
+            }
+        ]
+
+        chunks = convert_sql_to_telegram_message_chunks(rows)
+
+        assert "streamdocs/v4/documents/new" in chunks[0]["message"]
+        assert "pv/gate" not in chunks[0]["message"]
+
 
 def test_daily_send_report_marks_only_successful_chunks(monkeypatch):
     import scraper

@@ -187,74 +187,17 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
         if not rows:
             return
 
-        EMOJI_PICK = u'\U0001F449'
-        message_limit = 3500
+        from utils.sqlite_util import convert_sql_to_telegram_message_chunks
 
-        # 청크 단위 발송을 위한 상태 저장 변수들
-        message_chunk = ""
-        current_chunk_rows = []
-        last_firm_nm = None
-
-        for row in rows:
-            firm_nm = row.get("firm_nm")
-
-            send_message_text = ""
-
-            # 증권사명 변경 여부에 따른 헤더(구분선) 빌드
-            firm_header = ""
-            if firm_nm and firm_nm != last_firm_nm:
-                firm_header = f"\n\n●{firm_nm}\n"
-
-            # 제목 포맷팅
-            title = row.get("article_title", "").replace("_", " ").replace("*", "")
-            send_message_text += f"*{title}*\n"
-
-            # 링크 선정 (DS증권 예외 및 일반 대체 링크 우선순위 반영)
-            if row.get("firm_id") == 19:
-                link_url = row.get("pdf_url") or ""
-            elif row.get("firm_id") == 11:
-                link_url = row.get("telegram_url") if row.get("telegram_url") else "링크없음"
-            else:
-                link_url = row.get("telegram_url") or row.get("download_url") or row.get("article_url") or ""
-
-            if link_url == "링크없음":
-                send_message_text += "링크없음\n"
-            else:
-                # URL 내 괄호 문자 때문에 마크다운 링크가 깨지는 것 방지
-                _safe_url = link_url.replace("(", "%28").replace(")", "%29")
-                send_message_text += f"{EMOJI_PICK}[링크]({_safe_url})\n"
-
-            total_addition = firm_header + send_message_text
-
-            # 3500자 임계치를 초과할 시, 현재 쌓인 청크를 즉시 전송하고 DB에 기록
-            if len(message_chunk) + len(total_addition) > message_limit:
-                if message_chunk.strip() and current_chunk_rows:
-                    try:
-                        asyncio.run(sendMarkDownText(token=token, chat_id=chat_id, sendMessageText=message_chunk.strip()))
-                        asyncio.run(db.daily_update_data(fetched_rows=current_chunk_rows, type="send"))
-                        logger.info(f"[GA-Broadcast] Chunk sent and marked: {len(current_chunk_rows)} reports")
-                    except Exception as tx_err:
-                        logger.error(f"[GA-Broadcast] Chunk send failed: {tx_err}")
-                
-                # 다음 청크 버퍼 세팅
-                message_chunk = f"\n\n●{firm_nm}\n{send_message_text}"
-                current_chunk_rows = [row]
-                last_firm_nm = firm_nm
-            else:
-                if firm_header:
-                    message_chunk += firm_header
-                    last_firm_nm = firm_nm
-                message_chunk += send_message_text
-                current_chunk_rows.append(row)
-
-        # 잔여 루프 버퍼 최종 전송 및 마킹
-        if message_chunk.strip() and current_chunk_rows:
+        chunks = convert_sql_to_telegram_message_chunks(rows)
+        for chunk in chunks:
+            chunk_rows = chunk["rows"]
             try:
-                asyncio.run(sendMarkDownText(token=token, chat_id=chat_id, sendMessageText=message_chunk.strip()))
-                asyncio.run(db.daily_update_data(fetched_rows=current_chunk_rows, type="send"))
-                logger.info(f"[GA-Broadcast] Final chunk sent and marked: {len(current_chunk_rows)} reports")
+                asyncio.run(sendMarkDownText(token=token, chat_id=chat_id, sendMessageText=chunk["message"]))
+                asyncio.run(db.daily_update_data(fetched_rows=chunk_rows, type="send"))
+                logger.info(f"[GA-Broadcast] Chunk sent and marked: {len(chunk_rows)} reports")
             except Exception as tx_err:
-                logger.error(f"[GA-Broadcast] Final chunk send failed: {tx_err}")
+                logger.error(f"[GA-Broadcast] Chunk send failed: {tx_err}")
 
     except Exception as e:
         logger.warning(f"[GA-Broadcast] error: {e}")
