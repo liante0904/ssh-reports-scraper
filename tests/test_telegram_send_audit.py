@@ -113,6 +113,22 @@ class TestSelectReportsReadyForTelegram:
 
 
 class TestTelegramMessageChunks:
+    def test_new_builder_matches_legacy_sqlite_wrapper(self):
+        from utils.sqlite_util import convert_sql_to_telegram_message_chunks
+        from utils.telegram_message_builder import build_telegram_message_chunks
+
+        rows = [
+            {
+                "report_id": 1,
+                "firm_id": 3,
+                "firm_nm": "하나증권",
+                "article_title": "A",
+                "telegram_url": "https://example.test/a.pdf",
+            }
+        ]
+
+        assert build_telegram_message_chunks(rows) == convert_sql_to_telegram_message_chunks(rows)
+
     def test_chunks_keep_exact_rows_for_marking(self):
         from utils.sqlite_util import convert_sql_to_telegram_message_chunks
 
@@ -237,7 +253,7 @@ def test_daily_send_report_marks_only_successful_chunks(monkeypatch):
     monkeypatch.setattr(scraper, "get_db", lambda: db)
     monkeypatch.setattr(
         scraper,
-        "convert_sql_to_telegram_message_chunks",
+        "build_telegram_message_chunks",
         lambda fetched_rows: [
             {"message": "chunk1", "rows": [fetched_rows[0]]},
             {"message": "chunk2", "rows": [fetched_rows[1]]},

@@ -187,9 +187,9 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
         if not rows:
             return
 
-        from utils.sqlite_util import convert_sql_to_telegram_message_chunks
+        from utils.telegram_message_builder import build_telegram_message_chunks
 
-        chunks = convert_sql_to_telegram_message_chunks(rows)
+        chunks = build_telegram_message_chunks(rows)
         for chunk in chunks:
             chunk_rows = chunk["rows"]
             try:

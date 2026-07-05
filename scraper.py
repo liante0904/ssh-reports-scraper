@@ -13,7 +13,7 @@ setup_logger("scraper")
 
 # --- 모듈 임포트 ---
 from utils.telegram_util import sendMarkDownText
-from utils.sqlite_util import convert_sql_to_telegram_message_chunks
+from utils.telegram_message_builder import build_telegram_message_chunks
 from models.db_factory import get_db
 
 # business modules
@@ -280,7 +280,7 @@ async def daily_send_report(date_str=None):
     report_ids = [r.get("report_id") for r in rows if r.get("report_id")]
     logger.info(f"Send candidates: {len(rows)} reports, report_ids={report_ids[:5]}...")
 
-    chunks = convert_sql_to_telegram_message_chunks(rows)
+    chunks = build_telegram_message_chunks(rows)
     logger.info(f"Sending {len(chunks)} message chunks...")
 
     sent_count = 0
