@@ -44,8 +44,8 @@ def validate(filepath: str, require_non_empty: bool = True) -> int:
             errors["missing_key"] += 1
             print(f"  item[{i}]: missing report_unique_key", file=sys.stderr)
 
-        # Check reg_dt
-        reg_dt = str(item.get("reg_dt", "")).strip()
+        # Check reg_dt (canonical: report_date, legacy: reg_dt)
+        reg_dt = str(item.get("report_date") or item.get("reg_dt", "")).strip()
         if not re.match(r'^\d{8}$', reg_dt):
             errors["bad_date"] += 1
             print(f"  item[{i}]: invalid reg_dt='{reg_dt}'", file=sys.stderr)
@@ -61,8 +61,9 @@ def validate(filepath: str, require_non_empty: bool = True) -> int:
         print(f"FAIL: {errors['bad_date']} items with invalid reg_dt", file=sys.stderr)
         return 2
 
-    # Check reg_dt recency (stale check)
-    dates = [d["reg_dt"] for d in data if re.match(r'^\d{8}$', str(d.get("reg_dt","")))]
+    # Check reg_dt recency (stale check) — canonical: report_date, legacy: reg_dt
+    dates = [str(d.get("report_date") or d.get("reg_dt", "")) for d in data
+             if re.match(r'^\d{8}$', str(d.get("report_date") or d.get("reg_dt", "")))]
     if dates:
         latest = max(dates)
         today = datetime.now(timezone(timedelta(hours=9))).strftime("%Y%m%d")
