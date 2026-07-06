@@ -24,6 +24,7 @@ from scraper_config import (
     BLOCKED_BY_SOURCE_IP, KNOWN_EXTERNAL_ERRORS,
     FIRM_ID_LS, FIRM_ID_DS, FIRM_ID_DBFI,
     FULL_SCRAPE_HOURS, STALE_OVERRIDES,
+    invalidate_api_cache,
 )
 
 # firm registry — data-driven dispatch replaces all 29 individual module imports
@@ -434,6 +435,7 @@ async def main(date_str=None):
     
     # 발송 전에 DB 연결을 새로 하거나 세션을 확실히 분리하여 최신 데이터를 가져옴
     await daily_send_report(date_str=date_str)
+    invalidate_api_cache()
     logger.info("=================== SCRAPER END =====================")
     if SCRAPER_HEALTH_ERRORS:
         joined = "; ".join(SCRAPER_HEALTH_ERRORS)

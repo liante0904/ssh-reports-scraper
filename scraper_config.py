@@ -56,3 +56,39 @@ if _raw:
                 STALE_OVERRIDES[k.strip()] = int(v.strip())
             except ValueError:
                 pass
+
+# ── Cache invalidation ──
+
+CACHE_INVALIDATE_URL = os.getenv(
+    "CACHE_INVALIDATE_URL",
+    "http://localhost:8002/external/api/internal/cache/invalidate",
+)
+INTERNAL_CACHE_TOKEN = os.getenv("INTERNAL_CACHE_TOKEN", "")
+
+
+def invalidate_api_cache() -> bool:
+    """FastAPI의 Redis 캐시를 무효화한다. 실패 시 False 반환 (non-fatal)."""
+    import logging
+
+    _log = logging.getLogger("scraper.cache")
+    if not INTERNAL_CACHE_TOKEN:
+        _log.debug("Cache invalidation skipped: INTERNAL_CACHE_TOKEN not set")
+        return False
+    try:
+        import requests
+
+        resp = requests.post(
+            CACHE_INVALIDATE_URL,
+            headers={"X-Internal-Token": INTERNAL_CACHE_TOKEN},
+            timeout=5,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            _log.info("Cache invalidated: %s keys deleted", data.get("deleted_keys", 0))
+            return True
+        else:
+            _log.warning("Cache invalidation returned %s: %s", resp.status_code, resp.text)
+            return False
+    except Exception as e:
+        _log.warning("Cache invalidation failed (non-fatal): %s", e)
+        return False

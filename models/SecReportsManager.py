@@ -166,7 +166,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 telegram_url        = COALESCE(NULLIF(EXCLUDED.telegram_url, ''), {table_name}.telegram_url),
                 pdf_url             = COALESCE(NULLIF(EXCLUDED.pdf_url, ''), {table_name}.pdf_url),
                 telegram_sent       = COALESCE({table_name}.telegram_sent, false),
-                save_at             = COALESCE(EXCLUDED.save_at, {table_name}.save_at)
+                save_at             = {table_name}.save_at
             RETURNING report_unique_key, (xmax = 0) AS inserted
         """
 
