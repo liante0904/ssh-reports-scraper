@@ -156,10 +156,13 @@ def run_ga_import():
 
 def _broadcast_ga_reports(db, keys: list[str]) -> None:
     """GA import된 신규 리포트를 텔레그램 채널에 발송.
-    
-    2026-06-21 fix: 개별 텔레그램 메시지 청크 발송이 성공할 때마다 해당 청크 내 리포트들만 
-    우선적으로 DB 상태(telegram_sent=true)를 마킹하여, 전체 전송 중 일부 
+
+    2026-06-21 fix: 개별 텔레그램 메시지 청크 발송이 성공할 때마다 해당 청크 내 리포트들만
+    우선적으로 DB 상태(telegram_sent=true)를 마킹하여, 전체 전송 중 일부
     실패 시의 중복 재발송 문제를 차단합니다.
+
+    2026-07-06 fix: httpx.ConnectError 등 일시적 네트워크 오류에 대해 chunk별 최대 3회
+    재시도 (exponential backoff: 1s → 2s → 4s). 영구적 오류(HTTP 4xx 등)는 재시도 없이 즉시 실패.
     """
     import asyncio
     token = os.getenv("TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET", "")
@@ -199,15 +202,54 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
         chunks = build_telegram_message_chunks(rows)
         for chunk in chunks:
             chunk_rows = chunk["rows"]
-            try:
-                asyncio.run(sendMarkDownText(token=token, chat_id=chat_id, sendMessageText=chunk["message"]))
-                asyncio.run(db.daily_update_data(fetched_rows=chunk_rows, type="send"))
-                logger.info(f"[GA-Broadcast] Chunk sent and marked: {len(chunk_rows)} reports")
-            except Exception as tx_err:
-                logger.error(f"[GA-Broadcast] Chunk send failed: {tx_err}")
+            _send_chunk_with_retry(token, chat_id, chunk, db, chunk_rows)
 
     except Exception as e:
         logger.warning(f"[GA-Broadcast] error: {e}")
+
+
+def _send_chunk_with_retry(token: str, chat_id: str, chunk: dict, db, chunk_rows: list) -> None:
+    """단일 청크 전송. 일시적 네트워크 오류 시 최대 3회 재시도."""
+    import asyncio
+    from utils.telegram_util import sendMarkDownText
+
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            asyncio.run(sendMarkDownText(
+                token=token, chat_id=chat_id, sendMessageText=chunk["message"]
+            ))
+            asyncio.run(db.daily_update_data(fetched_rows=chunk_rows, type="send"))
+            logger.info(f"[GA-Broadcast] Chunk sent and marked: {len(chunk_rows)} reports")
+            return  # 성공
+        except Exception as tx_err:
+            is_transient = _is_transient_error(tx_err)
+            if is_transient and attempt < max_retries - 1:
+                wait = 2 ** attempt  # 1s, 2s, 4s
+                logger.warning(
+                    f"[GA-Broadcast] Transient error (attempt {attempt + 1}/{max_retries}), "
+                    f"retrying in {wait}s: {tx_err}"
+                )
+                import time
+                time.sleep(wait)
+            else:
+                logger.error(f"[GA-Broadcast] Chunk send failed: {tx_err}")
+                return  # 영구적 오류 또는 재시도 소진
+
+
+def _is_transient_error(err: Exception) -> bool:
+    """일시적 네트워크 오류인지 판별. httpx.ConnectError, TimeoutException 등은 True."""
+    err_type = type(err).__name__
+    # httpx 네트워크 계층 오류
+    if err_type in ("ConnectError", "ConnectTimeout", "ReadTimeout",
+                    "WriteTimeout", "PoolTimeout", "RemoteProtocolError"):
+        return True
+    # 표준 라이브러리 네트워크 오류
+    if err_type in ("TimeoutError", "ConnectionError", "ConnectionResetError",
+                    "ConnectionRefusedError", "BrokenPipeError"):
+        return True
+    # httpx.HTTPStatusError 등 HTTP 응답 오류 (4xx, 5xx) → 재시도 안 함
+    return False
 
 
 def run_fnguide_matcher():
