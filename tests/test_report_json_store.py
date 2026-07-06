@@ -182,14 +182,14 @@ def test_json_util_unsent_local_json_keeps_legacy_chunk_text(tmp_path, monkeypat
                     "firm_nm": "Alpha증권",
                     "article_title": "A",
                     "telegram_url": "https://example.test/a.pdf",
-                    "save_time": "2026-07-05T08:00:00",
+                    "save_at": "2026-07-05T08:00:00",
                     "telegram_sent": False,
                 },
                 {
                     "firm_nm": "Beta증권",
                     "article_title": "B",
                     "telegram_url": "https://example.test/b.pdf",
-                    "save_time": "2026-07-05T08:10:00",
+                    "save_at": "2026-07-05T08:10:00",
                     "telegram_sent": False,
                 },
             ],
@@ -216,7 +216,7 @@ def test_append_report_if_new_writes_once(tmp_path):
         firm_nm="하나증권",
         pdf_url="https://example.test/report.pdf",
         article_title="Report",
-        save_time="2026-07-05T09:00:00",
+        save_at="2026-07-05T09:00:00",
     )
 
     assert store.append_report_if_new(target, report) is True
@@ -256,7 +256,7 @@ def test_json_util_save_data_to_local_json_keeps_legacy_return_and_payload(tmp_p
             "telegram_sent": False,
             "download_url": "https://example.test/report.pdf",
             "pdf_url": "https://example.test/report.pdf",
-            "save_time": "2026-07-05T09:00:00",
+            "save_at": "2026-07-05T09:00:00",
         }
     ]
     assert json_util.save_data_to_local_json(
@@ -274,25 +274,25 @@ def test_select_unsent_reports_filters_date_sent_and_firm():
         {
             "firm_nm": "하나증권",
             "article_title": "today",
-            "save_time": "2026-07-05T09:00:00",
+            "save_at": "2026-07-05T09:00:00",
             "telegram_sent": False,
         },
         {
             "firm_nm": "제외증권",
             "article_title": "excluded",
-            "save_time": "2026-07-05T09:00:00",
+            "save_at": "2026-07-05T09:00:00",
             "telegram_sent": False,
         },
         {
             "firm_nm": "하나증권",
             "article_title": "sent",
-            "save_time": "2026-07-05T09:00:00",
+            "save_at": "2026-07-05T09:00:00",
             "telegram_sent": True,
         },
         {
             "firm_nm": "하나증권",
             "article_title": "yesterday",
-            "save_time": "2026-07-04T09:00:00",
+            "save_at": "2026-07-04T09:00:00",
             "telegram_sent": False,
         },
     ]
@@ -311,8 +311,8 @@ def test_mark_reports_sent_for_date_updates_only_target_date(tmp_path):
     store.save_report_json_list(
         target,
         [
-            {"save_time": "2026-07-05T09:00:00", "telegram_sent": False},
-            {"save_time": "2026-07-04T09:00:00", "telegram_sent": False},
+            {"save_at": "2026-07-05T09:00:00", "telegram_sent": False},
+            {"save_at": "2026-07-04T09:00:00", "telegram_sent": False},
         ],
     )
 

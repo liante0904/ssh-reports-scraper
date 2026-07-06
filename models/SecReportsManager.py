@@ -33,7 +33,7 @@ def _sql_literal(value: str) -> str:
 
 
 class SecReportsManager(LibrarySecReportsManager):
-    """Keep legacy ``key`` and canonical ``report_unique_key`` in sync."""
+    """Canonical ``report_unique_key`` replaces legacy ``key`` (dropped 2026-07)."""
 
     REPORTS_READ_VIEW = "public.v_sec_reports_canonical"
 
@@ -111,6 +111,7 @@ class SecReportsManager(LibrarySecReportsManager):
             )
             save_at = entry.get("save_at")
             if not save_at:
+                # DEPRECATED (2026-07-06): save_time 컬럼 드랍. 하위호환 폴백 — 모든 스크래퍼가 save_at 사용 시 제거.
                 save_time_val = entry.get("save_time", "")
                 if save_time_val:
                     try:

@@ -88,7 +88,7 @@ def scrape_bnk(urls: list[str]) -> list[dict]:
                     "pdf_url": article_url,
                     "writer": writer,
                     "report_unique_key": article_url,
-                    "save_time": datetime.now().isoformat(),
+                    "save_at": datetime.now().isoformat(),
                 })
             except Exception:
                 continue

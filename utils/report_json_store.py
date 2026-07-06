@@ -139,7 +139,7 @@ def build_report_payload(
     article_url=None,
     download_url=None,
     telegram_sent=False,
-    save_time=None,
+    save_at=None,
 ):
     return {
         "firm_id": firm_id,
@@ -150,7 +150,7 @@ def build_report_payload(
         "telegram_sent": telegram_sent,
         "download_url": download_url or pdf_url,
         "pdf_url": pdf_url,
-        "save_time": save_time or datetime.now().isoformat(),
+        "save_at": save_at or datetime.now().isoformat(),
     }
 
 
@@ -172,7 +172,7 @@ def select_unsent_reports(reports, *, target_date, excluded_firms=None):
     excluded_firms = set(excluded_firms or [])
     return [
         report for report in reports
-        if str(report.get("save_time", "")).startswith(target_date)
+        if str(report.get("save_at") or report.get("save_time", "")).startswith(target_date)
         and not report.get("telegram_sent", False)
         and report.get("firm_nm") not in excluded_firms
     ]
@@ -182,7 +182,7 @@ def mark_reports_sent_for_date(path, target_date):
     reports = load_report_json_list(path)
     changed = 0
     for report in reports:
-        if str(report.get("save_time", "")).startswith(target_date):
+        if str(report.get("save_at") or report.get("save_time", "")).startswith(target_date):
             if report.get("telegram_sent") is not True:
                 changed += 1
             report["telegram_sent"] = True
