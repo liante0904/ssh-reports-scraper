@@ -26,36 +26,13 @@ from scraper_config import (
     FULL_SCRAPE_HOURS, STALE_OVERRIDES,
 )
 
-# business modules
-from modules.LS_0 import LS_checkNewArticle, LS_detail, LS_enrich
-from modules.ShinHanInvest_1 import ShinHanInvest_checkNewArticle
-from modules.NHQV_2 import NHQV_checkNewArticle               # GA 이관됨 (full-scrape fallback)
-from modules.HANA_3 import HANA_checkNewArticle
-from modules.KBsec_4 import KB_checkNewArticle                 # GA 이관됨 (full-scrape fallback)
-from modules.Samsung_5 import Samsung_checkNewArticle          # GA 이관됨 (full-scrape fallback)
-from modules.Sangsanginib_6 import Sangsanginib_checkNewArticle # GA 이관됨 (full-scrape fallback)
-from modules.Shinyoung_7 import Shinyoung_checkNewArticle
-from modules.Miraeasset_8 import Miraeasset_checkNewArticle
-from modules.Hmsec_9 import Hmsec_checkNewArticle
-from modules.Kiwoom_10 import Kiwoom_checkNewArticle           # GA 이관됨 (full-scrape fallback)
-from modules.DS_11 import DS_checkNewArticle
-from modules.eugenefn_12 import eugene_checkNewArticle
-from modules.Koreainvestment_13 import Koreainvestment_selenium_checkNewArticle
-from modules.DAOL_14 import DAOL_checkNewArticle
-from modules.TOSSinvest_15 import TOSSinvest_checkNewArticle   # GA 이관됨 (full-scrape fallback)
-from modules.Leading_16 import Leading_checkNewArticle          # GA 이관됨 (full-scrape fallback)
-from modules.Daeshin_17 import Daeshin_checkNewArticle
-from modules.iMfnsec_18 import iMfnsec_checkNewArticle
-from modules.DBfi_19 import DBfi_checkNewArticle, DBfi_enrich
-from modules.MERITZ_20 import MERITZ_checkNewArticle
-from modules.Hanwhawm_21 import Hanwha_checkNewArticle         # GA 이관됨 (full-scrape fallback)
-from modules.Hygood_22 import Hanyang_checkNewArticle           # GA 이관됨 (full-scrape fallback)
-from modules.BNKfn_23 import BNK_checkNewArticle
-from modules.Kyobo_24 import Kyobo_checkNewArticle
-from modules.IBKs_25 import IBK_checkNewArticle
-from modules.SKS_26 import Sks_checkNewArticle
-from modules.Yuanta_27 import Yuanta_checkNewArticle
-from modules.Heungkuk_28 import Heungkuk_checkNewArticle       # GA 이관됨 (full-scrape fallback)
+# firm registry — data-driven dispatch replaces all 29 individual module imports
+from scraper_registry import (
+    get_regular_sync_funcs, get_regular_async_funcs,
+    get_ga_sync_mapping, get_ga_async_mapping,
+    get_enricher, get_enrichment_skip_firm_ids,
+    get_ls_module_func,
+)
 
 load_dotenv()
 token = TELEGRAM_BOT_TOKEN
@@ -67,53 +44,15 @@ def _is_external_error(msg: str) -> bool:
     import re
     return any(re.search(pattern, msg) for pattern in KNOWN_EXTERNAL_ERRORS)
 
-# GA 이관 증권사 — 평시(30분 간격)에는 GA standalone이 처리, 서버는 full-scrape 시간대에만 fallback 실행
+# GA 이관 증권사 — 평시(30분 간격)에는 GA standalone이 처리, 서버는 full-scrape 시간대에만 fallback 실행.
 # {firm_id: func} 매핑. PostgreSQL tbm_sec_firm_info.ga_enabled_yn='Y' 여부로 필터링.
-_GA_FIRMS_SYNC = {
-    5: Samsung_checkNewArticle,       # 삼성증권
-    9: Hmsec_checkNewArticle,         # 현대차증권
-    15: TOSSinvest_checkNewArticle,    # 토스증권
-    28: Heungkuk_checkNewArticle,     # 흥국증권
-    # 아래 firm들은 GA standalone secret은 full_config지만, 서버 ConfigManager legacy secrets는
-    # URL list만 제공한다. 서버 full-scrape fallback에서 실행하면 health error로 scheduler가
-    # exit 1이 되므로 server config 정규화 전까지 GA 전용으로 둔다.
-    # 8: Miraeasset_checkNewArticle,  # 미래에셋증권: row_sel 필요
-    # 26: Sks_checkNewArticle,        # SK증권: list input 방어 전까지 제외
-}
-
-_GA_FIRMS_ASYNC = {
-    2: NHQV_checkNewArticle,          # NH투자증권
-    # 하나증권(firm_id=3)은 GA 러너 IP가 www.hanaw.com에서 차단되어
-    # GA로는 수집 불가. 서버 전용 regular async scraper list에서 직접 호출한다.
-    # _GA_FIRMS_ASYNC에 넣으면 ga_enabled_yn='N'일 때 full-scrape에서도 제외되어
-    # 완전히 누락되므로 절대 GA fallback 목록에 포함시키지 않는다.
-    # 3: HANA_checkNewArticle,          # 하나증권 — 서버 전용
-    4: KB_checkNewArticle,            # KB증권
-    6: Sangsanginib_checkNewArticle,  # 상상인증권
-    # IM증권은 현재 사이트 측 응답/수집 불가로 로컬 full-scrape fallback에서도 제외한다.
-    # 수동 재검증은 run/standalone/imfn.py 또는 scrape-imfn workflow_dispatch로 수행.
-    # 18: iMfnsec_checkNewArticle,     # IM증권
-    19: DBfi_checkNewArticle,          # DB증권
-    20: MERITZ_checkNewArticle,        # 메리츠증권
-    24: Kyobo_checkNewArticle,         # 교보증권
-    25: IBK_checkNewArticle,           # IBK투자증권
-    27: Yuanta_checkNewArticle,        # 유안타증권
-    # 서버 legacy secrets가 URL list만 제공해 full_config 기반 core에서 오류/무효 report_date를 낸다.
-    # GA standalone은 유지하고, 서버 fallback은 config 정규화 후 재활성화한다.
-    # 10: Kiwoom_checkNewArticle,      # 키움증권: payload 필요
-    # 14: DAOL_checkNewArticle,        # 다올투자증권: path_tpl 필요
-    # 16: Leading_checkNewArticle,     # 리딩투자증권: report_date 미검출
-    21: Hanwha_checkNewArticle,        # 한화투자증권
-    # 22: Hanyang_checkNewArticle,     # 한양증권: report_date 미검출
-}
+# 포함/제외 사유는 config/firms.yaml의 ga_fallback_exclusion_reason 참조.
+_GA_FIRMS_SYNC = get_ga_sync_mapping()
+_GA_FIRMS_ASYNC = get_ga_async_mapping()
 
 
 
-_ENRICHERS = {
-    FIRM_ID_LS: LS_enrich,
-    FIRM_ID_DBFI: DBfi_enrich,
-}
-_ENRICHMENT_SKIP_FIRM_IDS = frozenset({FIRM_ID_DS})
+_ENRICHMENT_SKIP_FIRM_IDS = get_enrichment_skip_firm_ids()
 
 
 def _filter_ga_enabled(mapping: dict) -> dict:
@@ -144,24 +83,13 @@ def _is_full_scrape_hour():
 
 
 def _regular_sync_functions():
-    return [
-        Shinyoung_checkNewArticle, DS_checkNewArticle
-    ]
+    """Regular (non-GA) sync scraper functions — delegated to firm registry."""
+    return get_regular_sync_funcs()
 
 
 def _regular_async_functions():
-    return [
-        ShinHanInvest_checkNewArticle,
-        Koreainvestment_selenium_checkNewArticle,
-        Daeshin_checkNewArticle,
-        HANA_checkNewArticle,               # 하나증권 — 서버 전용 (GA IP 차단)
-        # BNK is temporarily disabled in local scheduler (2026-06-26).
-        # Server and GA IP currently blocked by source. Keep module for manual diagnostics.
-        # Re-enable only after source access is confirmed.
-        # BNK_checkNewArticle,
-        # DAOL, iMfnsec, MERITZ → GA standalone
-        # eugene_checkNewArticle # 세션 만료 및 제한 에러 (보류)
-    ]
+    """Regular (non-GA) async scraper functions — delegated to firm registry."""
+    return get_regular_async_funcs()
 
 
 def log_scraper_health(name, rows):
@@ -231,7 +159,7 @@ async def enrich_data():
 
         logger.info(f"[{name}] Found {len(enrichment_targets)} records for enrichment (최근 3일).")
         try:
-            enricher = _ENRICHERS.get(firm_id)
+            enricher = get_enricher(firm_id)
             if enricher:
                 await enricher(db, enrichment_targets, firm_info, is_idle_time)
             elif firm_id in _ENRICHMENT_SKIP_FIRM_IDS:
@@ -409,9 +337,15 @@ async def run_ls_scraper(db):
         logger.warning("[LS] SKIP_LS enabled.")
         return
 
+    LS_check = get_ls_module_func("LS_checkNewArticle")
+    LS_detail_func = get_ls_module_func("LS_detail")
+    if not LS_check or not LS_detail_func:
+        logger.error("[LS] Failed to resolve LS functions from registry")
+        return
+
     try:
         ls_articles = await asyncio.wait_for(
-            asyncio.to_thread(LS_checkNewArticle),
+            asyncio.to_thread(LS_check),
             timeout=LS_LIST_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
@@ -425,7 +359,7 @@ async def run_ls_scraper(db):
     logger.info(f"[LS] 신규 {len(ls_articles)}건 detail 추출 시작")
     try:
         enriched = await asyncio.wait_for(
-            LS_detail(ls_articles, db=db),
+            LS_detail_func(ls_articles, db=db),
             timeout=LS_DETAIL_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
