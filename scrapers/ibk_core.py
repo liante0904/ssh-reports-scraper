@@ -69,9 +69,13 @@ def scrape_ibk(cfg: dict) -> list[dict]:
                     fn = item.get(ik.get("file","ATTATCH1"),"")
                     dl = ""
                     if fn:
+                        # [IBKS Daily] Start with IBKS reports (GUBUN=DAIL on 전략/시황 board)
+                        # use invrespect CDN path instead of invreport.
+                        gubun = item.get("GUBUN", "")
+                        dl_path = "invrespect" if (gubun == "DAIL" and path == "invreport") else path
                         dl = cfg.get("url_tpl",
                             "https://download.ibks.com/emsdata/tradeinfo/{path}/{file}")\
-                            .replace("{path}",path).replace("{file}",fn)
+                            .replace("{path}",dl_path).replace("{file}",fn)
                     result.append(dict(
                         firm_id=cfg.get("firm_id",25),
                         board_id=board_idx,
