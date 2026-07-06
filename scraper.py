@@ -19,7 +19,6 @@ from models.db_factory import get_db
 # scraper configuration (env vars, timeouts, constants)
 from scraper_config import (
     SCRAPER_STALE_DAYS, SCRAPER_SYNC_TIMEOUT_SECONDS, SCRAPER_ASYNC_TIMEOUT_SECONDS,
-    LS_LIST_TIMEOUT_SECONDS, LS_DETAIL_TIMEOUT_SECONDS,
     TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
     BLOCKED_BY_SOURCE_IP, KNOWN_EXTERNAL_ERRORS,
     FIRM_ID_LS, FIRM_ID_DS, FIRM_ID_DBFI,
@@ -27,7 +26,7 @@ from scraper_config import (
 )
 
 # business modules
-from modules.LS_0 import LS_checkNewArticle, LS_detail, LS_enrich
+from modules.LS_0 import LS_enrich
 from modules.ShinHanInvest_1 import ShinHanInvest_checkNewArticle
 from modules.NHQV_2 import NHQV_checkNewArticle               # GA 이관됨 (full-scrape fallback)
 from modules.HANA_3 import HANA_checkNewArticle
@@ -403,46 +402,6 @@ async def sync_scraped_reports_to_db(db, scraped_reports, label="DB"):
     return await insert_scraped_reports(db, reports_by_unique_key.values(), label=label)
 
 
-async def run_ls_scraper(db):
-    # ── LS증권: 목록 2p 스크래핑 → DB 키 비교 → 신규만 detail ──
-    # LS_0: local server IP 차단됨 (BLOCKED_BY_SOURCE_IP).
-    # GA WARP 우회 가능하나 로컬 fallback에서는 skip.
-    if os.getenv("SKIP_LS", "").lower() in ("1", "true", "yes"):
-        ls_articles = []
-        logger.warning("[LS] SKIP_LS enabled (LS_0 is BLOCKED_BY_SOURCE_IP on local IP).")
-    else:
-        try:
-            ls_articles = await asyncio.wait_for(
-                asyncio.to_thread(LS_checkNewArticle),
-                timeout=LS_LIST_TIMEOUT_SECONDS,
-            )
-        except asyncio.TimeoutError:
-            ls_articles = []
-            msg = f"LS Scraper Timeout (LS_checkNewArticle): {LS_LIST_TIMEOUT_SECONDS}s"
-            logger.warning(msg)  # 외부 네트워크 이슈 → WARNING
-    if ls_articles:
-        logger.info(f"[LS] 신규 {len(ls_articles)}건 detail 추출 시작")
-        try:
-            enriched = await asyncio.wait_for(
-                LS_detail(ls_articles, db=db),
-                timeout=LS_DETAIL_TIMEOUT_SECONDS,
-            )
-        except asyncio.TimeoutError:
-            enriched = ls_articles
-            msg = f"LS Detail Timeout (LS_detail): {LS_DETAIL_TIMEOUT_SECONDS}s"
-            logger.warning(msg)  # 외부 네트워크 이슈 → WARNING
-            logger.warning("[LS] detail 타임아웃: 목록에서 확인한 신규 건은 URL 미해결 상태로 DB 저장 후 enrichment에서 재시도합니다.")
-        resolved_count = sum(1 for a in enriched if a.get("telegram_url"))
-        logger.success(f"[LS] {len(enriched)}건 detail 완료 (URL resolved={resolved_count})")
-        try:
-            ls_inserted, ls_updated = db.insert_json_data_list(enriched)
-            logger.success(
-                f"[LS] DB Sync: {ls_inserted} new, {ls_updated} updated."
-            )
-        except Exception as e:
-            logger.error(f"[LS] DB error: {e}")
-
-
 def build_scraper_function_lists(is_full):
     if is_full:
         logger.info("⏰ FULL-SCRAPE MODE: KST {1,7,13,21}시 — GA 이관 증권사 포함 전체 29개사 스크래핑")
@@ -487,11 +446,6 @@ async def run_scraper_batches(db, sync_scraper_funcs, async_scraper_funcs):
 async def main(date_str=None):
     logger.info("=================== SCRAPER START ===================")
     db = get_db()
-
-    # LS_0: local server IP 차단됨 (BLOCKED_BY_SOURCE_IP).
-    # GA WARP 우회 가능하나 로컬 fallback에선 skip. Watchdog 에러 노이즈 방지.
-    # 재활성화 필요시 주석 해제 + SKIP_LS env 확인.
-    # await run_ls_scraper(db)
 
     sync_scraper_funcs, async_scraper_funcs = build_scraper_function_lists(
         is_full=_is_full_scrape_hour()
