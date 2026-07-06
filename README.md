@@ -112,7 +112,8 @@ API 키, DB 비밀번호, 수집 대상 URL(경쟁 우위 정보)을 소스코�
 
 ```
 ssh-reports-scraper/
-├── scraper.py                      # 메인 스케줄러
+├── scheduler.py                    # 서버 APScheduler 진입점
+├── scraper.py                      # 서버 scrape/enrich/send 파이프라인
 ├── scheduler_keyword_alert.py      # 키워드 알림 스케줄러
 ├── modules/                        # 증권사별 스크래퍼 (28개)
 ├── enricher/                       # 데이터 강화 (태그/섹터 추출)
@@ -123,9 +124,10 @@ ssh-reports-scraper/
 │   ├── db_factory.py               # DB_BACKEND 팩토리
 │   └── WebScraper.py               # HTTP/Selenium 공통 추상화
 ├── docs/
-│   ├── architecture.md             # ADR 및 설계 결정 기록
-│   ├── changelog.md                # 2021~현재 변천사
-│   └── url-semantics.md            # URL 컬럼 규약
+│   ├── DEBUG_ENTRYPOINTS.md        # 장애 유형별 첫 확인 파일/명령
+│   ├── ARCHITECTURE.md             # 아키텍처와 운영 흐름
+│   ├── LLM_GUIDE.md                # LLM 작업/위임 규칙
+│   └── OPS_LOG_TAIL.md             # 운영 로그 조회 헬퍼
 └── sql/                            # PostgreSQL DDL (소문자 표준화)
 ```
 
@@ -146,16 +148,12 @@ LS증권 · 신한투자증권 · NH투자증권 · 하나증권 · KB증권 · 
 | 2026.04 | PostgreSQL 전환, 스키마 소문자 정규화, AI 요약 |
 | 2026.05 | Enricher(태그/섹터) 통합, 인프라 고도화 (WARP 프록시 등) |
 
-전체 변천사 → [docs/changelog.md](docs/changelog.md)  
-설계 결정 배경 → [docs/architecture.md](docs/architecture.md)  
-PostgreSQL 스키마 규약 → [sql/TB_SEC_REPORTS.sql](sql/TB_SEC_REPORTS.sql)
-LLM 유지보수 통제 전략 → [docs/LLM_CONTROL_HARNESS.md](docs/LLM_CONTROL_HARNESS.md)  
-LLM 운영 하네스 한 장 요약 → [docs/LLM_HARNESS_README.md](docs/LLM_HARNESS_README.md)
-하위 LLM 단계적 작업 프로토콜 → [docs/LLM_DELEGATION_PROTOCOL.md](docs/LLM_DELEGATION_PROTOCOL.md)
-LLM tmux 자동 송신 가이드 → [docs/LLM_DISPATCH_AUTOMATION.md](docs/LLM_DISPATCH_AUTOMATION.md)
-LLM 하네스 포팅 가이드 → [docs/LLM_HARNESS_PORTING_GUIDE.md](docs/LLM_HARNESS_PORTING_GUIDE.md)
-OCI 운영 로그 조회 헬퍼 → [docs/OPS_LOG_TAIL.md](docs/OPS_LOG_TAIL.md)
-뉴스 워크플로 책임 분리 감사 (Actions 비용 분석) → [docs/NEWS_WORKFLOW_SPLIT_AUDIT.md](docs/NEWS_WORKFLOW_SPLIT_AUDIT.md)
+- 다음 디버깅 진입점: [docs/DEBUG_ENTRYPOINTS.md](docs/DEBUG_ENTRYPOINTS.md)
+- 설계/운영 흐름: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- LLM 작업/위임 규칙: [docs/LLM_GUIDE.md](docs/LLM_GUIDE.md)
+- LLM 하네스 상세 기록: [docs/LLM_HARNESS.md](docs/LLM_HARNESS.md)
+- OCI 운영 로그 조회 헬퍼: [docs/OPS_LOG_TAIL.md](docs/OPS_LOG_TAIL.md)
+- 뉴스 워크플로 책임 분리 감사: [docs/NEWS_WORKFLOW_SPLIT_AUDIT.md](docs/NEWS_WORKFLOW_SPLIT_AUDIT.md)
 
 ---
 

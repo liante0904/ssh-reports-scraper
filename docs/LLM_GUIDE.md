@@ -11,7 +11,7 @@
 
 목적: Codex가 매번 긴 조사/지시문을 새로 작성하지 않도록, DeepSeek와 Gemini/AGY가 작은 단위 작업을 단계적으로 수행하는 표준 절차를 고정한다.
 
-처음 읽는 사람은 `docs/LLM_HARNESS_README.md`를 먼저 읽고, 이 문서는 상세 계약이 필요할 때 읽는다.
+처음 읽는 사람은 `docs/DEBUG_ENTRYPOINTS.md`를 먼저 읽고, 이 문서는 상세 계약이 필요할 때 읽는다.
 
 ## 고정 파일
 
@@ -65,7 +65,7 @@ Key 약어:
 }
 ```
 
-새로운 `_next.md`, `_result.md`, 임시 markdown 파일을 만들지 않는다.
+새로운 `_next.json`, `_result.json`, 임시 markdown 파일을 만들지 않는다.
 
 ## 에이전트 역할
 
@@ -135,9 +135,7 @@ bash scripts/llm_dispatch.sh deepseek --send --wait
 bash scripts/llm_dispatch.sh gemini --send --wait
 ```
 
-세부 규칙은 `docs/LLM_DISPATCH_AUTOMATION.md`를 따른다.
-
-다른 repo/도메인에 같은 하네스를 복사할 때는 `docs/LLM_HARNESS_PORTING_GUIDE.md`를 따른다.
+세부 규칙과 포팅 이력은 통합 문서 `docs/LLM_HARNESS.md`를 따른다.
 
 자동 송신 금지:
 
@@ -220,7 +218,7 @@ bash scripts/ops_tail_errors.sh --service ssh-reports-scraper-main-scraper-green
 2. Gemini/AGY가 결과를 사람이 읽을 형태로 압축한다.
 3. Codex가 결과 파일과 git diff만 검토한다.
 4. 통과하면 Codex가 main merge/운영 배포 여부를 판단한다.
-5. 다음 작업이 있으면 기존 `_next.md`를 덮어쓴다.
+5. 다음 작업이 있으면 기존 `_next.json`을 덮어쓴다.
 
 ## Codex 토큰 절약형 큐
 
@@ -297,7 +295,7 @@ Codex가 직접 토큰을 많이 써야 하는 경우:
 
 ### 결과가 부족할 때 재귀 지시
 
-결과가 부족하면 새 파일을 만들지 말고 같은 `_next.md`를 덮어쓴다.
+결과가 부족하면 새 파일을 만들지 말고 같은 `_next.json`을 덮어쓴다.
 
 재지시 문장은 짧게 쓴다.
 
@@ -347,7 +345,7 @@ Codex가 직접 토큰을 많이 써야 하는 경우:
 | 5 | workflow 실패 로그가 실제 예외를 숨김 | 대부분 `uv run ... > result.json 2>log.txt` 뒤 `bash -e`라서 Python이 실패하면 `cat log.txt`가 실행되지 않는다. | workflow run step은 실패 시에도 stderr 파일을 출력하도록 `set +e` 패턴 또는 공통 composite action으로 바꾼다. |
 | 6 | `validate_scrape_result.py --require-non-empty`가 “장애”와 “장중 0건”을 구분하지 않음 | 사이트가 정상이어도 특정 시간/게시판은 0건일 수 있는데 workflow는 실패 처리한다. 반대로 실제 파싱 깨짐도 0건으로만 보일 수 있다. | 회사별 기대 수집 정책을 분리한다. “0건 허용 회사/시간대”와 “반드시 non-empty”를 config로 나눈다. |
 | 7 | 회사별 workflow env 이름이 통일되지 않음 | 대다수는 `FIRM_URLS_JSON`인데 LS/DS/Daeshin/KoreaInvestment는 `urls`를 쓴다. | 새 workflow는 `FIRM_URLS_JSON`만 사용한다. 레거시는 바꾸기 전까지 standalone entrypoint가 어떤 env를 읽는지 먼저 확인한다. |
-| 8 | docs 상태표가 실제 Actions와 빠르게 어긋남 | `GA_STATUS.md`의 정상/장애 표는 수동 문서라 최신 run과 다를 수 있다. | 현재 상태 판단은 `gh run list`를 기준으로 하고, docs는 배경 설명으로만 사용한다. |
+| 8 | docs 상태표가 실제 Actions와 빠르게 어긋남 | 수동 문서의 정상/장애 표는 최신 run과 다를 수 있다. | 현재 상태 판단은 `gh run list`와 운영 로그를 기준으로 하고, docs는 배경 설명으로만 사용한다. |
 | 9 | 같은 증권사가 `modules/*`, `scrapers/*_core.py`, `run/standalone/*`, workflow 네 군데에 걸쳐 있음 | “어디를 고쳐야 하는지”가 회사마다 다르다. 일부 서버 모듈은 core wrapper, 일부는 독자 구현이다. | 우선순위: core 로직 수정 → standalone wrapper 확인 → server module wrapper 확인 → workflow env/result 파일명 확인. |
 | 10 | LS는 일반 GA standalone 패턴과 다름 | DB 기반 URL 복구, WARP 상태, `FirmInfo`, `get_db()`까지 얽혀 있어 순수 HTTP scraper가 아니다. | LS는 별도 시스템으로 취급한다. 일반 `scrapers/*_core.py` 규칙을 무리하게 적용하지 않는다. |
 

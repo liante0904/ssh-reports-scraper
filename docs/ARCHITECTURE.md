@@ -6,7 +6,7 @@
 
 ---
 
-> **GA 전환 현황**: [GA_STATUS.md](GA_STATUS.md) 참조 — 21/29개사 전환 완료 (2026-06-12)
+> **디버깅 진입점**: [DEBUG_ENTRYPOINTS.md](DEBUG_ENTRYPOINTS.md)에서 현재 파일 구조와 빠른 검증 명령을 먼저 확인한다.
 
 ## 1. 배경과 동기
 
