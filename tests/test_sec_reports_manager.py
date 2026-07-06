@@ -97,7 +97,7 @@ def test_mark_reports_sent_marks_is_sent_and_legacy_main_channel_flag():
     assert result == {"status": "success"}
     assert len(calls) == 1
     assert "SET telegram_sent = true" in calls[0][0]
-    assert "main_ch_send_yn" not in calls[0][0]
+    assert "main_ch_send_yn" not in calls[0][0]  # legacy column must NOT appear in UPDATE
     assert calls[0][1] == (1,)  # default: report_id only, not match_by_url
 
 
@@ -192,6 +192,8 @@ def test_duplicate_reset_does_not_mutate_send_status():
     assert manager._reset_duplicate_send_yn([{
         "firm_nm": "신한증권",
         "reg_dt": "20260619",
+        "report_date": "20260619",
         "article_title": "중복 제목",
         "key": "https://example.test/new.pdf",
+        "report_unique_key": "https://example.test/new.pdf",
     }], "tbl_sec_reports") is None
