@@ -23,9 +23,9 @@ def scrape_kiwoom(cfg: dict) -> list[dict]:
         for item in items:
             try:
                 ik = cfg["item_keys"]
-                dl = cfg["url_tpl"].replace("{menu_gb}",item.get(ik["menu_gb"],"")).replace("{atta_file}",item.get(ik["atta_file"],"")).replace("{reg_dt}",item.get(ik["reg_dt"],""))
+                dl = cfg["url_tpl"].replace("{menu_gb}",item.get(ik["menu_gb"],"")).replace("{atta_file}",item.get(ik["atta_file"],"")).replace("{report_date}",item.get(ik["report_date"],""))
                 result.append(dict(firm_id=10,board_id=board_order,firm_nm="키움증권",
-                    report_date=re.sub(r"[-./]","",item[ik["reg_dt"]]),download_url=dl,article_title=item[ik["title"]],
+                    report_date=re.sub(r"[-./]","",item[ik["report_date"]]),download_url=dl,article_title=item[ik["title"]],
                     writer=item.get(ik["writer"],""),telegram_url=dl,pdf_url=dl,report_unique_key=dl,
                     save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
             except Exception: continue

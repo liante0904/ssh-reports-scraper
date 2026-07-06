@@ -19,6 +19,7 @@ from models.db_factory import get_db
 # scraper configuration (env vars, timeouts, constants)
 from scraper_config import (
     SCRAPER_STALE_DAYS, SCRAPER_SYNC_TIMEOUT_SECONDS, SCRAPER_ASYNC_TIMEOUT_SECONDS,
+    LS_LIST_TIMEOUT_SECONDS, LS_DETAIL_TIMEOUT_SECONDS,
     TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
     BLOCKED_BY_SOURCE_IP, KNOWN_EXTERNAL_ERRORS,
     FIRM_ID_LS, FIRM_ID_DS, FIRM_ID_DBFI,
@@ -26,7 +27,7 @@ from scraper_config import (
 )
 
 # business modules
-from modules.LS_0 import LS_enrich
+from modules.LS_0 import LS_checkNewArticle, LS_detail, LS_enrich
 from modules.ShinHanInvest_1 import ShinHanInvest_checkNewArticle
 from modules.NHQV_2 import NHQV_checkNewArticle               # GA 이관됨 (full-scrape fallback)
 from modules.HANA_3 import HANA_checkNewArticle
@@ -97,13 +98,13 @@ _GA_FIRMS_ASYNC = {
     24: Kyobo_checkNewArticle,         # 교보증권
     25: IBK_checkNewArticle,           # IBK투자증권
     27: Yuanta_checkNewArticle,        # 유안타증권
-    # 서버 legacy secrets가 URL list만 제공해 full_config 기반 core에서 오류/무효 reg_dt를 낸다.
+    # 서버 legacy secrets가 URL list만 제공해 full_config 기반 core에서 오류/무효 report_date를 낸다.
     # GA standalone은 유지하고, 서버 fallback은 config 정규화 후 재활성화한다.
     # 10: Kiwoom_checkNewArticle,      # 키움증권: payload 필요
     # 14: DAOL_checkNewArticle,        # 다올투자증권: path_tpl 필요
-    # 16: Leading_checkNewArticle,     # 리딩투자증권: reg_dt 미검출
+    # 16: Leading_checkNewArticle,     # 리딩투자증권: report_date 미검출
     21: Hanwha_checkNewArticle,        # 한화투자증권
-    # 22: Hanyang_checkNewArticle,     # 한양증권: reg_dt 미검출
+    # 22: Hanyang_checkNewArticle,     # 한양증권: report_date 미검출
 }
 
 
@@ -175,34 +176,34 @@ def log_scraper_health(name, rows):
         logger.warning(msg)  # 0건 수집 → 알람 노이즈 방지 (구조 변경 or IP 차단 등 외부 이슈일 가능성)
         return
 
-    reg_dates = sorted({
-        str(row.get("report_date") or row.get("reg_dt", ""))[:8]
+    report_dates = sorted({
+        str(row.get("report_date", ""))[:8]
         for row in rows
-        if row.get("report_date") or row.get("reg_dt")
+        if row.get("report_date")
     })
-    if not reg_dates:
-        msg = f"{name} returned {len(rows)} articles but no reg_dt values."
+    if not report_dates:
+        msg = f"{name} returned {len(rows)} articles but no report_date values."
         SCRAPER_HEALTH_ERRORS.append(msg)
         logger.error(msg)
         return
 
-    min_reg_dt = reg_dates[0]
-    max_reg_dt = reg_dates[-1]
-    logger.info(f"{name} => Found {len(rows)} articles (reg_dt {min_reg_dt}~{max_reg_dt})")
+    min_date = report_dates[0]
+    max_date = report_dates[-1]
+    logger.info(f"{name} => Found {len(rows)} articles (report_date {min_date}~{max_date})")
 
     try:
-        max_date = datetime.datetime.strptime(max_reg_dt, "%Y%m%d").date()
+        max_date_obj = datetime.datetime.strptime(max_date, "%Y%m%d").date()
         stale_days = STALE_OVERRIDES.get(name, SCRAPER_STALE_DAYS)
         stale_cutoff = datetime.datetime.now().date() - datetime.timedelta(days=stale_days)
-        if max_date < stale_cutoff:
+        if max_date_obj < stale_cutoff:
             msg = (
-                f"{name} latest reg_dt is stale: {max_reg_dt} "
+                f"{name} latest report_date is stale: {max_date} "
                 f"(older than {stale_days} days)"
             )
             SCRAPER_HEALTH_ERRORS.append(msg)
             logger.error(msg)
     except ValueError:
-        msg = f"{name} returned invalid max reg_dt: {max_reg_dt}"
+        msg = f"{name} returned invalid max report_date: {max_date}"
         SCRAPER_HEALTH_ERRORS.append(msg)
         logger.error(msg)
 
@@ -373,7 +374,7 @@ def normalize_scraped_report_payloads(scraped_reports):
 def dedupe_reports_by_unique_key(scraped_reports):
     reports_by_unique_key = {}
     for report_payload in scraped_reports:
-        unique_key = report_payload.get("report_unique_key") or report_payload.get("key") or report_payload.get("article_url")
+        unique_key = report_payload.get("report_unique_key") or report_payload.get("article_url")
         if unique_key:
             report_payload["report_unique_key"] = unique_key
             reports_by_unique_key[unique_key] = report_payload
@@ -400,6 +401,46 @@ async def sync_scraped_reports_to_db(db, scraped_reports, label="DB"):
         return 0, 0
 
     return await insert_scraped_reports(db, reports_by_unique_key.values(), label=label)
+
+
+async def run_ls_scraper(db):
+    # LS flow: DB existing keys -> scrape list -> new articles only -> detail/enrich -> insert.
+    if os.getenv("SKIP_LS", "").lower() in ("1", "true", "yes"):
+        logger.warning("[LS] SKIP_LS enabled.")
+        return
+
+    try:
+        ls_articles = await asyncio.wait_for(
+            asyncio.to_thread(LS_checkNewArticle),
+            timeout=LS_LIST_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        msg = f"LS Scraper Timeout (LS_checkNewArticle): {LS_LIST_TIMEOUT_SECONDS}s"
+        logger.warning(msg)
+        return
+
+    if not ls_articles:
+        return
+
+    logger.info(f"[LS] 신규 {len(ls_articles)}건 detail 추출 시작")
+    try:
+        enriched = await asyncio.wait_for(
+            LS_detail(ls_articles, db=db),
+            timeout=LS_DETAIL_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        enriched = ls_articles
+        msg = f"LS Detail Timeout (LS_detail): {LS_DETAIL_TIMEOUT_SECONDS}s"
+        logger.warning(msg)
+        logger.warning("[LS] detail 타임아웃: 목록에서 확인한 신규 건은 URL 미해결 상태로 DB 저장 후 enrichment에서 재시도합니다.")
+
+    resolved_count = sum(1 for article in enriched if article.get("telegram_url"))
+    logger.success(f"[LS] {len(enriched)}건 detail 완료 (URL resolved={resolved_count})")
+    try:
+        ls_inserted, ls_updated = db.insert_json_data_list(enriched)
+        logger.success(f"[LS] DB Sync: {ls_inserted} new, {ls_updated} updated.")
+    except Exception as e:
+        logger.error(f"[LS] DB error: {e}")
 
 
 def build_scraper_function_lists(is_full):
@@ -446,6 +487,8 @@ async def run_scraper_batches(db, sync_scraper_funcs, async_scraper_funcs):
 async def main(date_str=None):
     logger.info("=================== SCRAPER START ===================")
     db = get_db()
+
+    await run_ls_scraper(db)
 
     sync_scraper_funcs, async_scraper_funcs = build_scraper_function_lists(
         is_full=_is_full_scrape_hour()

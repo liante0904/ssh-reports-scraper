@@ -152,19 +152,19 @@ async def scrape_bnk() -> list[dict]:
                 article_url = ""
                 if match:
                     article_url = f"https://www.bnkfn.co.kr{match.group(1)}/{match.group(2)}"
-                reg_dt = cells[4].get_text(strip=True)
+                report_date = cells[4].get_text(strip=True)
                 articles.append({
                     "firm_id": 23,
                     "board_id": board_order,
                     "board_name": BOARD_NAMES.get(board_order, f"board_{board_order}"),
                     "firm_nm": "BNK투자증권",
-                    "reg_dt": re.sub(r"[-./]", "", reg_dt),
+                    "report_date": re.sub(r"[-./]", "", report_date),
                     "article_title": article_title,
                     "article_url": article_url,
                     "download_url": article_url,
                     "telegram_url": article_url,
                     "writer": writer,
-                    "save_time": datetime.now().isoformat(),
+                    "save_at": datetime.now().isoformat(),
                     "report_unique_key": article_url,
                 })
 

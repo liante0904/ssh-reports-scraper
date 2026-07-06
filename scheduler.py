@@ -206,6 +206,13 @@ def _broadcast_ga_reports(db, keys: list[str]) -> None:
             FROM tbl_sec_reports
             WHERE report_unique_key IN ({placeholders})
               AND (telegram_sent IS NOT true)
+              AND (
+                firm_id = 11
+                OR COALESCE(telegram_url, '') <> ''
+                OR COALESCE(pdf_url, '') <> ''
+                OR COALESCE(download_url, '') <> ''
+                OR COALESCE(article_url, '') <> ''
+              )
               {dbfi_ready}
             """,
             keys,

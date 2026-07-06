@@ -13,7 +13,7 @@ def scrape_hanyang(cfg: dict) -> list[dict]:
     cfg.setdefault("table_class", "board_list")
     cfg.setdefault("row_sel", "tbody tr")
     cfg.setdefault("cell_title", 1)
-    cfg.setdefault("cell_reg_dt", 3)
+    cfg.setdefault("cell_report_date", 3)
     cfg.setdefault("cell_attach", 4)
     cfg.setdefault("base_url", "https://www.hygood.co.kr")
     cfg.setdefault("firm_id", 22)
@@ -32,16 +32,16 @@ def scrape_hanyang(cfg: dict) -> list[dict]:
         for row in table.select(cfg["row_sel"]):
             try:
                 cells = row.find_all("td")
-                if len(cells) <= max(cfg["cell_title"],cfg["cell_reg_dt"],cfg.get("cell_attach",0)): continue
+                if len(cells) <= max(cfg["cell_title"],cfg["cell_report_date"],cfg.get("cell_attach",0)): continue
                 link = cells[cfg["cell_title"]].find("a")
                 if not link: continue
                 title = link.get_text(strip=True)
-                reg_dt = cells[cfg["cell_reg_dt"]].get_text(strip=True)
+                report_date = cells[cfg["cell_report_date"]].get_text(strip=True)
                 dl = ""
                 ac = cells[cfg["cell_attach"]].find("a") if "cell_attach" in cfg else None
                 if ac: dl = urljoin(url, ac.get("href",""))
                 result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
-                    firm_nm=cfg["firm_nm"],report_date=re.sub(r"[-./]","",reg_dt),
+                    firm_nm=cfg["firm_nm"],report_date=re.sub(r"[-./]","",report_date),
                     article_title=title,article_url=dl,download_url=dl,telegram_url=dl,
                     pdf_url=dl,report_unique_key=dl,save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
             except Exception: continue

@@ -40,8 +40,8 @@ async def download_file_wget(report_info_row, URL=None, FILE_NAME=None):
         now_kst = datetime.datetime.now(KST)
         today_str = now_kst.strftime('%Y%m%d')
         
-        # report_info_row['reg_dt'] 값이 있으면 이를 사용하고 없으면 현재 날짜 사용
-        DATE_PART = report_info_row['reg_dt'][2:8] if report_info_row.get('reg_dt') else today_str[2:8]
+        # report_info_row['report_date'] 값이 있으면 이를 사용하고 없으면 현재 날짜 사용
+        DATE_PART = report_info_row['report_date'][2:8] if report_info_row.get('report_date') else today_str[2:8]
 
         # DATE_PART가 비어 있는 경우 현재 날짜를 기본값으로 설정
         if not DATE_PART:

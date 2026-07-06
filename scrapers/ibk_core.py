@@ -63,7 +63,7 @@ def scrape_ibk(cfg: dict) -> list[dict]:
             ik = cfg.get("item_keys", {})
             for item in items:
                 try:
-                    rdt = re.sub(r"[-./]","", str(item.get(ik.get("reg_dt","REG_DATE"),"")))
+                    rdt = re.sub(r"[-./]","", str(item.get(ik.get("report_date","REG_DATE"),"")))
                     title = item.get(ik.get("title","TITLE"),"")
                     writer = item.get(ik.get("writer","REG_NAME"),"")
                     fn = item.get(ik.get("file","ATTATCH1"),"")

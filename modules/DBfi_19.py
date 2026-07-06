@@ -218,7 +218,7 @@ async def fetch_detailed_url(articles):
         # DB증권은 동일 리포트가 여러 게시판에 중복 노출되는 경우가 있어
         # 제목/작성자/등록일/카테고리 기준으로 대표 건만 상세 조회합니다.
         return (
-            _normalize_text(article.get("report_date") or article.get("reg_dt", "")),
+            _normalize_text(article.get("report_date", "")),
             _normalize_text(article.get("article_title", "")),
             _normalize_text(article.get("writer", "")),
             _normalize_text(article.get("CATEGORY", "")),
@@ -561,11 +561,12 @@ async def DBfi_enrich(db, records, firm_info, is_idle_time):
         logger.success(f"[DBfi] {success_count}/{len(update_records)}건 gate URL 복구 완료")
     if is_idle_time and DBFI_GATE_PREFIX:
         backlog = db._fetchall('''
-            SELECT report_id, article_title, writer, telegram_url, report_date AS reg_dt, key
+            SELECT report_id, article_title, writer, telegram_url,
+                   report_date, report_unique_key
             FROM v_sec_reports_canonical
             WHERE firm_id = 19 AND (telegram_url IS NULL OR telegram_url = ''
                OR telegram_url NOT LIKE %s)
-              AND key IS NOT NULL AND key != ''
+              AND report_unique_key IS NOT NULL AND report_unique_key != ''
             ORDER BY save_at DESC LIMIT 200
         ''', (f"{DBFI_GATE_PREFIX}%",))
         if backlog:

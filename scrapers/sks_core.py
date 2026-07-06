@@ -19,12 +19,11 @@ def _normalize_date(value):
     return candidate
 
 
-def _extract_reg_dt(item, cfg, pdf_path):
+def _extract_report_date(item, cfg, pdf_path):
     date_keys = (
         cfg.get("date_key"),
         "RDATE",
         "REGDATE",
-        "REG_DT",
         "REGDT",
         "WDATE",
         "WRITE_DATE",
@@ -32,9 +31,9 @@ def _extract_reg_dt(item, cfg, pdf_path):
     )
     for key in date_keys:
         if key:
-            reg_dt = _normalize_date(item.get(key))
-            if reg_dt:
-                return reg_dt
+            report_date = _normalize_date(item.get(key))
+            if report_date:
+                return report_date
 
     filename = PurePosixPath(str(pdf_path or "")).name
     match = re.search(r"(?<![0-9])((?:19|20)[0-9]{6})", filename)
@@ -60,15 +59,15 @@ def scrape_sks(cfg: dict) -> list[dict]:
                 dl = ""
                 if pdfpath:
                     dl = cfg.get("pdf_base","https://www.sks.co.kr") + cfg.get("pdf_path_prefix","/Upload/Research/") + pdfpath
-                reg_dt = _extract_reg_dt(item, cfg, pdfpath or dl)
-                if not reg_dt:
+                report_date = _extract_report_date(item, cfg, pdfpath or dl)
+                if not report_date:
                     invalid_dates += 1
                     continue
                 title = item.get(cfg.get("title_key","RSUBJECT"),"").strip()
                 writer = item.get(cfg.get("writer_key","RWRITER"),"").strip()
                 result.append(dict(firm_id=cfg.get("firm_id",26),
                     board_id=board_order,firm_nm=cfg.get("firm_nm","SK증권"),
-                    report_date=reg_dt,download_url=dl,telegram_url=dl,pdf_url=dl,
+                    report_date=report_date,download_url=dl,telegram_url=dl,pdf_url=dl,
                     article_title=title,writer=writer,
                     save_at=datetime.now(timezone(timedelta(hours=9))).isoformat(),
                     report_unique_key=dl))

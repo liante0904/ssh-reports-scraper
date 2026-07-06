@@ -112,13 +112,13 @@ def BNK_checkNewArticle():
                     file_name = match.group(2)
                     article_url = f"https://www.bnkfn.co.kr{base_path}/{file_name}"
 
-                reg_dt = cells[4].get_text(strip=True)
+                report_date = cells[4].get_text(strip=True)
 
                 json_data_list.append({
                     "firm_id": firm_id,
                     "board_id": board_id,
                     "firm_nm": firm_info.get_firm_name(),
-                    "report_date": re.sub(r"[-./]", "", reg_dt),
+                    "report_date": re.sub(r"[-./]", "", report_date),
                     "article_title": article_title,
                     "article_url": article_url,
                     "download_url": article_url,

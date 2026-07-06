@@ -77,8 +77,8 @@ async def parse_article_list(html_text, board_id):
                 date_tag = item.find('span', class_='date')
                 date = date_tag.text.strip() if date_tag else ''
                 
-                # reg_dt 포맷 변경: yyyyMMdd
-                reg_dt = re.sub(r"[-./]", "", date)
+                # report_date 포맷 변경: yyyyMMdd
+                report_date = re.sub(r"[-./]", "", date)
                 
                 writer_tag = item.find('span', class_='writer')
                 writer = writer_tag.text.strip() if writer_tag else ''
@@ -92,7 +92,7 @@ async def parse_article_list(html_text, board_id):
                     "firm_id": firm_id,
                     "board_id": board_id,
                     "firm_nm": firm_info.get_firm_name(),
-                    "report_date": reg_dt,
+                    "report_date": report_date,
                     "writer": writer,
                     "article_url": '',
                     "download_url": url,  # 필요시 변경

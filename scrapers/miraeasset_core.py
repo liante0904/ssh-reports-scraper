@@ -19,7 +19,7 @@ def scrape_miraeasset(cfg: dict) -> list[dict]:
         rows = soup.select(cfg["row_sel"])[cfg.get("skip_rows",0):]
         for row in rows:
             try:
-                rdt = re.sub(r"[-./]","",row.select_one(f"td:nth-child({cfg['cell_reg_dt']})").get_text(strip=True))
+                rdt = re.sub(r"[-./]","",row.select_one(f"td:nth-child({cfg['cell_report_date']})").get_text(strip=True))
                 title = row.select_one(f"td:nth-child({cfg['cell_title']})").get_text(strip=True)
                 writer = row.select_one(f"td:nth-child({cfg['cell_writer']})").get_text(strip=True)
                 dl = "없음"

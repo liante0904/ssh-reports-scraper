@@ -24,7 +24,7 @@ def scrape_toss(cfg: dict) -> list[dict]:
             for item in items:
                 try:
                     ik = cfg["item_keys"]
-                    title = item.get(ik["title"], ""); reg_dt = item.get(ik["reg_dt"], "").split("T")[0]
+                    title = item.get(ik["title"], ""); report_date = item.get(ik["report_date"], "").split("T")[0]
                     writer = item.get(ik["writer"], "")
                     if not writer:
                         m = re.search(r"작성자[:\s]*([^<\n]+)", item.get(ik.get("contents",""), ""))
@@ -36,7 +36,7 @@ def scrape_toss(cfg: dict) -> list[dict]:
                     cat = item.get(ik.get("category",""), {}).get("categoryName", "")
                     mkt = "GLOBAL" if cfg.get("global_keyword","") in cat.lower() else "KR"
                     result.append(dict(firm_id=15,board_id=board_order,firm_nm="토스증권",
-                        report_date=re.sub(r"[-./]","",reg_dt),download_url=dl,telegram_url=dl,
+                        report_date=re.sub(r"[-./]","",report_date),download_url=dl,telegram_url=dl,
                         article_title=title,writer=writer,mkt_tp=mkt,report_unique_key=dl,
                         save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception: continue

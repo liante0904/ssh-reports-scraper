@@ -16,7 +16,7 @@ class MockDB:
 
     def _fetchall(self, sql, params):
         # 쿼리가 report_unique_key IN (...) 형태이므로, rows에서 매칭되는 것 필터링
-        return [r for r in self.rows if (r.get("report_unique_key") or r.get("key")) in params]
+        return [r for r in self.rows if r.get("report_unique_key") in params]
 
     async def daily_update_data(self, fetched_rows, type):
         self.daily_update_calls.append((fetched_rows, type))
@@ -175,7 +175,7 @@ def test_broadcast_ga_reports_filters_unresolved_dbfi(monkeypatch):
             assert "firm_nm NOT IN" not in sql
             return [
                 r for r in self.rows
-                if (r.get("report_unique_key") or r.get("key")) in params
+                if r.get("report_unique_key") in params
                 and r.get("pdf_url", "").startswith("https://dbfi.example.test/streamdocs/v4/documents/")
             ]
 

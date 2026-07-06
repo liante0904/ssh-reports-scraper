@@ -51,6 +51,14 @@ LS_MSG_PREFIX = f"{LS_MSG_ORIGIN}/"
 LS_NLS_PREFIX = f"{LS_NLS_ORIGIN}/"
 LS_MSG_EUM_PREFIX = f"{LS_MSG_ORIGIN}/eum"
 
+
+def _article_report_date(article: dict) -> str:
+    return str(article.get("report_date") or "")
+
+
+def _article_unique_key(article: dict) -> str:
+    return str(article.get("report_unique_key") or article.get("article_url") or "")
+
 def get_soup_with_warp(url, headers):
     global USE_WARP_ONLY
     for attempt in range(1, LS_WARP_RETRIES + 1):
@@ -273,7 +281,7 @@ async def fetch(session: ClientSession, url: str, headers: dict) -> str:
                 return None
 
 async def process_article(session: ClientSession, article: dict, headers: dict, db=None):
-    TARGET_URL = article["report_unique_key"]
+    TARGET_URL = _article_unique_key(article)
 
     if ".pdf" in TARGET_URL:
         article["article_url"] = TARGET_URL
@@ -518,7 +526,9 @@ async def get_valid_url(new_filename, date_part, article, headers):
 
 
 async def create_fallback_url(article, soup=None):
-    URL_PARAM = article["reg_dt"]
+    URL_PARAM = _article_report_date(article)
+    if not URL_PARAM:
+        return ""
     URL_PARAM_0 = "B" + URL_PARAM[:6]
     
     attach_file_name = article.get("ATTACH_FILE_NAME", "")
@@ -548,8 +558,8 @@ async def reconstruct_msg_url_from_db(article, headers):
     - 선형 보간 기반 seq 추정 (fix_ls_db_by_empid.py 방식 참고)
     """
     writer_name = article.get("writer", "")
-    reg_dt = article.get("reg_dt", "")
-    if not writer_name or not reg_dt:
+    report_date = _article_report_date(article)
+    if not writer_name or not report_date:
         return None
 
     try:
@@ -585,7 +595,7 @@ async def reconstruct_msg_url_from_db(article, headers):
 
         # 2. 해당 writer_id의 전체 seq 이력 조회
         all_urls = db._fetchall("""
-            SELECT telegram_url, reg_dt
+            SELECT telegram_url, report_date
             FROM tbl_sec_reports
             WHERE firm_id = 0
               AND telegram_url LIKE 'https://msg.ls-sec.co.kr/eum/K_%%'
@@ -594,13 +604,13 @@ async def reconstruct_msg_url_from_db(article, headers):
             LIMIT 200
         """, (writer_id,))
 
-        seq_history = []  # [(reg_dt, seq)]
+        seq_history = []  # [(report_date, seq)]
         max_seq = 0
         for row in all_urls:
             m2 = re.search(rf'K_(\d{{8}})_{writer_id}_(\d+).pdf', row['telegram_url'])
             if m2:
                 s = int(m2.group(2))
-                seq_history.append((row['reg_dt'], s))
+                seq_history.append((str(row['report_date']).replace("-", ""), s))
                 if s > max_seq:
                     max_seq = s
 
@@ -609,10 +619,10 @@ async def reconstruct_msg_url_from_db(article, headers):
             return None
 
         # 3. 선형 보간으로 예상 seq 계산 (fix_ls_db_by_empid.py 방식)
-        reg_dt_int = reg_dt
+        report_date_int = report_date
         sorted_h = sorted(seq_history, key=lambda x: x[0])
-        before = [(dt, sq) for dt, sq in sorted_h if dt <= reg_dt_int]
-        after  = [(dt, sq) for dt, sq in sorted_h if dt > reg_dt_int]
+        before = [(dt, sq) for dt, sq in sorted_h if dt <= report_date_int]
+        after  = [(dt, sq) for dt, sq in sorted_h if dt > report_date_int]
 
         def date_diff_days(d1, d2):
             try:
@@ -624,14 +634,14 @@ async def reconstruct_msg_url_from_db(article, headers):
         if before and after:
             dt1, sq1 = before[-1]
             dt2, sq2 = after[0]
-            d1 = date_diff_days(reg_dt_int, dt1)
-            d2 = date_diff_days(reg_dt_int, dt2)
+            d1 = date_diff_days(report_date_int, dt1)
+            d2 = date_diff_days(report_date_int, dt2)
             total = max(d1 + d2, 1)
             est_seq = int(sq1 + (sq2 - sq1) * d1 / total)
         elif before:
             # 최근 두 점으로 속도 추정
             dt1, sq1 = before[-1]
-            d = date_diff_days(reg_dt_int, dt1)
+            d = date_diff_days(report_date_int, dt1)
             if len(before) >= 2:
                 dt0, sq0 = before[-2]
                 daily = abs(sq1 - sq0) / max(date_diff_days(dt1, dt0), 1)
@@ -643,7 +653,7 @@ async def reconstruct_msg_url_from_db(article, headers):
 
         # 4. 후보 URL 목록 생성 (넓은 범위 탐색)
         try:
-            base_date = datetime.strptime(reg_dt, "%Y%m%d")
+            base_date = datetime.strptime(report_date, "%Y%m%d")
         except ValueError:
             return None
 
@@ -711,10 +721,12 @@ async def LS_enrich(db, records, firm_info, is_idle_time):
     upload_fallback_prefix = f"{LS_PUBLIC_ORIGIN}/upload/"
 
     fallback_records = db._fetchall('''
-        SELECT report_id, article_title, writer, telegram_url, report_date AS reg_dt, key
+        SELECT report_id, article_title, writer, telegram_url,
+               report_date, report_unique_key
         FROM v_sec_reports_canonical
         WHERE firm_id = 0 AND telegram_url LIKE %s
-          AND save_at >= NOW() - INTERVAL '1 day' AND key IS NOT NULL AND key != ''
+          AND save_at >= NOW() - INTERVAL '1 day'
+          AND report_unique_key IS NOT NULL AND report_unique_key != ''
         ORDER BY save_at DESC LIMIT 50
     ''', (f"{upload_fallback_prefix}%",))
     if fallback_records:
@@ -729,11 +741,12 @@ async def LS_enrich(db, records, firm_info, is_idle_time):
 
     if is_idle_time:
         backlog = db._fetchall('''
-            SELECT report_id, article_title, writer, telegram_url, report_date AS reg_dt, key
+            SELECT report_id, article_title, writer, telegram_url,
+                   report_date, report_unique_key
             FROM v_sec_reports_canonical
             WHERE firm_id = 0 AND (telegram_url IS NULL OR telegram_url = ''
                OR telegram_url NOT LIKE %s)
-              AND key IS NOT NULL AND key != ''
+              AND report_unique_key IS NOT NULL AND report_unique_key != ''
             ORDER BY save_at DESC LIMIT 200
         ''', (f"{LS_MSG_PREFIX}%",))
         if backlog:

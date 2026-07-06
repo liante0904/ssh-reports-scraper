@@ -27,9 +27,9 @@ class TestDuplicatePdfGuard:
 
         # download_url (not telegram_url) must contain the PDF key for delta calc
         rows = [
-            {"article_title": "A", "article_url": "http://a.com/view.do?key=100", "download_url": "http://a.com/download.do?type=Board&key=200", "telegram_url": "http://a.com/download.do?type=Board&key=200", "pdf_url": "http://a.com/download.do?type=Board&key=200", "reg_dt": "20260630"},
-            {"article_title": "B", "article_url": "http://a.com/view.do?key=101", "download_url": "http://a.com/download.do?type=Board&key=200", "telegram_url": "http://a.com/download.do?type=Board&key=200", "pdf_url": "http://a.com/download.do?type=Board&key=200", "reg_dt": "20260629"},
-            {"article_title": "C", "article_url": "http://a.com/view.do?key=200", "download_url": "http://a.com/download.do?type=Board&key=999", "telegram_url": "http://a.com/download.do?type=Board&key=999", "pdf_url": "http://a.com/download.do?type=Board&key=999", "reg_dt": "20260628"},
+            {"article_title": "A", "article_url": "http://a.com/view.do?key=100", "download_url": "http://a.com/download.do?type=Board&key=200", "telegram_url": "http://a.com/download.do?type=Board&key=200", "pdf_url": "http://a.com/download.do?type=Board&key=200", "report_date": "20260630"},
+            {"article_title": "B", "article_url": "http://a.com/view.do?key=101", "download_url": "http://a.com/download.do?type=Board&key=200", "telegram_url": "http://a.com/download.do?type=Board&key=200", "pdf_url": "http://a.com/download.do?type=Board&key=200", "report_date": "20260629"},
+            {"article_title": "C", "article_url": "http://a.com/view.do?key=200", "download_url": "http://a.com/download.do?type=Board&key=999", "telegram_url": "http://a.com/download.do?type=Board&key=999", "pdf_url": "http://a.com/download.do?type=Board&key=999", "report_date": "20260628"},
         ]
         result = _filter_duplicate_pdf_rows(rows)
         assert len(result) == 3  # all 3 kept, but B reassigned
@@ -66,8 +66,8 @@ class TestDuplicatePdfGuard:
         from scrapers.heungkuk_core import _filter_duplicate_pdf_rows
 
         rows = [
-            {"article_title": "A", "article_url": "http://a.com/view.do?key=100", "download_url": "http://a.com/download.do?type=Board&key=200", "telegram_url": "http://a.com/download.do?type=Board&key=200", "pdf_url": "http://a.com/download.do?type=Board&key=200", "reg_dt": "20260630"},
-            {"article_title": "B", "article_url": "http://a.com/view.do?key=101", "download_url": "http://a.com/download.do?type=Board&key=200", "telegram_url": "http://a.com/download.do?type=Board&key=200", "pdf_url": "http://a.com/download.do?type=Board&key=200", "reg_dt": "20260629"},
+            {"article_title": "A", "article_url": "http://a.com/view.do?key=100", "download_url": "http://a.com/download.do?type=Board&key=200", "telegram_url": "http://a.com/download.do?type=Board&key=200", "pdf_url": "http://a.com/download.do?type=Board&key=200", "report_date": "20260630"},
+            {"article_title": "B", "article_url": "http://a.com/view.do?key=101", "download_url": "http://a.com/download.do?type=Board&key=200", "telegram_url": "http://a.com/download.do?type=Board&key=200", "pdf_url": "http://a.com/download.do?type=Board&key=200", "report_date": "20260629"},
         ]
         result = _filter_duplicate_pdf_rows(rows)
         assert len(result) == 2  # both kept
@@ -104,15 +104,12 @@ class TestHeungkukUniqueKeyPolicy:
                 "article_url": "http://a.com/view.do?key=21204",
                 "telegram_url": "http://a.com/download.do?key=30366",
                 "download_url": "http://a.com/download.do?key=30366",
-                "key": "http://a.com/view.do?key=21204",       # article_url
                 "report_unique_key": "http://a.com/view.do?key=21204",  # article_url
             },
         ]
         result = _filter_duplicate_pdf_rows(rows)
         assert len(result) == 1
         assert result[0]["report_unique_key"] == result[0]["article_url"]
-        # key도 article_url이어야 함
-        assert result[0]["key"] == result[0]["article_url"]
 
 
 class TestHeungkukPdfResolution:
@@ -196,7 +193,7 @@ class TestHeungkukPdfFallback:
         """PDF 미확인 row는 발송 링크만 article_url로 대체하고 PDF 필드는 비운다."""
         row = {
             "firm_id": 28, "board_id": 0, "firm_nm": "흥국증권",
-            "reg_dt": "20260630", "article_title": "Test",
+            "report_date": "20260630", "article_title": "Test",
             "article_url": "http://a.com/view.do?key=1",
             "download_url": "",
             "telegram_url": "http://a.com/view.do?key=1",

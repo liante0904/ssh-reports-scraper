@@ -274,7 +274,7 @@ def test_sync_scraped_reports_normalizes_dedupes_inserts_and_clears():
         {
             "article_title": "국내 반도체 &amp; 장비 (123456.KQ)",
             "mkt_tp": "GLOBAL",
-            "key": "same-key",
+            "report_unique_key": "same-key",
         },
         {
             "article_title": "최신 전략",
@@ -304,7 +304,7 @@ def test_scraped_report_helpers_normalize_and_dedupe():
         {
             "article_title": "국내 반도체 &amp; 장비 (123456.KQ)",
             "mkt_tp": "GLOBAL",
-            "key": "first-key",
+            "report_unique_key": "first-key",
         },
         {
             "article_title": "해외 전략",

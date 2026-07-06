@@ -4,10 +4,10 @@ import re, requests
 from datetime import datetime, timezone, timedelta
 from bs4 import BeautifulSoup
 
-def _adjust_date(reg_dt, time_str):
-    reg_date = datetime.strptime(reg_dt, "%Y%m%d")
+def _adjust_date(report_date, time_str):
+    reg_date = datetime.strptime(report_date, "%Y%m%d")
     m = re.match(r"(오전|오후)?\s*(\d{1,2}):(\d{2})", time_str.strip())
-    if not m: return reg_dt
+    if not m: return report_date
     period, hour, minute = m.groups(); hour = int(hour)
     if period == "오후" and hour != 12: hour += 12
     elif period == "오전" and hour == 12: hour = 0

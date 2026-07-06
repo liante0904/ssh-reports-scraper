@@ -40,7 +40,7 @@ def scrape_yuanta(cfg: dict) -> list[dict]:
                 try:
                     cd = cfg["cell_date"]
                     post_date = item.select_one(f"td:nth-of-type({cd})").get_text(strip=True)
-                    reg_dt = datetime.strptime(post_date, "%Y/%m/%d").strftime("%Y%m%d")
+                    report_date = datetime.strptime(post_date, "%Y/%m/%d").strftime("%Y%m%d")
                     ttag = item.select_one(cfg["cell_title"])
                     title = ttag.get_text(strip=True)
                     if board_idx == 0:
@@ -57,7 +57,7 @@ def scrape_yuanta(cfg: dict) -> list[dict]:
                     # dl이 비어있으면 article_url을 fallback으로 사용
                     if not dl: dl = article_url
                     result.append(dict(firm_id=cfg["firm_id"],board_id=board_idx,
-                        firm_nm=cfg["firm_nm"],report_date=reg_dt,
+                        firm_nm=cfg["firm_nm"],report_date=report_date,
                         download_url=dl,telegram_url=dl,pdf_url=dl,writer=writer,
                         report_unique_key=article_url,
                         article_title=title,save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))

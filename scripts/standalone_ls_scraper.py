@@ -96,9 +96,9 @@ def upload_filename_to_cdn_url(filename: str) -> Optional[str]:
     return None
 
 
-def make_fallback_url(attach_file_name: str, reg_dt: str) -> str:
+def make_fallback_url(attach_file_name: str, report_date: str) -> str:
     """upload/ fallback URL 생성"""
-    url_param_0 = "B" + reg_dt[:6]
+    url_param_0 = "B" + report_date[:6]
     safe_name = requests.utils.quote(attach_file_name)
     return f"{LS_UPLOAD_PREFIX}/{url_param_0}/{safe_name}"
 
@@ -173,7 +173,7 @@ def scrape_list(max_pages: int = 2) -> list[dict]:
                         "board_id": board_order,
                         "board_name": BOARD_NAMES[board_order],
                         "firm_nm": FIRM_NM,
-                        "reg_dt": re.sub(r"[-./]", "", str_date),
+                        "report_date": re.sub(r"[-./]", "", str_date),
                         "article_title": title,
                         "writer": writer,
                         "report_unique_key": key,
@@ -182,7 +182,7 @@ def scrape_list(max_pages: int = 2) -> list[dict]:
                         "download_url": "",
                         "telegram_url": "",
                         "pdf_url": "",
-                        "save_time": datetime.now().isoformat(),
+                        "save_at": datetime.now().isoformat(),
                     })
                     page_has_data = True
                 except Exception as e:
@@ -288,7 +288,7 @@ async def process_detail_article(
 
         # 2순위: upload/ fallback
         if not resolved_url and attach_file_name:
-            resolved_url = make_fallback_url(attach_file_name, article["reg_dt"])
+            resolved_url = make_fallback_url(attach_file_name, article["report_date"])
             print(f"  [DETAIL][fallback] {resolved_url}", file=sys.stderr)
 
         if resolved_url:

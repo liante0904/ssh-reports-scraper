@@ -54,13 +54,13 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
             except Exception: break
             items = jres.get("body",{}).get("list01",{}).get("outputList",[]) or []
             for item in items:
-                reg_dt = re.sub(r"[^0-9]","",str(item.get("date","")))[:8]
-                if not reg_dt or reg_dt < cutoff: continue
+                report_date = re.sub(r"[^0-9]","",str(item.get("date","")))[:8]
+                if not report_date or report_date < cutoff: continue
                 dl = canonical_shinhan_url(item.get("attachment_url") or "")
                 if not dl.startswith("http"): continue
                 board = BOARD_MAP.get(bbs_name, 99)
                 result.append({"firm_id":1,"board_id":board,
-                    "firm_nm":"신한증권","report_date":reg_dt,"download_url":dl,"telegram_url":dl,
+                    "firm_nm":"신한증권","report_date":report_date,"download_url":dl,"telegram_url":dl,
                     "article_title":item.get("title","").strip(),"writer":item.get("nickname","").strip(),
                     "report_unique_key":dl,
                     "save_at":datetime.now(timezone(timedelta(hours=9))).isoformat()})
@@ -85,13 +85,13 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
             u_key = rev_map.get("파일명","f3")
             w_key = rev_map.get("작성자") or rev_map.get("애널리스트") or "f5"
             for item in items:
-                reg_dt = re.sub(r"[^0-9]","",str(item.get(d_key,"")))[:8]
-                if not reg_dt or reg_dt < cutoff: continue
+                report_date = re.sub(r"[^0-9]","",str(item.get(d_key,"")))[:8]
+                if not report_date or report_date < cutoff: continue
                 dl = canonical_shinhan_url(item.get(u_key, ""))
                 if not dl.startswith("http"): continue
                 board = BOARD_MAP.get(board_name, 99)
                 result.append({"firm_id":1,"board_id":board,
-                    "firm_nm":"신한증권","report_date":reg_dt,"download_url":dl,"telegram_url":dl,
+                    "firm_nm":"신한증권","report_date":report_date,"download_url":dl,"telegram_url":dl,
                     "article_title":item.get(t_key,"").strip(),"writer":item.get(w_key,"").strip(),
                     "report_unique_key":dl,
                     "save_at":datetime.now(timezone(timedelta(hours=9))).isoformat()})

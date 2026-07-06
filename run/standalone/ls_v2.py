@@ -92,9 +92,14 @@ def fetch_existing_keys() -> tuple[set, dict, dict]:
 
 
 def filter_new(all_articles, existing_keys):
-    new = [a for a in all_articles if (a.get("key") or a.get("report_unique_key")) not in existing_keys]
+    new = [a for a in all_articles if a.get("report_unique_key") not in existing_keys]
     print(f"[{NM}] Filter: {len(all_articles) - len(new)} existing, {len(new)} new", file=sys.stderr)
     return new
+
+
+def report_month(article: dict) -> str:
+    """Return YYYYMM from canonical report_date."""
+    return str(article.get("report_date", ""))[:6]
 
 
 def resolve_cdn_url_from_detail(article_url: str, writer_emp_map: dict) -> str | None:
@@ -176,7 +181,7 @@ def resolve_batch(articles, writer_emp_map):
     resolved = []
     with_url = 0
     for i, a in enumerate(articles):
-        article_url = a.get("key") or a.get("report_unique_key")
+        article_url = a.get("report_unique_key")
         if not article_url:
             resolved.append(a)
             continue
@@ -215,7 +220,7 @@ if __name__ == "__main__":
     if new_articles:
         KST = timezone(timedelta(hours=9))
         today = datetime.now(KST).strftime("%Y%m")
-        today_articles = [a for a in new_articles if str(a.get("reg_dt", "")).startswith(today)]
+        today_articles = [a for a in new_articles if report_month(a) == today]
         older = [a for a in new_articles if a not in today_articles]
 
         if today_articles:
@@ -228,7 +233,7 @@ if __name__ == "__main__":
         final_articles = []
 
     for a in final_articles:
-        a["save_time"] = datetime.now(timezone(timedelta(hours=9))).isoformat()
+        a["save_at"] = datetime.now(timezone(timedelta(hours=9))).isoformat()
 
     with_url = sum(1 for a in final_articles if a.get("download_url"))
     print(f"[{NM}] Done: {len(final_articles)} ({with_url} with PDF)", file=sys.stderr)

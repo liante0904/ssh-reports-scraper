@@ -76,7 +76,7 @@ async def Daeshin_checkNewArticle():
                 title = item.find("strong", class_="title1").text.strip()
                 if title.startswith("[대신증권 "):
                     title = title.replace("[대신증권 ", "[")
-                reg_dt = item.find("span", class_="date").text.strip()
+                report_date = item.find("span", class_="date").text.strip()
                 author = item.find("span", class_="time").text.strip()
                 
                 link_tag = item.find("a")
@@ -96,7 +96,7 @@ async def Daeshin_checkNewArticle():
                         "firm_id": firm_id,
                         "board_id": board_id,
                         "firm_nm": firm_info.get_firm_name(),
-                        "report_date": re.sub(r"[-./]", "", reg_dt),
+                        "report_date": re.sub(r"[-./]", "", report_date),
                         "article_url": article_url,
                         "download_url": attach_url,
                         "telegram_url": attach_url,

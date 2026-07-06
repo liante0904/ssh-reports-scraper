@@ -12,7 +12,7 @@ def telegram_link_for_report(row):
 def format_telegram_report_row(row):
     title = row['article_title'].replace("_", " ").replace("*", "")
     link_url = telegram_link_for_report(row)
-    if link_url == "링크없음":
+    if not link_url or link_url == "링크없음":
         link_text = "링크없음\n"
     else:
         safe_url = link_url.replace("(", "%28").replace(")", "%29")

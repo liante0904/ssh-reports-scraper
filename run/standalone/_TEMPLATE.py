@@ -22,7 +22,6 @@ json_data_list.append({
     "firm_id": FIRM_ID,
     "board_id": 0,
     "firm_nm": FIRM_NM,
-    "reg_dt": "20260609",           # YYYYMMDD (legacy backward compat — use report_date)
     "report_date": "20260609",      # YYYYMMDD (canonical)
     "download_url": "https://...",
     "telegram_url": "https://...",
@@ -30,7 +29,6 @@ json_data_list.append({
     "writer": "작성자",
     "mkt_tp": "KR",                  # "KR" or "GLOBAL"
     "report_unique_key": "https://...",  # 중복제거용 유니크 키 (URL 권장)
-    "save_time": "2026-06-09T10:00:00",  # legacy backward compat — use save_at
     "save_at": "2026-06-09T10:00:00",    # canonical
 })
 """

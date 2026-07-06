@@ -17,7 +17,7 @@ if articles:
     seen = set()
     deduped = []
     for a in articles:
-        k = a.get("key")
+        k = a.get("report_unique_key")
         if k and k not in seen:
             seen.add(k)
             deduped.append(a)

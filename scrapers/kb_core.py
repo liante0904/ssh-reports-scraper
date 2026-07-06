@@ -19,7 +19,7 @@ DEFAULT_KB_CFG = {
         "doc_id": "documentid",
         "title": "docTitle",
         "subtitle": "docTitleSub",
-        "reg_dt": "publicDate",
+        "report_date": "publicDate",
         "writer": "analystNm"
     },
     "url_tpl": "http://rdata.kbsec.com/pdf_data/{doc_id}.pdf",
@@ -66,7 +66,7 @@ def scrape_kb(cfg: dict, from_date: str = None, to_date: str = None) -> list[dic
             if title and title not in sub: title = f"{title} : {sub}"
             elif sub: title = sub
             result.append(dict(firm_id=4,board_id=board,firm_nm="KB증권",
-                report_date=re.sub(r"[-./]","",str(item.get(ik["reg_dt"],""))),
+                report_date=re.sub(r"[-./]","",str(item.get(ik["report_date"],""))),
                 writer=item.get(ik["writer"],""),download_url=dl,telegram_url=dl,pdf_url=dl,
                 article_title=title,mkt_tp=mkt,report_unique_key=dl,
                 save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))

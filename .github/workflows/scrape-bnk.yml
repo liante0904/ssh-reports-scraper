@@ -51,5 +51,5 @@ jobs:
               data = json.load(f)
           print(f'Total articles: {data[\"count\"]}')
           for a in data['articles'][:5]:
-              print(f'  [{a[\"board_name\"]}] {a[\"article_title\"][:60]}... ({a[\"reg_dt\"]})')
+              print(f'  [{a[\"board_name\"]}] {a[\"article_title\"][:60]}... ({a[\"report_date\"]})')
           "

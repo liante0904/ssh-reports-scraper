@@ -20,7 +20,7 @@ def _norm_date(text):
     return digits[:8] if len(digits) >= 8 else ""
 
 def _filter_duplicate_pdf_rows(rows: list[dict]) -> list[dict]:
-    """같은 PDF URL이 서로 다른 article_url에 연결된 경우, formula delta + reg_dt
+    """같은 PDF URL이 서로 다른 article_url에 연결된 경우, formula delta + report_date
     기준으로 가장 가능성 높은 한 행에만 PDF를 할당하고 나머지는 article_url로 폴백한다."""
     if not rows:
         return rows
@@ -52,7 +52,7 @@ def _filter_duplicate_pdf_rows(rows: list[dict]) -> list[dict]:
         # score each candidate: lower delta = closer to correct PDF
         best_idx = -1
         best_score = (999999, -1)  # (delta, epoch_date for tiebreak)
-        winner_reg_dt = ""
+        winner_report_date = ""
 
         for idx in indices:
             au = rows[idx].get("article_url", "")
@@ -63,14 +63,14 @@ def _filter_duplicate_pdf_rows(rows: list[dict]) -> list[dict]:
                 continue
             formula_pk = 2 * vk - 12059
             delta = abs(dk - formula_pk)
-            # tiebreak: prefer newer reg_dt (larger YYYYMMDD int = newer)
-            reg = rows[idx].get("reg_dt", "")
+            # tiebreak: prefer newer report_date (larger YYYYMMDD int = newer)
+            reg = rows[idx].get("report_date", "")
             reg_int = int(reg) if reg.isdigit() and len(reg) == 8 else 0
             score = (delta, -reg_int)  # negate so newer (larger int) = smaller score
             if score < best_score:
                 best_score = score
                 best_idx = idx
-                winner_reg_dt = reg
+                winner_report_date = reg
 
         if best_idx >= 0:
             kept_groups += 1
@@ -88,7 +88,7 @@ def _filter_duplicate_pdf_rows(rows: list[dict]) -> list[dict]:
             )
             print(
                 f"[heungkuk] INFO: kept PDF for winner \"{winner_title}\" "
-                f"(delta={best_score[0]}, reg_dt={winner_reg_dt}), "
+                f"(delta={best_score[0]}, report_date={winner_report_date}), "
                 f"reassigning {len(indices)-1} other(s) to article fallback",
                 file=sys.stderr,
             )

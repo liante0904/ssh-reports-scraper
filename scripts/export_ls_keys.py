@@ -15,21 +15,21 @@ from models.db_factory import get_db
 
 
 def export_ls_keys(output_path: str = None) -> dict:
-    """LS증권(firm_id=0)의 모든 key + writer + article_title 조회"""
+    """LS증권(firm_id=0)의 모든 report_unique_key + writer + article_title 조회"""
     db = get_db()
 
     rows = db._fetchall("""
-        SELECT key, writer, article_title
+        SELECT report_unique_key, writer, article_title
         FROM tbl_sec_reports
-        WHERE firm_id = 0 AND key IS NOT NULL AND key != ''
-        ORDER BY key
+        WHERE firm_id = 0 AND report_unique_key IS NOT NULL AND report_unique_key != ''
+        ORDER BY report_unique_key
     """)
 
     keys = []
     key_writer_map = {}
 
     for r in rows:
-        k = r["key"]
+        k = r["report_unique_key"]
         keys.append(k)
         w = r.get("writer") or ""
         if w and k not in key_writer_map:

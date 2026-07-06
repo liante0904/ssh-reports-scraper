@@ -80,7 +80,7 @@ def DS_checkNewArticle(full_scan=False):
                     # 날짜 추출
                     date_element = row.select_one(".td_datetime")
                     date_str = date_element.get_text(strip=True) if date_element else datetime.now().strftime("%Y-%m-%d")
-                    reg_dt = re.sub(r"[-./]", "", date_str)
+                    report_date = re.sub(r"[-./]", "", date_str)
 
                     # SAVE_TIME을 게시글 등록일 기준으로 설정 (시간은 현재 시간 유지)
                     # date_str 형식: 2024-04-13 또는 04-13
@@ -98,7 +98,7 @@ def DS_checkNewArticle(full_scan=False):
                         "article_url": article_url,
                         "telegram_url": telegram_url,
                         "pdf_url": pdf_url,
-                        "report_date": reg_dt,
+                        "report_date": report_date,
                         "save_at": save_time,
                         "report_unique_key": pdf_url if pdf_url != "없음" else article_url
                     })

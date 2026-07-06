@@ -191,9 +191,7 @@ def test_duplicate_reset_does_not_mutate_send_status():
 
     assert manager._reset_duplicate_send_yn([{
         "firm_nm": "신한증권",
-        "reg_dt": "20260619",
         "report_date": "20260619",
         "article_title": "중복 제목",
-        "key": "https://example.test/new.pdf",
         "report_unique_key": "https://example.test/new.pdf",
     }], "tbl_sec_reports") is None

@@ -4,15 +4,21 @@
 --
 -- tbl_report_downloads는 pdf-archiver가 tbl_sec_reports에 직접 쓰므로
 -- 별도 분리 불필요 → DROP 완료. download 관련 컬럼은 tbl_sec_reports에 그대로 유지.
-
+--
+-- DEPRECATED aliases (2026-07-06):
+--   key  → report_unique_key  (물리컬럼 DROP, 뷰 alias만 유지 — 하위호환)
+--   reg_dt → report_date       (물리컬럼 DROP, 뷰 alias만 유지 — 하위호환)
+--   save_time → save_at        (물리컬럼 DROP, 뷰 alias만 유지 — 하위호환)
+-- 새 코드에서는 report_unique_key, report_date, save_at 을 직접 사용할 것.
+--
 CREATE OR REPLACE VIEW v_sec_reports_full AS
 SELECT
     -- 핵심 컬럼 (tbl_sec_reports)
     r.report_id, r.firm_id, r.board_id, r.firm_nm,
     r.firm_id AS firm_id, r.board_id AS board_id,
     r.article_title, r.article_url, r.report_unique_key AS key, r.report_unique_key,
-    r.reg_dt, r.report_date,
-    r.save_time, r.save_at,
+    r.report_date AS reg_dt, r.report_date,
+    r.save_at AS save_time, r.save_at,
     r.telegram_sent,
     r.telegram_url, r.writer, r.mkt_tp,
     r.download_url, r.pdf_url,

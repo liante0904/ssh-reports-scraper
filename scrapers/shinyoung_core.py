@@ -12,7 +12,7 @@ def scrape_shinyoung(cfg: dict) -> list[dict]:
         urls = [cfg["url"]]
     item_keys = {
         "title": "TITLE",
-        "reg_dt": "APPDATE",
+        "report_date": "APPDATE",
         "writer": "EMPNM",
         "seq": "SEQ",
         "seq_val": "SEQ",
@@ -78,7 +78,7 @@ def scrape_shinyoung(cfg: dict) -> list[dict]:
             # 2026.06.21 fix: GA Import 중복제거 및 DB 업서트 시 식별값으로 사용될 key, report_unique_key 설정 추가
             result.append({
                 "firm_id": 7, "board_id": 0, "firm_nm": cfg.get("firm_nm", "신영증권"),
-                "report_date": re.sub(r"[-./]", "", item[item_keys["reg_dt"]]),
+                "report_date": re.sub(r"[-./]", "", item[item_keys["report_date"]]),
                 "writer": item.get(item_keys["writer"], ""),
                 "article_title": title, "telegram_url": dl, "download_url": dl,
                 "report_unique_key": dl,

@@ -44,11 +44,11 @@ def validate(filepath: str, require_non_empty: bool = True) -> int:
             errors["missing_key"] += 1
             print(f"  item[{i}]: missing report_unique_key", file=sys.stderr)
 
-        # Check reg_dt (canonical: report_date, legacy: reg_dt)
-        reg_dt = str(item.get("report_date") or item.get("reg_dt", "")).strip()
-        if not re.match(r'^\d{8}$', reg_dt):
+        # Check report_date (canonical)
+        report_date = str(item.get("report_date", "")).strip()
+        if not re.match(r'^\d{8}$', report_date):
             errors["bad_date"] += 1
-            print(f"  item[{i}]: invalid reg_dt='{reg_dt}'", file=sys.stderr)
+            print(f"  item[{i}]: invalid report_date='{report_date}'", file=sys.stderr)
 
         # Check firm_nm
         if not item.get("firm_nm"):
@@ -58,17 +58,17 @@ def validate(filepath: str, require_non_empty: bool = True) -> int:
         print(f"FAIL: {errors['missing_key']} items missing unique key", file=sys.stderr)
         return 2
     if errors["bad_date"] > 0:
-        print(f"FAIL: {errors['bad_date']} items with invalid reg_dt", file=sys.stderr)
+        print(f"FAIL: {errors['bad_date']} items with invalid report_date", file=sys.stderr)
         return 2
 
-    # Check reg_dt recency (stale check) — canonical: report_date, legacy: reg_dt
-    dates = [str(d.get("report_date") or d.get("reg_dt", "")) for d in data
-             if re.match(r'^\d{8}$', str(d.get("report_date") or d.get("reg_dt", "")))]
+    # Check report_date recency (stale check)
+    dates = [str(d.get("report_date", "")) for d in data
+             if re.match(r'^\d{8}$', str(d.get("report_date", "")))]
     if dates:
         latest = max(dates)
         today = datetime.now(timezone(timedelta(hours=9))).strftime("%Y%m%d")
         if latest < today:
-            print(f"WARN: latest reg_dt={latest} < today={today} (may be stale)", file=sys.stderr)
+            print(f"WARN: latest report_date={latest} < today={today} (may be stale)", file=sys.stderr)
 
     print(f"OK: {len(data)} articles, {errors['bad_date']} bad_date, {errors['missing_key']} missing_key", file=sys.stderr)
     return 0

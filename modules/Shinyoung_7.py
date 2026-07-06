@@ -52,7 +52,7 @@ def Shinyoung_checkNewArticle():
     for list in soupList:
         # logger.debug('list***************** \n',list)
         mkt_tp              = "KR"    
-        reg_dt              = re.sub(r"[-./]", "", list['APPDATE'])
+        report_date         = re.sub(r"[-./]", "", list['APPDATE'])
         writer              = list['EMPNM']
         # logger.debug('NT_NO=',list['NT_NO'], 'CMS_CD=',cmsCd[board_id])
         LIST_ARTICLE_URL = Shinyoung_detail(SEQ=list['SEQ'], BBSNO=list['BBSNO'])
@@ -65,7 +65,7 @@ def Shinyoung_checkNewArticle():
             "board_id":board_id,
             "firm_nm":firm_info.get_firm_name(),
             "article_title":LIST_ARTICLE_TITLE,
-            "report_date":reg_dt,
+            "report_date":report_date,
             "writer":writer,
             "telegram_url": download_url,
             "mkt_tp": mkt_tp,

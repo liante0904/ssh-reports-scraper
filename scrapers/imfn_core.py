@@ -75,7 +75,7 @@ def scrape_imfn(cfg) -> list[dict]:
                     # 2026.06.21 fix: GA Import 중복제거 및 DB 업서트 시 식별값으로 사용될 key, report_unique_key, article_url 설정 추가
                     result.append({
                         "firm_id": 18, "board_id": board_order,
-                        "firm_nm": "IM증권", "report_date": re.sub(r"[-./]", "", item["reg_dt"]),
+                        "firm_nm": "IM증권", "report_date": re.sub(r"[-./]", "", item["report_date"]),
                         "telegram_url": attach_url, "pdf_url": attach_url,
                         "article_title": item["title"], "writer": item["username"],
                         "report_unique_key": attach_url, "article_url": attach_url,

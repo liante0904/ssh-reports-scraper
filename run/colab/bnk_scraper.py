@@ -67,7 +67,7 @@ def scrape_bnk(urls: list[str]) -> list[dict]:
                     continue
 
                 title = article_link.get_text(strip=True)
-                reg_dt = cells[4].get_text(strip=True)
+                report_date = cells[4].get_text(strip=True)
 
                 # onclick에서 PDF URL 추출
                 onclick = article_link.get("onclick", "")
@@ -80,7 +80,7 @@ def scrape_bnk(urls: list[str]) -> list[dict]:
                     "firm_id": FIRM_ID,
                     "board_id": board_id,
                     "firm_nm": FIRM_NM,
-                    "reg_dt": re.sub(r"[-./]", "", reg_dt),
+                    "report_date": re.sub(r"[-./]", "", report_date),
                     "article_title": title,
                     "article_url": article_url,
                     "download_url": article_url,

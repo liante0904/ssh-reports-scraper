@@ -21,7 +21,7 @@ def scrape_sangsangin(cfg: dict) -> list[dict]:
                "_ga_BTXL5GSB67": "GS1.1.1728208331.1.1.1728208338.53.0.0"}
 
     boards = cfg.get("boards", ["CM0078", "CM0338", "CM0079"])
-    item_keys = cfg.get("item_keys", {"reg_dt": "REGDT", "title": "TITLE", "nt_no": "NT_NO"})
+    item_keys = cfg.get("item_keys", {"report_date": "REGDT", "title": "TITLE", "nt_no": "NT_NO"})
     url_tpl = cfg.get("url_tpl",
         "https://www.sangsanginib.com/_upload/attFile/{cms}/{cms}_{nt_no}_1.pdf")
 
@@ -50,7 +50,7 @@ def scrape_sangsangin(cfg: dict) -> list[dict]:
 
         for item in items:
             try:
-                rdt = re.sub(r"[-./]", "", str(item.get(item_keys["reg_dt"], "")))
+                rdt = re.sub(r"[-./]", "", str(item.get(item_keys["report_date"], "")))
                 title = item.get(item_keys["title"], "")
                 nt_no = str(item.get(item_keys["nt_no"], ""))
                 dl = url_tpl.replace("{cms}", cms_cd).replace("{nt_no}", nt_no)
