@@ -7,22 +7,156 @@
 #   firms:
 #     {key}:
 #       display_name: str       # 한글 증권사명
-#       firm_id: int     # DB firm_id
+#       firm_id: int            # DB firm_id (tbl_sec_reports.firm_id)
 #       mode: str               # ga | server | dual | ga_disabled | blocked
 #       core_module: str|null   # e.g. "scrapers.kb_core" or null
 #       standalone_path: str|null  # e.g. "run/standalone/kb.py" or null
 #       server_module: str      # e.g. "modules.KBsec_4"
 #       workflow_path: str|null # e.g. ".github/workflows/scrape-kb.yml" or null
-#       env_var: str|null       # workflow env 변수명 (e.g. "KB_URLS_JSON" or "urls")
+#       env_var: str|null       # workflow/standalone env 변수명 (e.g. "KB_URLS_JSON" or "urls")
 #       result_file: str        # JSON 결과 파일명
 #       config_shape: str       # url_list | full_config
 #       empty_policy: str       # require_non_empty | allow_empty | server_only
 #       notes: str              # 예외 사항
-#
-# 현재 대표/저위험 15개 firm 입력. 나머지는 evidence 검토 후 5개 단위로 추가 예정.
+#       # Dispatch fields (for scraper_registry.py):
+#       server_list: str        # sync | async | none — local scheduler function list
+#       ga_full_scrape_list: str  # sync | async | none — GA fallback in full-scrape mode
+#       ga_fallback_excluded: bool  # true if excluded from full-scrape despite GA mode
+#       ga_fallback_exclusion_reason: str|null  # why excluded (if applicable)
 
 firms:
-  # --- 정규 GA dual 패턴 (GA + server fallback) ---
+  # =========================================================================
+  # Server-only firms (local scheduler runs them, no GA standalone)
+  # =========================================================================
+  shinhan:
+    display_name: 신한투자증권
+    firm_id: 1
+    mode: server
+    core_module: scrapers.shinhan_core
+    standalone_path: run/standalone/shinhan.py
+    server_module: modules.ShinHanInvest_1
+    workflow_path: .github/workflows/scrape-shinhan.yml
+    env_var: SHINHAN_URLS_JSON
+    result_file: shinhan_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: async
+    ga_full_scrape_list: none
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "서버 전용 (GA standalone 미해당). SyncWebScraper + aiohttp 직접 사용 혼합. env 이름으로 SHINHAN_URLS_JSON 사용."
+
+  shinyoung:
+    display_name: 신영증권
+    firm_id: 7
+    mode: server
+    core_module: scrapers.shinyoung_core
+    standalone_path: run/standalone/shinyoung.py
+    server_module: modules.Shinyoung_7
+    workflow_path: .github/workflows/scrape-shinyoung.yml
+    env_var: SHINYOUNG_URLS_JSON
+    result_file: shinyoung_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: sync
+    ga_full_scrape_list: none
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "서버 전용 sync 스크래퍼. _runner.py 정규 패턴."
+
+  ds:
+    display_name: DS투자증권
+    firm_id: 11
+    mode: server
+    core_module: scrapers.ds_core
+    standalone_path: run/standalone/ds.py
+    server_module: modules.DS_11
+    workflow_path: .github/workflows/scrape-ds.yml
+    env_var: urls
+    result_file: ds_result.json
+    config_shape: url_list
+    empty_policy: require_non_empty
+    server_list: sync
+    ga_full_scrape_list: none
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "서버 전용 sync 스크래퍼. env 이름으로 'urls' 사용 (비정규 패턴). _runner.py 정규 패턴."
+
+  daeshin:
+    display_name: 대신증권
+    firm_id: 17
+    mode: server
+    core_module: null
+    standalone_path: run/standalone/daeshin.py
+    server_module: modules.Daeshin_17
+    workflow_path: .github/workflows/scrape-daeshin.yml
+    env_var: urls
+    result_file: daeshin_result.json
+    config_shape: url_list
+    empty_policy: require_non_empty
+    server_list: async
+    ga_full_scrape_list: none
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "서버 전용 async 스크래퍼. core 패턴 미이관 (modules/Daeshin_17.py가 독자 구현). env 이름으로 'urls' 사용."
+
+  koreainvestment:
+    display_name: 한국투자증권
+    firm_id: 13
+    mode: server
+    core_module: null
+    standalone_path: run/standalone/koreainvestment.py
+    server_module: modules.Koreainvestment_13
+    workflow_path: .github/workflows/scrape-koreainvestment.yml
+    env_var: urls
+    result_file: ki_result.json
+    config_shape: url_list
+    empty_policy: require_non_empty
+    server_list: async
+    ga_full_scrape_list: none
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "Selenium 의존(browser-actions/setup-chrome@v1). ChromeDriver ARM64/amd64 분기. _runner.py 미사용 — modules/Koreainvestment_13.py의 selenium 함수 직접 호출. core 정규 패턴(scrapers/koreainvestment_core.py) 미이관."
+
+  sks:
+    display_name: SK증권
+    firm_id: 26
+    mode: dual
+    core_module: scrapers.sks_core
+    standalone_path: run/standalone/sks.py
+    server_module: modules.SKS_26
+    workflow_path: .github/workflows/scrape-sks.yml
+    env_var: SKS_URLS_JSON
+    result_file: sks_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: sync
+    ga_fallback_excluded: true
+    ga_fallback_exclusion_reason: "서버 legacy secrets가 URL list만 제공 — full_config 기반 core에서 list input 방어 전까지 제외."
+    notes: "GA sync 전용 (서버 full-scrape fallback 제외). 서버 config 정규화 전까지 GA standalone만 작동. _runner.py 정규 패턴."
+
+  # =========================================================================
+  # GA dual firms (GA standalone primary + server full-scrape fallback)
+  # =========================================================================
+  nhqv:
+    display_name: NH투자증권
+    firm_id: 2
+    mode: dual
+    core_module: scrapers.nhqv_core
+    standalone_path: run/standalone/nhqv.py
+    server_module: modules.NHQV_2
+    workflow_path: .github/workflows/scrape-nhqv.yml
+    env_var: NHQV_URLS_JSON
+    result_file: nhqv_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: async
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "GA async + server full-scrape fallback. _runner.py 정규 패턴. core는 JSON POST 기반 (page_size=11)."
+
   kb:
     display_name: KB증권
     firm_id: 4
@@ -35,9 +169,324 @@ firms:
     result_file: kb_result.json
     config_shape: full_config
     empty_policy: require_non_empty
-    notes: "13종 게시판 분류(pCategoryId). _runner.py 정규 패턴."
+    server_list: none
+    ga_full_scrape_list: async
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "GA async + server full-scrape fallback. 13종 게시판 분류(pCategoryId). _runner.py 정규 패턴."
 
-  # --- GA disabled + server fallback ---
+  samsung:
+    display_name: 삼성증권
+    firm_id: 5
+    mode: dual
+    core_module: scrapers.samsung_core
+    standalone_path: run/standalone/samsung.py
+    server_module: modules.Samsung_5
+    workflow_path: .github/workflows/scrape-samsung.yml
+    env_var: SAMSUNG_URLS_JSON
+    result_file: samsung_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: sync
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "GA sync + server full-scrape fallback. _runner.py 정규 패턴."
+
+  sangsangin:
+    display_name: 상상인증권
+    firm_id: 6
+    mode: dual
+    core_module: scrapers.sangsangin_core
+    standalone_path: run/standalone/sangsanginib.py
+    server_module: modules.Sangsanginib_6
+    workflow_path: .github/workflows/scrape-sangsanginib.yml
+    env_var: SANGSANGINIB_URLS_JSON
+    result_file: sangsanginib_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: async
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "GA async + server full-scrape fallback. _runner.py 정규 패턴. standalone 파일명은 sangsanginib.py (레거시 네이밍)."
+
+  hmsec:
+    display_name: 현대차증권
+    firm_id: 9
+    mode: dual
+    core_module: scrapers.hmsec_core
+    standalone_path: run/standalone/hmsec.py
+    server_module: modules.Hmsec_9
+    workflow_path: .github/workflows/scrape-hmsec.yml
+    env_var: HMSEC_URLS_JSON
+    result_file: hmsec_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: sync
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "GA sync + server full-scrape fallback. _runner.py 정규 패턴."
+
+  toss:
+    display_name: 토스증권
+    firm_id: 15
+    mode: dual
+    core_module: scrapers.toss_core
+    standalone_path: run/standalone/toss.py
+    server_module: modules.TOSSinvest_15
+    workflow_path: .github/workflows/scrape-toss.yml
+    env_var: TOSS_URLS_JSON
+    result_file: toss_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: sync
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "GA sync + server full-scrape fallback. _runner.py 정규 패턴."
+
+  dbfi:
+    display_name: DB금융투자
+    firm_id: 19
+    mode: dual
+    core_module: scrapers.dbfi_core
+    standalone_path: run/standalone/dbfi.py
+    server_module: modules.DBfi_19
+    workflow_path: .github/workflows/scrape-dbfi.yml
+    env_var: DBFI_URLS_JSON
+    result_file: dbfi_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: async
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "GA async + server full-scrape fallback. PDF URL 추출 로직 2벌(async extract_dbfi_pdf_url + sync DBfi_detail). enricher 보유(DBfi_enrich). _runner.py 정규 패턴."
+
+  meritz:
+    display_name: 메리츠증권
+    firm_id: 20
+    mode: dual
+    core_module: scrapers.meritz_core
+    standalone_path: run/standalone/meritz.py
+    server_module: modules.MERITZ_20
+    workflow_path: .github/workflows/scrape-meritz.yml
+    env_var: MERITZ_URLS_JSON
+    result_file: meritz_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: async
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "GA async + server full-scrape fallback. GA IP 차단으로 schedule 제거(2026-06-23), workflow_dispatch 수동 실행만 유지. _runner.py 정규 패턴."
+
+  hanwha:
+    display_name: 한화투자증권
+    firm_id: 21
+    mode: dual
+    core_module: scrapers.hanwha_core
+    standalone_path: run/standalone/hanwha.py
+    server_module: modules.Hanwhawm_21
+    workflow_path: .github/workflows/scrape-hanwha.yml
+    env_var: HANWHA_URLS_JSON
+    result_file: hanwha_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: async
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "GA async + server full-scrape fallback. _runner.py 정규 패턴."
+
+  kyobo:
+    display_name: 교보증권
+    firm_id: 24
+    mode: dual
+    core_module: scrapers.kyobo_core
+    standalone_path: run/standalone/kyobo.py
+    server_module: modules.Kyobo_24
+    workflow_path: .github/workflows/scrape-kyobo.yml
+    env_var: KYOBO_URLS_JSON
+    result_file: kyobo_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: async
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "GA async + server full-scrape fallback. _runner.py 정규 패턴."
+
+  ibk:
+    display_name: IBK투자증권
+    firm_id: 25
+    mode: dual
+    core_module: scrapers.ibk_core
+    standalone_path: run/standalone/ibk.py
+    server_module: modules.IBKs_25
+    workflow_path: .github/workflows/scrape-ibk.yml
+    env_var: IBK_URLS_JSON
+    result_file: ibk_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: async
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "GA async + server full-scrape fallback. _runner.py 정규 패턴. IBK Daily(GUBUN=DAIL)는 invrespect CDN 경로 사용."
+
+  yuanta:
+    display_name: 유안타증권
+    firm_id: 27
+    mode: dual
+    core_module: scrapers.yuanta_core
+    standalone_path: run/standalone/yuanta.py
+    server_module: modules.Yuanta_27
+    workflow_path: .github/workflows/scrape-yuanta.yml
+    env_var: YUANTA_URLS_JSON
+    result_file: yuanta_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: async
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "GA async + server full-scrape fallback. _runner.py 정규 패턴."
+
+  heungkuk:
+    display_name: 흥국증권
+    firm_id: 28
+    mode: dual
+    core_module: scrapers.heungkuk_core
+    standalone_path: run/standalone/heungkuk.py
+    server_module: modules.Heungkuk_28
+    workflow_path: .github/workflows/scrape-heungkuk.yml
+    env_var: HEUNGKUK_URLS_JSON
+    result_file: heungkuk_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: sync
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "GA sync + server full-scrape fallback. _runner.py 정규 패턴."
+
+  # =========================================================================
+  # GA excluded from full-scrape (GA standalone works, server fallback broken)
+  # =========================================================================
+  miraeasset:
+    display_name: 미래에셋증권
+    firm_id: 8
+    mode: dual
+    core_module: scrapers.miraeasset_core
+    standalone_path: run/standalone/miraeasset.py
+    server_module: modules.Miraeasset_8
+    workflow_path: .github/workflows/scrape-miraeasset.yml
+    env_var: MIRAEASSET_URLS_JSON
+    result_file: miraeasset_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: sync
+    ga_fallback_excluded: true
+    ga_fallback_exclusion_reason: "서버 legacy secrets가 URL list만 제공 — full_config(row_sel) 필요. config 정규화 전까지 GA 전용."
+    notes: "GA sync 전용 (서버 full-scrape fallback 제외). _runner.py 정규 패턴."
+
+  kiwoom:
+    display_name: 키움증권
+    firm_id: 10
+    mode: dual
+    core_module: scrapers.kiwoom_core
+    standalone_path: run/standalone/kiwoom.py
+    server_module: modules.Kiwoom_10
+    workflow_path: .github/workflows/scrape-kiwoom.yml
+    env_var: KIWOOM_URLS_JSON
+    result_file: kiwoom_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: async
+    ga_fallback_excluded: true
+    ga_fallback_exclusion_reason: "서버 legacy secrets가 URL list만 제공 — full_config(payload) 필요. config 정규화 전까지 GA 전용."
+    notes: "GA async 전용 (서버 full-scrape fallback 제외). _runner.py 정규 패턴."
+
+  daol:
+    display_name: 다올투자증권
+    firm_id: 14
+    mode: dual
+    core_module: scrapers.daol_core
+    standalone_path: run/standalone/daol.py
+    server_module: modules.DAOL_14
+    workflow_path: .github/workflows/scrape-daol.yml
+    env_var: DAOL_URLS_JSON
+    result_file: daol_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: async
+    ga_fallback_excluded: true
+    ga_fallback_exclusion_reason: "서버 legacy secrets가 URL list만 제공 — full_config(path_tpl) 필요. config 정규화 전까지 GA 전용."
+    notes: "GA async 전용 (서버 full-scrape fallback 제외). _runner.py 정규 패턴."
+
+  leading:
+    display_name: 리딩투자증권
+    firm_id: 16
+    mode: dual
+    core_module: scrapers.leading_core
+    standalone_path: run/standalone/leading.py
+    server_module: modules.Leading_16
+    workflow_path: .github/workflows/scrape-leading.yml
+    env_var: LEADING_URLS_JSON
+    result_file: leading_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: async
+    ga_fallback_excluded: true
+    ga_fallback_exclusion_reason: "서버 full-scrape fallback에서 report_date 미검출. config 정규화 전까지 GA 전용."
+    notes: "GA async 전용 (서버 full-scrape fallback 제외). _runner.py 정규 패턴."
+
+  hanyang:
+    display_name: 한양증권
+    firm_id: 22
+    mode: dual
+    core_module: scrapers.hanyang_core
+    standalone_path: run/standalone/hanyang.py
+    server_module: modules.Hygood_22
+    workflow_path: .github/workflows/scrape-hanyang.yml
+    env_var: HANYANG_URLS_JSON
+    result_file: hanyang_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: async
+    ga_fallback_excluded: true
+    ga_fallback_exclusion_reason: "서버 full-scrape fallback에서 report_date 미검출. config 정규화 전까지 GA 전용."
+    notes: "GA async 전용 (서버 full-scrape fallback 제외). _runner.py 정규 패턴."
+
+  imfn:
+    display_name: iM증권
+    firm_id: 18
+    mode: dual
+    core_module: scrapers.imfn_core
+    standalone_path: run/standalone/imfn.py
+    server_module: modules.iMfnsec_18
+    workflow_path: .github/workflows/scrape-imfn.yml
+    env_var: IMFN_URLS_JSON
+    result_file: imfn_result.json
+    config_shape: full_config
+    empty_policy: require_non_empty
+    server_list: none
+    ga_full_scrape_list: async
+    ga_fallback_excluded: true
+    ga_fallback_exclusion_reason: "현재 사이트 측 응답/수집 불가. 수동 재검증은 workflow_dispatch로 수행."
+    notes: "GA async 전용 (서버 full-scrape fallback 제외). 인증만료 상태 (secure key 갱신 필요). _runner.py 정규 패턴."
+
+  # =========================================================================
+  # GA disabled (GA IP blocked, server-only)
+  # =========================================================================
   hana:
     display_name: 하나증권
     firm_id: 3
@@ -50,9 +499,15 @@ firms:
     result_file: hana_result.json
     config_shape: full_config
     empty_policy: require_non_empty
-    notes: "GA 러너 IP(미국/유럽) 차단으로 schedule 비활성화(2026-06-22). 서버 scheduler가 직접 스크래핑. _runner.py 정규 패턴."
+    server_list: async
+    ga_full_scrape_list: none
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "GA 러너 IP(미국/유럽) 차단으로 schedule 비활성화(2026-06-22). 서버 scheduler가 직접 스크래핑. server_list=async — ga_enabled_yn='N' 이므로 full-scrape에서도 regular async로 포함됨. _runner.py 정규 패턴."
 
-  # --- LS 특수 패턴 (DB + WARP + 복수 standalone) ---
+  # =========================================================================
+  # Special patterns (non-standard architecture)
+  # =========================================================================
   ls:
     display_name: LS증권
     firm_id: 0
@@ -65,24 +520,15 @@ firms:
     result_file: ls_result.json
     config_shape: url_list
     empty_policy: require_non_empty
-    notes: "DB 의존(FirmInfo, get_db), WARP 프록시(SOCKS_PROXY), 전역 상태(skip_boards, USE_WARP_ONLY). _runner.py 미사용 — modules/LS_0.py의 LS_checkNewArticle() 직접 호출. v2 standalone(ls_v2.py)+workflow(scrape-ls-v2.yml)+scripts/standalone_ls_scraper.py 별도 존재."
+    server_list: none
+    ga_full_scrape_list: none
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "DB 의존(FirmInfo, get_db), WARP 프록시(SOCKS_PROXY), 전역 상태(skip_boards, USE_WARP_ONLY). _runner.py 미사용 — modules/LS_0.py의 LS_checkNewArticle() 직접 호출. v2 standalone(ls_v2.py)+workflow(scrape-ls-v2.yml)+scripts/standalone_ls_scraper.py 별도 존재. scraper.py에서 run_ls_scraper() 전용 경로로 실행. enricher 보유(LS_enrich)."
 
-  # --- Selenium + non-core 패턴 ---
-  koreainvestment:
-    display_name: 한국투자증권
-    firm_id: 13
-    mode: ga
-    core_module: null
-    standalone_path: run/standalone/koreainvestment.py
-    server_module: modules.Koreainvestment_13
-    workflow_path: .github/workflows/scrape-koreainvestment.yml
-    env_var: urls
-    result_file: ki_result.json
-    config_shape: url_list
-    empty_policy: require_non_empty
-    notes: "Selenium 의존(browser-actions/setup-chrome@v1). ChromeDriver ARM64/amd64 분기. _runner.py 미사용 — modules/Koreainvestment_13.py의 selenium 함수 직접 호출. core 정규 패턴(scrapers/koreainvestment_core.py) 미이관."
-
-  # --- IP 차단 / 비정규 standalone ---
+  # =========================================================================
+  # Blocked (cannot run due to external issues)
+  # =========================================================================
   bnk:
     display_name: BNK투자증권
     firm_id: 23
@@ -95,146 +541,26 @@ firms:
     result_file: /tmp/bnk_result.json
     config_shape: url_list
     empty_policy: allow_empty
+    server_list: none
+    ga_full_scrape_list: none
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
     notes: "IP 차단(BLOCKED_BY_SOURCE_IP). GA schedule + local scheduler auto-call both disabled (2026-06-26). workflow_dispatch + manual diagnostic only. run/standalone/bnk.py 없음 — scripts/standalone_bnk_scraper.py 사용. SCP 대신 artifact 업로드 방식. Colab/external IP로 수동 진단 가능."
 
-  # --- Batch 1: 정규 GA _runner 패턴 (2026-06-24) ---
-  daol:
-    display_name: 다올투자증권
-    firm_id: 14
-    mode: ga
-    core_module: scrapers.daol_core
-    standalone_path: run/standalone/daol.py
-    server_module: modules.DAOL_14
-    workflow_path: .github/workflows/scrape-daol.yml
-    env_var: DAOL_URLS_JSON
-    result_file: daol_result.json
-    config_shape: full_config
-    empty_policy: require_non_empty
-    notes: "_runner.py 정규 패턴."
-
-  hanwha:
-    display_name: 한화투자증권
-    firm_id: 21
-    mode: ga
-    core_module: scrapers.hanwha_core
-    standalone_path: run/standalone/hanwha.py
-    server_module: modules.Hanwhawm_21
-    workflow_path: .github/workflows/scrape-hanwha.yml
-    env_var: HANWHA_URLS_JSON
-    result_file: hanwha_result.json
-    config_shape: full_config
-    empty_policy: require_non_empty
-    notes: "_runner.py 정규 패턴."
-
-  hanyang:
-    display_name: 한양증권
-    firm_id: 22
-    mode: ga
-    core_module: scrapers.hanyang_core
-    standalone_path: run/standalone/hanyang.py
-    server_module: modules.Hygood_22
-    workflow_path: .github/workflows/scrape-hanyang.yml
-    env_var: HANYANG_URLS_JSON
-    result_file: hanyang_result.json
-    config_shape: full_config
-    empty_policy: require_non_empty
-    notes: "_runner.py 정규 패턴."
-
-  heungkuk:
-    display_name: 흥국증권
-    firm_id: 28
-    mode: ga
-    core_module: scrapers.heungkuk_core
-    standalone_path: run/standalone/heungkuk.py
-    server_module: modules.Heungkuk_28
-    workflow_path: .github/workflows/scrape-heungkuk.yml
-    env_var: HEUNGKUK_URLS_JSON
-    result_file: heungkuk_result.json
-    config_shape: full_config
-    empty_policy: require_non_empty
-    notes: "_runner.py 정규 패턴."
-
-  hmsec:
-    display_name: 현대차증권
-    firm_id: 9
-    mode: ga
-    core_module: scrapers.hmsec_core
-    standalone_path: run/standalone/hmsec.py
-    server_module: modules.Hmsec_9
-    workflow_path: .github/workflows/scrape-hmsec.yml
-    env_var: HMSEC_URLS_JSON
-    result_file: hmsec_result.json
-    config_shape: full_config
-    empty_policy: require_non_empty
-    notes: "_runner.py 정규 패턴."
-
-  # --- Batch 2: 정규 GA _runner 패턴 (2026-06-24) ---
-  ibk:
-    display_name: IBK투자증권
-    firm_id: 25
-    mode: ga
-    core_module: scrapers.ibk_core
-    standalone_path: run/standalone/ibk.py
-    server_module: modules.IBKs_25
-    workflow_path: .github/workflows/scrape-ibk.yml
-    env_var: IBK_URLS_JSON
-    result_file: ibk_result.json
-    config_shape: full_config
-    empty_policy: require_non_empty
-    notes: "_runner.py 정규 패턴."
-
-  kiwoom:
-    display_name: 키움증권
-    firm_id: 10
-    mode: ga
-    core_module: scrapers.kiwoom_core
-    standalone_path: run/standalone/kiwoom.py
-    server_module: modules.Kiwoom_10
-    workflow_path: .github/workflows/scrape-kiwoom.yml
-    env_var: KIWOOM_URLS_JSON
-    result_file: kiwoom_result.json
-    config_shape: full_config
-    empty_policy: require_non_empty
-    notes: "_runner.py 정규 패턴."
-
-  kyobo:
-    display_name: 교보증권
-    firm_id: 24
-    mode: ga
-    core_module: scrapers.kyobo_core
-    standalone_path: run/standalone/kyobo.py
-    server_module: modules.Kyobo_24
-    workflow_path: .github/workflows/scrape-kyobo.yml
-    env_var: KYOBO_URLS_JSON
-    result_file: kyobo_result.json
-    config_shape: full_config
-    empty_policy: require_non_empty
-    notes: "_runner.py 정규 패턴."
-
-  leading:
-    display_name: 리딩투자증권
-    firm_id: 16
-    mode: ga
-    core_module: scrapers.leading_core
-    standalone_path: run/standalone/leading.py
-    server_module: modules.Leading_16
-    workflow_path: .github/workflows/scrape-leading.yml
-    env_var: LEADING_URLS_JSON
-    result_file: leading_result.json
-    config_shape: full_config
-    empty_policy: require_non_empty
-    notes: "_runner.py 정규 패턴."
-
-  meritz:
-    display_name: 메리츠증권
-    firm_id: 20
-    mode: ga_disabled
-    core_module: scrapers.meritz_core
-    standalone_path: run/standalone/meritz.py
-    server_module: modules.MERITZ_20
-    workflow_path: .github/workflows/scrape-meritz.yml
-    env_var: MERITZ_URLS_JSON
-    result_file: meritz_result.json
-    config_shape: full_config
-    empty_policy: require_non_empty
-    notes: "GA IP 차단으로 schedule 제거(2026-06-23). workflow_dispatch 수동 실행만 유지. _runner.py 정규 패턴."
+  eugene:
+    display_name: 유진투자증권
+    firm_id: 12
+    mode: blocked
+    core_module: scrapers.eugene_core
+    standalone_path: null
+    server_module: modules.eugenefn_12
+    workflow_path: null
+    env_var: null
+    result_file: /tmp/eugene_result.json
+    config_shape: url_list
+    empty_policy: allow_empty
+    server_list: none
+    ga_full_scrape_list: none
+    ga_fallback_excluded: false
+    ga_fallback_exclusion_reason: ~
+    notes: "세션 만료 및 제한 에러로 local scheduler + GA 모두 제외. workflow/standalone 없음. modules/eugenefn_12.py는 독자 구현(149줄). 수동 진단 전용."
