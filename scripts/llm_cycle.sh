@@ -14,9 +14,9 @@ Usage: bash scripts/llm_cycle.sh [--dry-run] [--parallel] [--timeout SEC]
 
 Run the standard delegated LLM cycle:
   1. Send .agent_tasks/deepseek_next.md to DeepSeek.
-  2. Wait for .agent_tasks/deepseek_result.md.
+  2. Wait for .agent_tasks/deepseek_result.json.
   3. Send .agent_tasks/gemini_agy_next.md to Gemini/AGY.
-  4. Wait for .agent_tasks/gemini_agy_result.md.
+  4. Wait for .agent_tasks/gemini_agy_result.json.
 
 Environment:
   DEEPSEEK_TMUX_TARGET       default: deepseek

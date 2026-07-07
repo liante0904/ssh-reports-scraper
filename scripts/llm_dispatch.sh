@@ -10,10 +10,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEEPSEEK_TARGET="${DEEPSEEK_TMUX_TARGET:-${DEEPSEEK_TMUX_SESSION:-deepseek}}"
 GEMINI_TARGET="${GEMINI_AGY_TMUX_TARGET:-${GEMINI_AGY_TMUX_SESSION:-agy}}"
 
-DEEPSEEK_NEXT="$ROOT_DIR/.agent_tasks/deepseek_next.md"
-DEEPSEEK_RESULT="$ROOT_DIR/.agent_tasks/deepseek_result.md"
-GEMINI_NEXT="$ROOT_DIR/.agent_tasks/gemini_agy_next.md"
-GEMINI_RESULT="$ROOT_DIR/.agent_tasks/gemini_agy_result.md"
+DEEPSEEK_NEXT="$ROOT_DIR/.agent_tasks/deepseek_next.json"
+DEEPSEEK_RESULT="$ROOT_DIR/.agent_tasks/deepseek_result.json"
+GEMINI_NEXT="$ROOT_DIR/.agent_tasks/gemini_agy_next.json"
+GEMINI_RESULT="$ROOT_DIR/.agent_tasks/gemini_agy_result.json"
 
 MODE="deepseek"
 SEND=false
@@ -37,10 +37,10 @@ Compatibility aliases:
   GEMINI_AGY_TMUX_SESSION
 
 Expected fixed files:
-  .agent_tasks/deepseek_next.md
-  .agent_tasks/deepseek_result.md
-  .agent_tasks/gemini_agy_next.md
-  .agent_tasks/gemini_agy_result.md
+  .agent_tasks/deepseek_next.json
+  .agent_tasks/deepseek_result.json
+  .agent_tasks/gemini_agy_next.json
+  .agent_tasks/gemini_agy_result.json
 
 Examples:
   bash scripts/llm_dispatch.sh deepseek
