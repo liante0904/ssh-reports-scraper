@@ -13,8 +13,8 @@ def scrape_hanyang(cfg: dict) -> list[dict]:
     cfg.setdefault("table_class", "board_list")
     cfg.setdefault("row_sel", "tbody tr")
     cfg.setdefault("cell_title", 1)
-    cfg.setdefault("cell_report_date", 3)
-    cfg.setdefault("cell_attach", 4)
+    cfg.setdefault("cell_report_date", 2)
+    cfg.setdefault("cell_attach", 3)
     cfg.setdefault("base_url", "https://www.hygood.co.kr")
     cfg.setdefault("firm_id", 22)
     cfg.setdefault("firm_nm", "한양증권")
@@ -37,6 +37,15 @@ def scrape_hanyang(cfg: dict) -> list[dict]:
                 if not link: continue
                 title = link.get_text(strip=True)
                 report_date = cells[cfg["cell_report_date"]].get_text(strip=True)
+                if not re.search(r"\d{4}[-./]\d{2}[-./]\d{2}", report_date):
+                    report_date = next(
+                        (
+                            cell.get_text(strip=True)
+                            for cell in cells
+                            if re.search(r"\d{4}[-./]\d{2}[-./]\d{2}", cell.get_text(strip=True))
+                        ),
+                        "",
+                    )
                 dl = ""
                 ac = cells[cfg["cell_attach"]].find("a") if "cell_attach" in cfg else None
                 if ac: dl = urljoin(url, ac.get("href",""))

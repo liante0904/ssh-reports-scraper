@@ -12,16 +12,18 @@
 서버 import 스크립트(import_all_artifact.py)가 JSON을 받아
 DB insert (ON CONFLICT dedup) + 후처리를 담당한다.
 
-제외된 증권사 (기본 실행 시 SKIP):
-  - LS증권 (LS_0): 별도 scrape-ls.yml로 분리
-  - GA 이관 완료 (10개): Samsung, Kiwoom, TOSS, Hanwha, Hanyang, Heungkuk, KB, NHQV, Sangsangin, Leading
-    → 각각 개별 GA workflow (scrape-*.yml)에서 처리. --firms 로 명시 가능
+기본 실행 대상:
+  - IMPORT_MAP에 등록된 모든 standalone 대상
+  - GA 운용 증권사도 포함한다. 장애/백필 시 로컬 전체 점검 경로를 유지하기 위함.
+
+제외/제한:
+  - --server-only: 예전 동작처럼 GA 운용 증권사를 제외
+  - --skip-ls: LS증권 제외
   - 한국투자증권 (Koreainvestment_13): Selenium 필요
-  - iMfnsec_18: 보류
-  - eugenefn_12: 세션 만료 이슈 보류
 
 사용법:
-  python3 scripts/standalone_all_scraper.py [--firms 0,1,2] [--timeout 120]
+  python3 scripts/standalone_all_scraper.py [--firms LS_0,KBsec_4] [--timeout 120]
+  python3 scripts/standalone_all_scraper.py --server-only --skip-ls
 """
 
 import argparse
@@ -84,8 +86,8 @@ IMPORT_MAP: dict[str, tuple[str, str, bool]] = {
     "Heungkuk_28":        ("modules.Heungkuk_28",        "Heungkuk_checkNewArticle",           False),
 }
 
-# GA standalone으로 이관된 증권사는 기본 스킵 (--firms 옵션으로 명시 가능)
-SKIP_FIRMS = {
+# GA standalone으로 이관된 증권사. 기본 실행에는 포함하고, --server-only에서만 제외한다.
+GA_STANDALONE_FIRMS = {
     "LS_0",            # 별도 scrape-ls.yml에서 처리
     "Samsung_5",       # GA standalone (scrape-samsung.yml)
     "Kiwoom_10",       # GA standalone (scrape-kiwoom.yml)
@@ -98,6 +100,19 @@ SKIP_FIRMS = {
     "Sangsanginib_6",  # GA standalone (scrape-sangsanginib.yml)
     "Leading_16",      # GA standalone (scrape-leading.yml)
 }
+
+
+def select_target_firms(firms_arg: str | None, *, server_only: bool, skip_ls: bool) -> list[str]:
+    """Resolve target firm keys for local/all standalone execution."""
+    if firms_arg:
+        return [k.strip() for k in firms_arg.split(",") if k.strip() in IMPORT_MAP]
+
+    excluded = set()
+    if server_only:
+        excluded.update(GA_STANDALONE_FIRMS)
+    if skip_ls:
+        excluded.add("LS_0")
+    return [k for k in IMPORT_MAP if k not in excluded]
 
 
 def import_function(module_path: str, func_name: str):
@@ -177,15 +192,18 @@ async def main():
                         help="쉼표로 구분된 증권사 키 목록 (예: 'BNKfn_23,HANA_3'). 기본: 전체")
     parser.add_argument("--timeout", type=int, default=120,
                         help="비동기 함수당 타임아웃(초) (기본: 120)")
-    parser.add_argument("--skip-ls", action="store_true", default=True,
-                        help="LS증권 제외 (기본: True)")
+    parser.add_argument("--server-only", action="store_true",
+                        help="GA standalone 운용 증권사를 제외하고 서버 경로 대상만 실행")
+    parser.add_argument("--skip-ls", action="store_true",
+                        help="LS증권 제외")
     args = parser.parse_args()
 
     # 대상 증권사 결정
-    if args.firms:
-        target_firms = [k.strip() for k in args.firms.split(",") if k.strip() in IMPORT_MAP]
-    else:
-        target_firms = [k for k in IMPORT_MAP if k not in (SKIP_FIRMS if args.skip_ls else set())]
+    target_firms = select_target_firms(
+        args.firms,
+        server_only=args.server_only,
+        skip_ls=args.skip_ls,
+    )
 
     logger.info(f"대상 증권사: {len(target_firms)}개")
     for f in target_firms:

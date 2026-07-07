@@ -20,7 +20,10 @@ jobs:
         env:
           DAOL_URLS_JSON: ${{ secrets.DAOL_URLS_JSON }}
         run: |
-          uv run python run/standalone/daol.py > daol_result.json 2>daol_log.txt
+          if ! uv run python run/standalone/daol.py > daol_result.json 2>daol_log.txt; then
+            cat daol_log.txt
+            exit 1
+          fi
           cat daol_log.txt
           COUNT=$(python3 -c "import json; print(len(json.load(open('daol_result.json'))))")
           echo "Articles collected: $COUNT"

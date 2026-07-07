@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import re
+import traceback
 
 from scrapers.config_guard import ScraperConfigError
 
@@ -52,6 +53,10 @@ def run_env_scraper(*, env_key, firm_name, scrape_func, required_keys=None, **kw
         sys.exit(1)
     except KeyError as exc:
         print(f"[{firm_name}] FATAL: config missing key: {exc}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as exc:
+        print(f"[{firm_name}] FATAL: scraper failed: {exc}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         sys.exit(1)
 
     print(f"[{firm_name}] total {len(result)} articles collected", file=sys.stderr)

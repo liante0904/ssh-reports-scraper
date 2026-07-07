@@ -29,7 +29,11 @@ jobs:
         env:
           DBFI_URLS_JSON: ${{ secrets.DBFI_URLS_JSON }}
         run: |
-          uv run python run/standalone/dbfi.py > dbfi_result.json 2>dbfi_log.txt
+          if ! uv run python run/standalone/dbfi.py > dbfi_result.json 2>dbfi_log.txt; then
+            echo "=== Scraper Log ==="
+            cat dbfi_log.txt
+            exit 1
+          fi
           echo "=== Scraper Log ==="
           cat dbfi_log.txt
           COUNT=$(python3 -c "import json; print(len(json.load(open('dbfi_result.json'))))")

@@ -85,6 +85,25 @@ def test_run_env_scraper_reports_missing_config_key(monkeypatch, capsys):
     assert "TEST_URLS_JSON missing keys: payload" in captured.err
 
 
+def test_run_env_scraper_reports_unhandled_exception(monkeypatch, capsys):
+    monkeypatch.setenv("TEST_URLS_JSON", json.dumps(["https://example.test/report"]))
+
+    def scrape_func(cfg):
+        raise RuntimeError("upstream changed")
+
+    with pytest.raises(SystemExit) as exc:
+        run_env_scraper(
+            env_key="TEST_URLS_JSON",
+            firm_name="테스트증권",
+            scrape_func=scrape_func,
+        )
+
+    captured = capsys.readouterr()
+    assert exc.value.code == 1
+    assert "[테스트증권] FATAL: scraper failed: upstream changed" in captured.err
+    assert "RuntimeError: upstream changed" in captured.err
+
+
 def test_config_guard_normalizes_urls_and_requires_keys():
     assert normalize_cfg(["https://example.test"], firm_key="TEST") == {
         "urls": ["https://example.test"]
