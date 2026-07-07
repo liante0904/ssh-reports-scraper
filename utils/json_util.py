@@ -49,7 +49,7 @@ def save_data_to_local_json(filename, firm_id, board_id, firm_nm, pdf_url, artic
         article_url=article_url,
         download_url=download_url,
         telegram_sent=telegram_sent,
-        save_time=datetime.now().isoformat(),
+        save_at=datetime.now().isoformat(),
     )
 
 
