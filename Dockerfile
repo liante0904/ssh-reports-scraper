@@ -44,6 +44,7 @@ COPY --chown=appuser:appgroup models/ ./models/
 COPY --chown=appuser:appgroup utils/ ./utils/
 COPY --chown=appuser:appgroup modules/ ./modules/
 COPY --chown=appuser:appgroup scrapers/ ./scrapers/
+COPY --chown=appuser:appgroup config/ ./config/
 # 최적화 실패로 인한 enrich 작업 일시 주석 처리
 # COPY --chown=appuser:appgroup enricher/ ./enricher/
 COPY --chown=appuser:appgroup *.py ./

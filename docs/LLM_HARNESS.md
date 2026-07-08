@@ -137,6 +137,7 @@ uv run python scripts/harness.py --firm kb --offline
 - core module import가 되는지
 - standalone env 이름과 workflow env 이름이 일치하는지
 - workflow result filename과 validate/SCP filename이 일치하는지
+- runtime manifest `config/firms.yaml`이 Docker image에 포함되는지
 - fake config 또는 fixture config로 core가 type error 없이 실행되는지
 - 결과가 list[dict]인지
 - `report_unique_key`, `report_date`, `firm_nm` 필수 필드가 있는지
@@ -623,6 +624,14 @@ LLM 작업 완료 보고에 아래 체크리스트 출력을 요구한다. 사�
 - **증상**: `scraper.py`에서 ModuleNotFoundError → 모든 수집·발송 30시간 중단.
 - **현재 방어**: `scripts/verify_dockerfile.sh` pre-push 훅.
 - **하네스 검출**: `harness.py --all --offline` → "Dockerfile COPY missing: scrapers/"
+
+### 사례 1-1: runtime manifest COPY 누락 (실제, 2026-07-08)
+
+- **원인**: `config/firms.yaml`이 Docker image에 포함되지 않아 `/app/config/firms.yaml` 없음.
+- **증상**: `config/firms.yaml not found — registry will be empty` 로그 반복. 스케줄러는 살아 있지만 `scraper_registry.py`가 빈 registry를 반환하여 server-only firm인 `HANA_3`가 2026-07-06 14:04 KST 이후 미실행.
+- **복구**: server-only/누락 대상 JSON 백필 후 DB import. 하나증권은 2026-07-07 15건, 2026-07-08 17건, 2026-07-09 11건 복구.
+- **현재 방어**: `Dockerfile`에서 `config/` COPY, `scripts/verify_dockerfile.sh`, `tests/test_dockerfile_copy.py`.
+- **운영 확인**: `docker exec "$CT" sh -lc "ls -la /app/config /app/config/firms.yaml"`.
 
 ### 사례 2: standalone 문법 오류 (실제, 2026-06-12)
 

@@ -47,6 +47,24 @@ bash scripts/ops_tail_errors.sh --firm-order 3 --firm-name 'HANA|하나|hana' --
 
 `firm hits=0`이고 최신 row가 오래됐다면 스케줄러/GA policy/regular path에서 제외됐을 가능성이 높다.
 
+`firm hits=0`가 여러 server-only firm에서 동시에 발생하거나 로그에 아래 메시지가 반복되면,
+스케줄러가 살아 있어도 registry가 비어 있는 상태다.
+
+```text
+config/firms.yaml not found — registry will be empty
+```
+
+이 경우 active scraper 컨테이너에 manifest가 들어갔는지 먼저 확인한다.
+
+```bash
+ssh oci 'CT=$(docker ps --format "{{.Names}}" | grep "ssh-reports-scraper-main-scraper" | head -1); docker exec "$CT" sh -lc "ls -la /app/config /app/config/firms.yaml"'
+```
+
+`/app/config/firms.yaml`이 없으면 `scraper_registry.py`가 빈 registry를 반환하고,
+`scraper.py`의 regular/GA fallback 대상 목록도 비게 된다. 하나증권처럼 GA가 꺼진
+server-only firm은 이 상태에서 누락된다. 재발 방지는 `Dockerfile`의 `config/`
+COPY와 `scripts/verify_dockerfile.sh` 검증이다.
+
 ## 운영 scraper exec
 
 운영 호스트에서 실행 중인 blue/green scraper 컨테이너를 자동 선택할 때는 `ops_scraper_exec.sh`를 쓴다.

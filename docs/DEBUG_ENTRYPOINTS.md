@@ -29,6 +29,7 @@ Run these first unless the task is docs-only:
 
 ```bash
 git status --short --branch
+bash scripts/verify_dockerfile.sh
 make test-imports
 uv run pytest tests/test_standalone_runner.py tests/test_db_factory.py tests/test_config_manager.py -q
 ```
@@ -65,8 +66,9 @@ Read in this order:
 1. `scheduler.py`
 2. `scraper.py`
 3. `scraper_config.py`
-4. `modules/{FirmModule}.py`
-5. `models/ConfigManager.py`
+4. `scraper_registry.py` and `config/firms.yaml`
+5. `modules/{FirmModule}.py`
+6. `models/ConfigManager.py`
 
 For production evidence:
 
@@ -77,6 +79,18 @@ bash scripts/ops_tail_errors.sh --service ssh-reports-scraper-main-scraper-green
 
 Do not infer health from local docs alone. Prefer current logs and current
 workflow runs.
+
+If production logs contain `config/firms.yaml not found — registry will be
+empty`, inspect the active container immediately:
+
+```bash
+ssh oci 'CT=$(docker ps --format "{{.Names}}" | grep "ssh-reports-scraper-main-scraper" | head -1); docker exec "$CT" sh -lc "ls -la /app/config /app/config/firms.yaml"'
+```
+
+An empty registry means regular server scrapers and full-scrape fallback lists
+are empty. Server-only firms such as `HANA_3` will stop running even though the
+scheduler process itself is alive. The durable fix is to ensure `Dockerfile`
+copies `config/` into the image and `scripts/verify_dockerfile.sh` checks it.
 
 ### GA Import or Telegram Broadcast Fails
 

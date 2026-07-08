@@ -1,10 +1,24 @@
 """Hana server-only scheduler path regression tests (no network, no DB)."""
+import importlib.util
 import os
 import sys
 
 SCRAPER_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SCRAPER_DIR)
 os.environ["DB_BACKEND"] = "static"
+
+
+def _load_runtime_scraper_registry():
+    """Ensure scraper.py imports the production registry, not tests/scraper_registry.py."""
+    registry_path = os.path.join(SCRAPER_DIR, "scraper_registry.py")
+    spec = importlib.util.spec_from_file_location("scraper_registry", registry_path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    sys.modules["scraper_registry"] = module
+
+
+_load_runtime_scraper_registry()
 
 
 class TestHanaServerOnlyPath:
