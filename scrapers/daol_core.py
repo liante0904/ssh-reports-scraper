@@ -7,6 +7,8 @@ from bs4 import BeautifulSoup
 def scrape_daol(cfg: dict) -> list[dict]:
     if isinstance(cfg, list): cfg = {"urls": cfg}
     elif isinstance(cfg, str): cfg = {"url": cfg}
+    cfg.setdefault("firm_id", 14)
+    cfg.setdefault("firm_nm", "다올투자증권")
     requests.packages.urllib3.disable_warnings()
     result = []
     for board_order, url in enumerate(cfg.get("urls",[cfg.get("url","")])):
