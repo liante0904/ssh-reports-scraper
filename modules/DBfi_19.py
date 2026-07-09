@@ -113,7 +113,7 @@ async def extract_dbfi_pdf_url(session, encoded_url):
                 "viewer_url": f"{VIEWER_BASE}/pv/viewer",
                 "doc_id": doc_id,
                 "file_name": file_name,
-                "pdf_url": pdf_url,
+                "pdf_file_url": pdf_url,
             }
     except Exception as e:
         logger.error(f"DBfi: Failed to extract PDF URL: {e}")
@@ -191,9 +191,9 @@ async def DBfi_checkNewArticle():
             "board_id": board_order,
             "firm_nm": firm_info.get_firm_name(),
             "report_date": item["rdt"][:8],
-            "article_url": "",
+            "source_url": "",
             "telegram_url": "",
-            "pdf_url": "",
+            "pdf_file_url": "",
             "article_title": item["tit"],
             "writer": item["wnm"],
             "CATEGORY": item["div"],
@@ -232,7 +232,7 @@ async def fetch_detailed_url(articles):
         skipped_existing = 0
         collapsed_duplicates = 0
         for article in articles:
-            if article.get("telegram_url") and article.get("pdf_url"):
+            if article.get("telegram_url") and article.get("pdf_file_url"):
                 continue
             key_url = article.get("report_unique_key")
             if not key_url:
@@ -295,10 +295,10 @@ async def fetch_detailed_url(articles):
                         return
 
                     gate_url = extracted["gate_url"]
-                    pdf_url = extracted["pdf_url"]
+                    pdf_url = extracted["pdf_file_url"]
                     for article in key_articles:
                         article["telegram_url"] = gate_url
-                        article["pdf_url"] = pdf_url
+                        article["pdf_file_url"] = pdf_url
                         article["FILE_NAME"] = extracted["file_name"]
                         article["DOC_ID"] = extracted["doc_id"]
                         article["GATE_URL"] = gate_url
@@ -465,12 +465,12 @@ async def DBfi_enrich_and_persist_details(articles, firm_info=None, db=None):
                     if html:
                         logger.debug(f"  viewer HTML: {html[:2000]}")
                     return {"gate_url": gate_url, "viewer_url": f"{VIEWER_BASE}/pv/viewer",
-                            "doc_id": "", "file_name": "", "pdf_url": gate_url}
+                            "doc_id": "", "file_name": "", "pdf_file_url": gate_url}
 
                 pdf_url = f"{VIEWER_BASE}/streamdocs/v4/documents/{doc_id}"
                 logger.info(f"  ✓ doc_id={doc_id} (warp={use_warp})")
                 return {"gate_url": gate_url, "viewer_url": f"{VIEWER_BASE}/pv/viewer",
-                        "doc_id": doc_id, "file_name": "", "pdf_url": pdf_url}
+                        "doc_id": doc_id, "file_name": "", "pdf_file_url": pdf_url}
             except Exception as e:
                 logger.warning(f"  extract 예외 (warp={use_warp}): {e}")
                 return None
@@ -496,7 +496,7 @@ async def DBfi_enrich_and_persist_details(articles, firm_info=None, db=None):
             gate_url = f"{VIEWER_BASE}/pv/gate?q={gate_q}"
 
             article["telegram_url"] = gate_url
-            article["pdf_url"] = gate_url
+            article["pdf_file_url"] = gate_url
             article["GATE_URL"] = gate_url
             article["_token"] = encoded_url
 
@@ -505,7 +505,7 @@ async def DBfi_enrich_and_persist_details(articles, firm_info=None, db=None):
                     record_id=article['report_id'],
                     telegram_url=gate_url,
                     article_title=article.get('article_title'),
-                    pdf_url=gate_url
+                    pdf_file_url=gate_url
                 )
             logger.success(f"[DBfi][Pass1] gate_url 저장: {str(article.get('article_title', ''))[:40]}")
             pass1_ok += 1
@@ -528,7 +528,7 @@ async def DBfi_enrich_and_persist_details(articles, firm_info=None, db=None):
             if not extracted or not extracted.get("doc_id"):
                 continue
 
-            article["pdf_url"] = extracted["pdf_url"]
+            article["pdf_file_url"] = extracted["pdf_file_url"]
             article["DOC_ID"] = extracted["doc_id"]
 
             if db and article.get('report_id'):
@@ -536,9 +536,9 @@ async def DBfi_enrich_and_persist_details(articles, firm_info=None, db=None):
                     record_id=article['report_id'],
                     telegram_url=gate_url,
                     article_title=article.get('article_title'),
-                    pdf_url=extracted['pdf_url']
+                    pdf_file_url=extracted['pdf_file_url']
                 )
-            logger.success(f"[DBfi][Pass2] pdf_url 갱신: {extracted['pdf_url'][:60]}...")
+            logger.success(f"[DBfi][Pass2] pdf_url 갱신: {extracted['pdf_file_url'][:60]}...")
             pass2_ok += 1
             await asyncio.sleep(0.5)
         except Exception as e:
@@ -589,7 +589,7 @@ async def main():
             "DBfi sample | title={} | file={} | pdf={}",
             article.get("article_title"),
             article.get("FILE_NAME"),
-            article.get("pdf_url"),
+            article.get("pdf_file_url"),
         )
 
 

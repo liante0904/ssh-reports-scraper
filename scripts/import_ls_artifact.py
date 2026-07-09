@@ -156,7 +156,7 @@ async def post_process_unresolved():
                 r["report_id"],
                 r["telegram_url"],
                 r.get("article_title"),
-                pdf_url=r.get("pdf_url") or r["telegram_url"],
+                pdf_file_url=r.get("pdf_file_url") or r["telegram_url"],
             )
             for r in enriched
             if r.get("telegram_url")

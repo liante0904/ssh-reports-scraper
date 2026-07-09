@@ -57,8 +57,8 @@ def scrape_kyobo(cfg: dict) -> list[dict]:
                     # trailing ') 방어: onclick=\"fn('url')\" 파싱 잔재 제거
                     dl = dl.rstrip("\')")
                     result.append(dict(firm_id=cfg["firm_id"],board_id=board,
-                        firm_nm=cfg["firm_nm"],report_date=rd,download_url=dl,telegram_url=dl,
-                        pdf_url=dl,article_title=title,writer=writer,report_unique_key=dl,
+                        firm_nm=cfg["firm_nm"],report_date=rd,telegram_url=dl,
+                        pdf_file_url=dl,article_title=title,writer=writer,report_unique_key=dl,
                         save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception: continue
     print(f"[kyobo] {len(result)} articles collected", file=sys.stderr)

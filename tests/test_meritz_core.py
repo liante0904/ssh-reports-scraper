@@ -54,11 +54,10 @@ def test_scrape_meritz_sets_pdf_url_from_detail_pdf_link_with_query(monkeypatch)
 
     assert len(rows) == 1
     assert rows[0]["report_date"] == "20260709"
-    assert rows[0]["article_url"] == "https://home.imeritz.com/research/detail.do?seq=1"
-    assert rows[0]["download_url"].endswith("20260709010101010K_02.pdf?download=1")
-    assert rows[0]["telegram_url"] == rows[0]["download_url"]
-    assert rows[0]["pdf_url"] == rows[0]["download_url"]
-    assert rows[0]["report_unique_key"] == rows[0]["download_url"]
+    assert rows[0]["source_url"] == "https://home.imeritz.com/research/detail.do?seq=1"
+    assert rows[0]["pdf_file_url"].endswith("20260709010101010K_02.pdf?download=1")
+    assert rows[0]["telegram_url"] == rows[0]["pdf_file_url"]
+    assert rows[0]["report_unique_key"] == rows[0]["pdf_file_url"]
 
 
 def test_resolve_meritz_pdf_url_from_iframe_srcdoc():

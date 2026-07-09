@@ -82,10 +82,10 @@ def scrape_bnk(urls: list[str]) -> list[dict]:
                     "firm_nm": FIRM_NM,
                     "report_date": re.sub(r"[-./]", "", report_date),
                     "article_title": title,
-                    "article_url": article_url,
-                    "download_url": article_url,
+                    "source_url": article_url,
+                    
                     "telegram_url": article_url,
-                    "pdf_url": article_url,
+                    "pdf_file_url": article_url,
                     "writer": writer,
                     "report_unique_key": article_url,
                     "save_at": datetime.now().isoformat(),

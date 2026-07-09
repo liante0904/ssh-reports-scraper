@@ -106,7 +106,7 @@ class SecReportsManager(LibrarySecReportsManager):
         for entry in json_data_list:
             unique_key = (
                 entry.get("report_unique_key")
-                or entry.get("article_url")
+                or entry.get("source_url") or entry.get("article_url")
                 or ""
             )
             save_at = entry.get("save_at")
@@ -132,10 +132,8 @@ class SecReportsManager(LibrarySecReportsManager):
                 entry.get("firm_nm"),
                 entry.get("report_date") or None,
                 entry.get("article_title"),
-                entry.get("article_url"),
-                entry.get("download_url"),
                 entry.get("telegram_url"),
-                entry.get("pdf_url") or entry.get("telegram_url"),
+                entry.get("pdf_file_url") or entry.get("pdf_url") or entry.get("telegram_url"),
                 entry.get("writer", ""),
                 entry.get("mkt_tp", "KR"),
                 unique_key,
@@ -150,9 +148,8 @@ class SecReportsManager(LibrarySecReportsManager):
         sql = f"""
             INSERT INTO {table_name} (
                 firm_id, board_id, firm_nm, report_date,
-                article_title, article_url, download_url,
-                telegram_url, pdf_url, writer, mkt_tp,
-                report_unique_key, telegram_sent, save_at
+                article_title, telegram_url, pdf_url,
+                writer, mkt_tp, report_unique_key, telegram_sent, save_at
             ) VALUES %s
             ON CONFLICT (report_unique_key) DO UPDATE SET
                 firm_id             = EXCLUDED.firm_id,
@@ -162,7 +159,6 @@ class SecReportsManager(LibrarySecReportsManager):
                 report_date         = EXCLUDED.report_date,
                 writer              = EXCLUDED.writer,
                 mkt_tp              = EXCLUDED.mkt_tp,
-                download_url        = COALESCE(NULLIF(EXCLUDED.download_url, ''), {table_name}.download_url),
                 telegram_url        = COALESCE(NULLIF(EXCLUDED.telegram_url, ''), {table_name}.telegram_url),
                 pdf_url             = COALESCE(NULLIF(EXCLUDED.pdf_url, ''), {table_name}.pdf_url),
                 telegram_sent       = COALESCE({table_name}.telegram_sent, false),
@@ -254,8 +250,6 @@ class SecReportsManager(LibrarySecReportsManager):
                     firm_id = 19
                     OR COALESCE(telegram_url, '') <> ''
                     OR COALESCE(pdf_url, '') <> ''
-                    OR COALESCE(download_url, '') <> ''
-                    OR COALESCE(article_url, '') <> ''
                 )
             """
         else:
@@ -270,8 +264,7 @@ class SecReportsManager(LibrarySecReportsManager):
             firm_id AS firm_id,
             board_id AS board_id,
             firm_nm,report_date,
-            article_title,article_url,
-            download_url,pdf_url,writer,save_at,scraped_at,
+            article_title,pdf_url,writer,save_at,scraped_at,
             report_unique_key,
             CASE
                 WHEN firm_id = 19 THEN pdf_url
@@ -311,7 +304,7 @@ class SecReportsManager(LibrarySecReportsManager):
             SELECT r.report_id, r.firm_nm, r.article_title,
                    CASE
                        WHEN r.firm_id = 19 THEN r.pdf_url
-                       ELSE COALESCE(NULLIF(r.telegram_url,''), NULLIF(r.download_url,''))
+                       ELSE r.telegram_url
                    END AS telegram_url,
                    r.save_at
             FROM {self.table_name} r

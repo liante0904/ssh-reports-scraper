@@ -95,9 +95,9 @@ def DS_checkNewArticle(full_scan=False):
                         "board_id": board_id,
                         "firm_nm": firm_info.get_firm_name(),
                         "article_title": title,
-                        "article_url": article_url,
+                        "source_url": article_url,
                         "telegram_url": telegram_url,
-                        "pdf_url": pdf_url,
+                        "pdf_file_url": pdf_url,
                         "report_date": report_date,
                         "save_at": save_time,
                         "report_unique_key": pdf_url if pdf_url != "없음" else article_url

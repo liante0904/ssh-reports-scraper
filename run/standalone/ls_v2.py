@@ -188,10 +188,9 @@ def resolve_batch(articles, writer_emp_map):
 
         url = resolve_cdn_url_from_detail(article_url, writer_emp_map)
         if url:
-            a["download_url"] = url
             a["telegram_url"] = url
-            a["pdf_url"] = url
-            a["article_url"] = url
+            a["pdf_file_url"] = url
+            a["source_url"] = url
             with_url += 1
 
         resolved.append(a)
@@ -235,6 +234,6 @@ if __name__ == "__main__":
     for a in final_articles:
         a["save_at"] = datetime.now(timezone(timedelta(hours=9))).isoformat()
 
-    with_url = sum(1 for a in final_articles if a.get("download_url"))
+    with_url = sum(1 for a in final_articles if a.get("pdf_file_url"))
     print(f"[{NM}] Done: {len(final_articles)} ({with_url} with PDF)", file=sys.stderr)
     json.dump(final_articles, sys.stdout, ensure_ascii=False, indent=2)

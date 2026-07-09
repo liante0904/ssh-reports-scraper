@@ -126,9 +126,9 @@ async def Koreainvestment_selenium_checkNewArticle():
                         "board_id":board_id,
                         "firm_nm":firm_info.get_firm_name(),
                         "report_date":re.sub(r"[-./]", "", article_info_str[1]),
-                        "download_url": LIST_ARTICLE_URL,
+                        
                         "telegram_url": LIST_ARTICLE_URL,
-                        "pdf_url": LIST_ARTICLE_URL,
+                        "pdf_file_url": LIST_ARTICLE_URL,
                         "article_title":LIST_ARTICLE_TITLE,
                         "writer": article_info_str[0],
                         "report_unique_key": LIST_ARTICLE_URL,

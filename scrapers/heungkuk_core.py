@@ -33,7 +33,7 @@ def _filter_duplicate_pdf_rows(rows: list[dict]) -> list[dict]:
     # PDF URL → list of row indices
     pdf_groups: dict[str, list[int]] = {}
     for i, row in enumerate(rows):
-        pdf = row.get("download_url") or row.get("pdf_url") or ""
+        pdf = row.get("pdf_file_url") or ""
         if not pdf:
             continue
         pdf_groups.setdefault(pdf, []).append(i)
@@ -45,7 +45,7 @@ def _filter_duplicate_pdf_rows(rows: list[dict]) -> list[dict]:
     for pdf_url, indices in pdf_groups.items():
         if len(indices) < 2:
             continue
-        article_urls = {rows[i].get("article_url", "") for i in indices}
+        article_urls = {rows[i].get("source_url", "") for i in indices}
         if len(article_urls) <= 1:
             continue  # same article → keep all
 
@@ -55,8 +55,8 @@ def _filter_duplicate_pdf_rows(rows: list[dict]) -> list[dict]:
         winner_report_date = ""
 
         for idx in indices:
-            au = rows[idx].get("article_url", "")
-            dl = rows[idx].get("download_url", "") or rows[idx].get("pdf_url", "")
+            au = rows[idx].get("source_url", "")
+            dl = rows[idx].get("pdf_file_url", "")
             vk = _extract_key(au, r"key=(\d+)")
             dk = _extract_key(dl, r"key=(\d+)")
             if vk is None or dk is None:
@@ -75,7 +75,7 @@ def _filter_duplicate_pdf_rows(rows: list[dict]) -> list[dict]:
         if best_idx >= 0:
             kept_groups += 1
             titles = [rows[i].get("article_title", "")[:40] for i in indices]
-            urls = [rows[i].get("article_url", "") for i in indices]
+            urls = [rows[i].get("source_url", "") for i in indices]
             winner_title = rows[best_idx].get("article_title", "")[:40]
             # mark others for reassignment (clear PDF, use article URL)
             for idx in indices:
@@ -106,9 +106,8 @@ def _filter_duplicate_pdf_rows(rows: list[dict]) -> list[dict]:
     # ── apply reassignments ──
     for idx in reassign_indices:
         row = rows[idx]
-        row["download_url"] = ""
-        row["pdf_url"] = ""
-        row["telegram_url"] = row.get("article_url") or row.get("telegram_url", "")
+        row["pdf_file_url"] = ""
+        row["telegram_url"] = row.get("source_url") or row.get("telegram_url", "")
 
     print(
         f"[heungkuk] duplicate guard: kept PDF for {kept_groups} groups, "
@@ -238,8 +237,8 @@ def scrape_heungkuk(cfg: dict) -> list[dict]:
             download_url = dl or ""
             pdf_url = dl or ""
             result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
-                firm_nm=cfg["firm_nm"],report_date=rd,download_url=download_url,telegram_url=telegram_url,pdf_url=pdf_url,
-                article_title=title,article_url=au,writer=writer,report_unique_key=au,
+                firm_nm=cfg["firm_nm"],report_date=rd,telegram_url=telegram_url,pdf_file_url=pdf_url,
+                article_title=title,source_url=au,writer=writer,report_unique_key=au,
                 save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
     print(f"[heungkuk] {len(result)} articles collected (pre-duplicate-guard)", file=sys.stderr)
     result = _filter_duplicate_pdf_rows(result)

@@ -67,7 +67,7 @@ def scrape_kb(cfg: dict, from_date: str = None, to_date: str = None) -> list[dic
             elif sub: title = sub
             result.append(dict(firm_id=4,board_id=board,firm_nm="KB증권",
                 report_date=re.sub(r"[-./]","",str(item.get(ik["report_date"],""))),
-                writer=item.get(ik["writer"],""),download_url=dl,telegram_url=dl,pdf_url=dl,
+                writer=item.get(ik["writer"],""),telegram_url=dl,pdf_file_url=dl,
                 article_title=title,mkt_tp=mkt,report_unique_key=dl,
                 save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
         except Exception: continue

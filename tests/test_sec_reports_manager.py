@@ -137,7 +137,7 @@ def test_select_reports_ready_for_telegram_requires_dbfi_streamdocs_pdf(monkeypa
     assert "FROM   public.v_sec_reports_canonical" in sql
     assert "firm_id AS firm_id" in sql
     assert "board_id AS board_id" in sql
-    assert "download_url,pdf_url,writer" in sql
+    assert "pdf_url,writer" in sql
     assert "report_unique_key" in sql
     assert "report_key" not in sql
     assert "notification_sent" not in sql

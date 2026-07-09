@@ -37,9 +37,8 @@ def save_report_json_list(path, reports):
 def best_report_url(report):
     return (
         report.get("telegram_url")
-        or report.get("pdf_url")
-        or report.get("download_url")
-        or report.get("article_url")
+        or report.get("pdf_file_url") or report.get("pdf_url")
+        or report.get("source_url") or report.get("article_url")
         or ""
     )
 
@@ -136,8 +135,7 @@ def build_report_payload(
     firm_nm,
     pdf_url,
     article_title,
-    article_url=None,
-    download_url=None,
+    source_url=None,
     telegram_sent=False,
     save_at=None,
 ):
@@ -146,10 +144,9 @@ def build_report_payload(
         "board_id": board_id,
         "firm_nm": firm_nm,
         "article_title": article_title,
-        "article_url": article_url or pdf_url,
+        "source_url": source_url or pdf_url,
         "telegram_sent": telegram_sent,
-        "download_url": download_url or pdf_url,
-        "pdf_url": pdf_url,
+        "pdf_file_url": pdf_url,
         "save_at": save_at or datetime.now().isoformat(),
     }
 

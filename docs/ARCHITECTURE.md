@@ -411,18 +411,20 @@ EMERGENCY_SCRAPE=1 uv run scheduler.py &
 
 ## 6. URL 컬럼과 pdf-archiver
 
-`tbl_sec_reports`의 4개 URL 컬럼은 각자 목적이 다르다:
+`tbl_sec_reports`의 4개 URL 컬럼은 각자 목적이 다르다. 2026-07-09 KST 운영 DB 기준 전체 row 수는 310,244건이다.
 
 | 컬럼 | 용도 | 비어있는 건수 | 관리 주체 |
 |------|------|:---:|------|
-| `article_url` | 증권사 원문 페이지 (nullable) | 72% | scraper |
-| `download_url` | PDF 다운로드용 URL | 13% | scraper → pdf-archiver |
-| `telegram_url` | 텔레그램 전송용 URL | 0.4% | scraper → Telegram |
-| `pdf_url` | PDF 원본 URL | 0.4% | scraper |
+| `article_url` | 증권사 원문 페이지 (nullable) | 231,977건 (74.77%) | scraper |
+| `download_url` | PDF 다운로드용 URL | 37,274건 (12.01%) | scraper → pdf-archiver |
+| `telegram_url` | 텔레그램 전송용 URL | 1건 (거의 0%) | scraper → Telegram |
+| `pdf_url` | PDF 원본 URL | 1건 (거의 0%) | scraper |
 
 **pdf-archiver** (`~/workspace/services/pdf-archiver/`)가 `download_url`에서 실제 PDF를 다운로드 → 해시 검증 → 클라우드 업로드 → `tbl_sec_reports_pdf_archive` + `pdf_sync_status` 업데이트.
 
-DB증권(19)은 텔레그램용 URL과 다운로드용 URL이 다르다 (gate viewer vs StreamDocs). 그래서 `telegram_url ≠ download_url`인 케이스가 존재.
+운영 데이터에서는 `download_url = telegram_url = pdf_url`인 row가 259,307건이다. `download_url = pdf_url`인 row는 259,501건이고, 이 중 194건은 `telegram_url`만 다르다.
+
+DB증권(19)은 텔레그램용 URL과 다운로드용 URL이 다르다 (gate viewer vs StreamDocs). 그래서 `telegram_url ≠ download_url`인 케이스가 존재하며, URL 컬럼 통합 검토 시 이 특수 처리를 먼저 확인해야 한다.
 
 ### 컴포넌트별 컬럼 책임
 
@@ -436,13 +438,31 @@ DB증권(19)은 텔레그램용 URL과 다운로드용 URL이 다르다 (gate vi
 
 ---
 
-## 7. 데이터베이스 연동 및 스키마 구조 (2026-07-01 업데이트)
+## 7. 데이터베이스 연동 및 스키마 구조 (2026-07-09 업데이트)
 
 ### 7.1 주요 데이터 구조 변경사항
 * **`firm_id` 도입**: 기존의 `sec_firm_order` 물리적 컬럼명이 `firm_id`로 전면 개편되었습니다. (19개 스크래퍼 모듈 및 백엔드 맵핑 완료)
 * **`board_id` 도입**: 기존의 `article_board_order` 물리적 컬럼명이 `board_id`로 전면 개편되었습니다. (9개 스크래퍼 모듈 및 백엔드 맵핑 완료)
-* **`save_at` 마이그레이션**: 기존 `save_time` (VARCHAR ISO 포맷) 대신 표준 시간대를 지원하는 `save_at` (TIMESTAMPTZ) 컬럼이 추가되었으며, 기존 `save_time` 컬럼은 `# deprecated` 처리되었습니다.
-* **`report_unique_key` 전환**: 기존 `key` 컬럼은 사용이 중단(deprecated)되었으며, 모든 기사 식별은 `report_unique_key` 로 단일 통일되었습니다.
+* **`save_at` 마이그레이션 완료**: 기존 `save_time` (VARCHAR ISO 포맷)은 운영 DB 물리 컬럼에서 이미 제거되었고, 표준 시간대를 지원하는 `save_at`으로 통일되었습니다.
+* **`report_date` 마이그레이션 완료**: 기존 `reg_dt`는 운영 DB 물리 컬럼에서 이미 제거되었고, 리포트 기준일은 `report_date`로 통일되었습니다.
+* **`telegram_sent` 전환 완료**: 기존 `main_ch_send_yn`은 운영 DB 물리 컬럼에서 이미 제거되었고, Telegram 발송 상태는 `telegram_sent`를 사용합니다.
+* **`report_unique_key` 전환 완료**: 기존 `key` 컬럼은 운영 DB 물리 컬럼에서 이미 제거되었고, 모든 기사 식별은 `report_unique_key`로 단일 통일되었습니다.
+
+### 7.1.1 `tbl_sec_reports` 운영 물리 컬럼
+
+2026-07-09 KST 기준 `public.tbl_sec_reports` 물리 컬럼은 35개다.
+
+```text
+report_id, firm_id, board_id, firm_nm, article_title, article_url,
+download_status_yn, download_url, writer, telegram_url, mkt_tp,
+gemini_summary, summary_time, summary_model, archive_path, retry_count,
+sync_status, pdf_url, pdf_sync_status, pdf_hash, tags, stock_names,
+sector, fnguide_summary_id, target_price, rating, revision_type,
+report_type, stock_tickers, report_date, telegram_sent,
+report_unique_key, save_at, article_text, gdrive_pdf_url
+```
+
+`report_unique_key`에는 unique `idx_report_unique_uid`, unique `tb_sec_reports_uid_key`, non-unique `idx_report_unique_key`가 함께 존재한다. 운영 DDL은 실행하지 않았고, 인덱스 중복은 별도 정리 후보로만 기록한다.
 
 ### 7.2 DDL 파일 목록 및 역할
 데이터베이스 변경사항을 정의하는 DDL 스크립트는 `sql/` 디렉토리 내에 보관되어 관리됩니다:
@@ -490,7 +510,7 @@ RETURNING report_unique_key, (xmax = 0) AS inserted
 - [ ] CI 통과 확인 (GitHub Actions workflow green)
 - [ ] pre-push 훅 통과 (`scripts/verify_dockerfile.sh`, `scripts/verify_standalones.sh` 실행 완료)
 - [ ] `report_unique_key` ON CONFLICT 정상 동작 확인
-- [ ] `key` 컬럼 쓰기 차단 코드 배포 상태 확인
+- [ ] `key` / `reg_dt` / `save_time` / `main_ch_send_yn`을 운영 SQL에 재도입하지 않았는지 확인
 
 ### 9.2 장애 방지 및 예외 대책
 1. **Dockerfile COPY 누락 방지**: `verify_dockerfile.sh` 스크립트를 통해 신규 디렉토리 배포 누락 사전 차단.

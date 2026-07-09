@@ -37,7 +37,7 @@ def scrape_dbfi(cfg: dict) -> list[dict]:
             ])
             key = cfg["key_tpl"].replace("{base}",cfg["base_url"]).replace("{rid}",rid)
             result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,firm_nm=cfg["firm_nm"],
-                report_date=re.sub(r"[^0-9]","",report_date)[:8],telegram_url="",pdf_url="",
+                report_date=re.sub(r"[^0-9]","",report_date)[:8],telegram_url="",pdf_file_url="",
                 article_title=row[ik["title"]],writer=row[ik["writer"]],
                 report_unique_key=key,save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
     print(f"[dbfi] {len(result)} articles collected", file=sys.stderr)

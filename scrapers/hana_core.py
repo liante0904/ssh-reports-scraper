@@ -78,8 +78,8 @@ def scrape_hana(cfg: dict) -> list[dict]:
                     article_text = contns[i].get_text(strip=True) if i < len(contns) else ""
                     mkt = "GLOBAL" if board_order in cfg.get("global_boards",[]) else "KR"
                     result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
-                        firm_nm=cfg["firm_nm"],report_date=_adjust_date(rd,ts),download_url=dl,
-                        telegram_url=dl,pdf_url=dl,article_title=title,writer=writer,
+                        firm_nm=cfg["firm_nm"],report_date=_adjust_date(rd,ts),
+                        telegram_url=dl,pdf_file_url=dl,article_title=title,writer=writer,
                         article_text=article_text,
                         report_unique_key=dl,mkt_tp=mkt,save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception: continue

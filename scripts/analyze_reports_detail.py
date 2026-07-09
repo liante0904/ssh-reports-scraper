@@ -166,7 +166,7 @@ def analyze_reports_details():
                     "stock_names": {"count": row[2], "fill_rate": round(row[2] * 100.0 / tot, 2)},
                     "sector": {"count": row[3], "fill_rate": round(row[3] * 100.0 / tot, 2)},
                     "writer": {"count": row[4], "fill_rate": round(row[4] * 100.0 / tot, 2)},
-                    "download_url": {"count": row[5], "fill_rate": round(row[5] * 100.0 / tot, 2)}
+                     "fill_rate": round(row[5] * 100.0 / tot, 2)}
                 }
 
     except Exception as e:

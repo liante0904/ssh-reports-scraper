@@ -60,7 +60,7 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
                 if not dl.startswith("http"): continue
                 board = BOARD_MAP.get(bbs_name, 99)
                 result.append({"firm_id":1,"board_id":board,
-                    "firm_nm":"신한증권","report_date":report_date,"download_url":dl,"telegram_url":dl,
+                    "firm_nm":"신한증권","report_date":report_date,"telegram_url":dl,
                     "article_title":item.get("title","").strip(),"writer":item.get("nickname","").strip(),
                     "report_unique_key":dl,
                     "save_at":datetime.now(timezone(timedelta(hours=9))).isoformat()})
@@ -91,7 +91,7 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
                 if not dl.startswith("http"): continue
                 board = BOARD_MAP.get(board_name, 99)
                 result.append({"firm_id":1,"board_id":board,
-                    "firm_nm":"신한증권","report_date":report_date,"download_url":dl,"telegram_url":dl,
+                    "firm_nm":"신한증권","report_date":report_date,"telegram_url":dl,
                     "article_title":item.get(t_key,"").strip(),"writer":item.get(w_key,"").strip(),
                     "report_unique_key":dl,
                     "save_at":datetime.now(timezone(timedelta(hours=9))).isoformat()})

@@ -34,7 +34,7 @@ async def run_batch_summary(batch_limit=10):
         # print(f"\n[작업 시작] {report['article_title']} ({report['firm_nm']})")
         
         # 유효한 PDF URL 확인
-        download_url = report.get('telegram_url') or report.get('download_url') or report.get('pdf_url')
+        download_url = report.get('telegram_url') or report.get('pdf_file_url')
         
         file_name = f"temp_batch_{report['report_id']}.pdf"
         
@@ -71,7 +71,7 @@ async def run_batch_summary(batch_limit=10):
             
             if summary_result:
                 # 3. PostgreSQL 업데이트 (telegram_url 기준, 발송 완료된 최신 레코드만)
-                target_url = report.get('telegram_url') or report.get('download_url')
+                target_url = report.get('telegram_url') or report.get('pdf_file_url')
                 
                 await db_manager.update_report_summary_by_telegram_url(
                     telegram_url=target_url,

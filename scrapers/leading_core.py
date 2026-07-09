@@ -45,7 +45,7 @@ def scrape_leading(cfg: dict) -> list[dict]:
                     dl = cfg["base_url"] + rd[cfg["attach_header"]]
                 result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
                     firm_nm=cfg["firm_nm"],report_date=re.sub(r"[-./]","",rd.get(cfg["date_header"],"")),
-                    download_url=dl,telegram_url=dl,pdf_url=dl,
+                    telegram_url=dl,pdf_file_url=dl,
                     article_title=rd.get(cfg["title_header"],"No Title"),
                     save_at=datetime.now(timezone(timedelta(hours=9))).isoformat(),report_unique_key=dl))
             except Exception: continue

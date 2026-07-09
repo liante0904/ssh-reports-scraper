@@ -341,7 +341,7 @@ Codex가 직접 토큰을 많이 써야 하는 경우:
 | 1 | `*_URLS_JSON`이 이름과 달리 URL list일 수도, full config dict일 수도 있음 | `run/standalone/*.py`는 env secret을 직접 읽고, `modules/*.py`는 `ConfigManager.get_urls()`를 읽는다. 회사별 core는 selector/payload가 필요한 곳과 URL만 필요한 곳이 섞여 있다. | standalone은 `run/standalone/_runner.py`를 통해 실행하고, full config가 필요한 core는 명시적으로 required key를 검증한다. `KeyError` 그대로 노출 금지. |
 | 2 | `scripts/standalone_all_scraper.py` 문서/구조가 개별 `scrape-*.yml` 현실과 다름 | 과거 all-scraper artifact 방식 설명이 남아 있지만 현재는 회사별 workflow가 대부분 SCP로 서버에 직접 전송한다. | 장애 분석은 `.github/workflows/scrape-*.yml` + `run/standalone/{firm}.py`를 우선 본다. `standalone_all_scraper.py`는 보조/레거시로 취급한다. |
 | 3 | GA 이관 회사가 서버 full-scrape에도 다시 들어간다 | `scraper.py`는 KST 1/7/13/21시에 `_GA_FIRMS_*`를 다시 실행한다. 그래서 “GA 성공 후 서버 발송”과 “서버 fallback 발송” 시간이 섞인다. | 중복/발송 원인 분석 시 GitHub Actions만 보지 말고 `scraper.py` full-scrape 시간대와 서버 scheduler 로그를 같이 본다. |
-| 4 | 발송 상태 컬럼 alias 흔적이 남아 있음 | 운영 경로는 `telegram_sent` 중심이지만, 과거 `is_sent`, `main_ch_send_yn` 이름을 기억한 코드/문서가 혼입되기 쉽다. | 새 코드는 `telegram_sent`/`report_unique_key`를 canonical로 사용한다. legacy 컬럼은 읽기 fallback 또는 마이그레이션 안전장치로만 본다. |
+| 4 | 발송 상태 컬럼 alias 흔적이 남아 있음 | 운영 물리 컬럼은 `telegram_sent`이며, 과거 `is_sent`, `main_ch_send_yn` 이름을 기억한 코드/문서가 혼입되기 쉽다. | 새 코드는 `telegram_sent`/`report_unique_key`를 canonical로 사용한다. 운영 DB에는 `main_ch_send_yn` 물리 컬럼이 없으므로 새 SQL에 쓰지 않는다. |
 | 5 | workflow 실패 로그가 실제 예외를 숨김 | 대부분 `uv run ... > result.json 2>log.txt` 뒤 `bash -e`라서 Python이 실패하면 `cat log.txt`가 실행되지 않는다. | workflow run step은 실패 시에도 stderr 파일을 출력하도록 `set +e` 패턴 또는 공통 composite action으로 바꾼다. |
 | 6 | `validate_scrape_result.py --require-non-empty`가 “장애”와 “장중 0건”을 구분하지 않음 | 사이트가 정상이어도 특정 시간/게시판은 0건일 수 있는데 workflow는 실패 처리한다. 반대로 실제 파싱 깨짐도 0건으로만 보일 수 있다. | 회사별 기대 수집 정책을 분리한다. “0건 허용 회사/시간대”와 “반드시 non-empty”를 config로 나눈다. |
 | 7 | 회사별 workflow env 이름이 통일되지 않음 | 대다수는 `FIRM_URLS_JSON`인데 LS/DS/Daeshin/KoreaInvestment는 `urls`를 쓴다. | 새 workflow는 `FIRM_URLS_JSON`만 사용한다. 레거시는 바꾸기 전까지 standalone entrypoint가 어떤 env를 읽는지 먼저 확인한다. |
@@ -363,7 +363,7 @@ Codex가 직접 토큰을 많이 써야 하는 경우:
 2. `*_URLS_JSON` 스키마를 회사별 manifest로 선언: `url_list`/`full_config` 구분을 코드에 박아둔다.
 3. `scraper_registry.py`를 실제 SSoT로 만들고 `scraper.py`, `standalone_all_scraper.py`, docs 표를 거기서 생성.
 4. 0건 허용 정책을 `validate_scrape_result.py`에 회사/시간대별로 반영.
-5. `telegram_sent` 전환 완료 후 `is_sent`/`main_ch_send_yn` 경로를 제거하거나 legacy 모듈로 격리.
+5. `telegram_sent` 전환 이후 남은 `is_sent`/`main_ch_send_yn` 문서·legacy 예시는 운영 SQL로 복사되지 않게 격리.
 
 ### 해결 완료 (2026-06-11)
 
@@ -392,8 +392,8 @@ Codex가 직접 토큰을 많이 써야 하는 경우:
 | # | 항목 | 난이도 | 비고 |
 |:---:|------|:---:|------|
 | B | LS_0 전역 상태 제거 | 🔴 | `USE_WARP_ONLY`, `skip_boards` — LS 마이그레이션 시 병행 |
-| D | enricher 정규화 테이블 완전 전환 | 🟡 | 지금은 `tbl_sec_reports` + 신규 테이블 이중기록. 옛 컬럼 드랍 후 단일화 |
-| E | 옛 컬럼 드랍 (save_time, reg_dt, main_ch_send_yn, key) | 🟢 | 1주일 검증 후 (의도적 보류) |
+| D | enricher 정규화 테이블 완전 전환 | 🟡 | 지금은 `tbl_sec_reports` + 신규 테이블 이중기록. 저사용 컬럼 정리 전 영향 범위 확인 |
+| E | 옛 컬럼 드랍 (save_time, reg_dt, main_ch_send_yn, key) | ✅ | 운영 DB 물리 컬럼에서 이미 제거됨 (2026-07-09 확인) |
 | F | ORM `v_sec_reports_full` 매핑 | 🟡 | Backend submodule 작업. 컬럼 드랍 전 필수 |
 | G | URL 컬럼 통합 (4개→2개) | 🟡 | DB증권 같은 특수케이스 있어서 신중히 |
 | H | `json_util` / `report_json_store` 통합 | 🔴 | telegram/local-json 호환 계약 보존을 위해 보류(보존) |
@@ -532,21 +532,21 @@ _GA_FIRMS_ASYNC = {NHQV_checkNewArticle, KB_checkNewArticle, ...}
 
 ## 7. 모듈별 리턴 딕셔너리 필드 비일치 (⭐⭐)
 
-각 모듈이 반환하는 dict 필드가 다름:
+각 모듈이 반환하는 dict 필드가 다름. 아래 표는 2026-06-11 당시 스냅샷이며, 현재 운영 DB 물리 컬럼은 `report_date`, `report_unique_key`, `save_at`, `telegram_sent`가 canonical이다.
 
 | 필드 | KBsec | HANA | NHQV | Shinyoung | Leading | DAOL |
 |------|:---:|:---:|:---:|:---:|:---:|:---:|
 | `firm_id` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `board_id` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `firm_nm` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `reg_dt` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `report_date` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `article_title` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `writer` | ✅ | ✅ | ✅ | - | - | ✅ |
 | `download_url` | ✅ | ✅ | - | ✅ | ✅ | ✅ |
 | `telegram_url` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `pdf_url` | ✅ | ✅ | ✅ | - | ✅ | - |
-| `key` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `save_time` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `report_unique_key` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `save_at` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `mkt_tp` | ✅ | ✅ | - | ✅ | - | - |
 | `article_url` | - | - | - | - | - | - |
 
@@ -720,49 +720,38 @@ if asyncio.iscoroutine(res):
 
 ---
 
-## 17. DB 스키마 비효율 (2026-06-11 실측 분석)
+## 17. DB 스키마 비효율 (2026-07-09 운영 DB 확인)
 
 ### 17.1 거의 100% 미사용 컬럼 (제거 검토)
 
-운영 DB 28.4만건 기준:
+운영 DB 310,244건 기준:
 
-| 컬럼 | null/empty | 비고 |
-|------|:---:|------|
-| `gemini_summary` | 99.9% | Gemini 요약 실험 → 폐기됨 |
-| `summary_time` | 99.9% | 상동 |
-| `summary_model` | 99.9% | 상동 |
-| `archive_path` | 99.2% | PDF 아카이빙 미구현 |
-| `sector` | 99.5% | LLM 태그 추출 미가동 |
-| `rating` | 99.9% | 프리미엄 기능 비활성 |
-| `revision_type` | 99.9% | 상동 |
-| `report_type` | 99.9% | 상동 |
-| `target_price` | 99.9% | 미사용 |
-| `tags` | 99.2% | enricher 미가동 |
-| `stock_names` | 99.6% | 상동 |
-| `stock_tickers` | 99.9% | 상동 |
-| `fnguide_summary_id` | 97.7% | FnGuide 매칭 거의 미사용 |
-| `retry_count` | 97.1% | 재시도 로직 미사용 |
+| 컬럼 | 채워진 row | fill rate | 비고 |
+|------|:---:|:---:|------|
+| `gdrive_pdf_url` | 1 | 0.00% | 거의 미사용 |
+| `gemini_summary` / `summary_model` / `summary_time` | 321 | 0.10% | Gemini 요약 실험 → 폐기/저사용 |
+| `article_text` | 1,877 | 0.61% | 본문 추출 저사용 |
+| `archive_path` | 2,422 | 0.78% | PDF 아카이빙 경로 저사용 |
+| `target_price` | 5,941 | 1.91% | 목표가 추출 저사용 |
+| `sector` | 7,342 | 2.37% | 섹터 태깅 저사용 |
+| `fnguide_summary_id` | 8,069 | 2.60% | FnGuide 매칭 일부 사용 |
+| `rating` / `revision_type` / `report_type` | 약 9,567~9,570 | 3.08% | 프리미엄/분류 기능 저사용 |
 
-**LLM 혼란**: 33개 컬럼 중 14개(42%)가 사실상 dead weight. `SELECT *`나 ORM 매핑 시 불필요한 데이터까지 로드.
+**LLM 혼란**: 운영 물리 컬럼 35개 중 일부 enrichment/AI 컬럼은 채움률이 낮다. `SELECT *`나 ORM 매핑 시 불필요한 데이터까지 로드하기 쉽다.
 
-### 17.2 데이터 타입 불일치 (⭐⭐⭐)
+### 17.2 이미 드랍된 legacy 물리 컬럼
 
-| 컬럼 | 현재 타입 | 실제 저장값 | 맞는 타입 |
-|------|:---:|------|:---:|
-| `save_time` | `text` | `2025-01-14T15:01:05` | `timestamptz` |
-| `reg_dt` | `text` | `20240430` (8자) | `date` |
-| `main_ch_send_yn` | `text` | `Y` / `N` | `boolean` 또는 `char(1)` |
-| `download_status_yn` | `text` | `Y` / `''` | `boolean` |
+2026-07-09 KST 기준 `public.tbl_sec_reports`에는 `key`, `reg_dt`, `save_time`, `main_ch_send_yn` 물리 컬럼이 없다. 새 SQL/DDL/문서에서 이 컬럼들을 “나중에 드랍” 대상으로 쓰지 않는다.
 
-**LLM 혼란**: LLM이 SQL 작성할 때 `WHERE save_time > '2026-01-01'` 같은 문자열 비교를 함 → 인덱스 활용 불가. 날짜 연산도 `::date` 캐스팅 필요.
+현재 canonical 컬럼은 `report_unique_key`, `report_date`, `save_at`, `telegram_sent`다.
 
 ### 17.3 의미 불명확한 컬럼/enum
 
 | 컬럼 | 값 분포 | 문제 |
 |------|------|------|
-| `sync_status` | 2(91%) / 0(8%) / 3(7%) / 9(0.6%) | 0/2/3/9가 각각 무슨 의미인지 코드에만 존재, DB 주석 없음 |
-| `pdf_sync_status` | 2(96%) / 3(2%) / 0(1%) / 9(0.6%) | sync_status와 같은 enum인데 별도 컬럼 — 왜 분리했는지 불명 |
-| `main_ch_send_yn` | Y(69%) / N(31%) | "main_ch" = Telegram 메인채널. `telegram_sent`가 더 직관적 |
+| `download_status_yn` | blank 200,300 / Y 109,944 | boolean 성격인데 문자열 상태값 |
+| `sync_status` | 2:233,909 / 0:57,516 / 3:17,155 / 9:1,664 | 0/2/3/9가 각각 무슨 의미인지 코드에만 존재, DB 주석 없음 |
+| `pdf_sync_status` | 2:261,846 / 0:41,238 / 3:5,497 / 9:1,663 | sync_status와 같은 enum인데 별도 컬럼 — 왜 분리했는지 불명 |
 
 ### 17.4 URL 컬럼 중복
 
@@ -773,6 +762,13 @@ if asyncio.iscoroutine(res):
 - `pdf_url` — PDF 직접 URL
 
 실제로 많은 증권사가 `download_url = telegram_url = pdf_url`로 동일한 값을 3개 컬럼에 중복 저장. `article_url`도 종종 같은 값.
+
+2026-07-09 KST 기준:
+
+- `download_url = telegram_url = pdf_url`: 259,307건
+- `download_url = pdf_url`: 259,501건
+- 위 `download_url = pdf_url` 중 `telegram_url`만 다른 row: 194건
+- DBfi는 `telegram_url`과 `pdf_url`/`download_url`이 다를 수 있는 알려진 특수 케이스다.
 
 ### 17.5 mkt_tp 값 불일치
 

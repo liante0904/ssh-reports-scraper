@@ -1,6 +1,7 @@
 # Refactoring Priorities (LLM-Friendly Codebase)
 
-> 갱신: 2026-07-05 | 기준: LLM이 코드 읽을 때 헷갈리거나 컨텍스트 낭비를 유발하는 패턴
+> 갱신: 2026-07-09 | 기준: LLM이 코드 읽을 때 헷갈리거나 컨텍스트 낭비를 유발하는 패턴
+> 운영 DB 확인: `public.tbl_sec_reports`는 현재 35개 물리 컬럼이며 `key`, `reg_dt`, `save_time`, `main_ch_send_yn`은 이미 없다.
 
 ## 전체 통합 테이블
 
@@ -21,10 +22,10 @@
 | 13 | 코드 | `run/colab/bnk_scraper.py` | 동일 | 동일 | 하 | 🔶 보류 (호환 계약) |
 | 14 | 코드 | `scripts/standalone_bnk_scraper.py` | 동일 | 동일 | 하 | 🔶 보류 (호환 계약) |
 | 15 | 코드 | `scripts/standalone_ls_scraper.py` | `"key": key` | `"report_unique_key": key` | 하 | 🔶 보류 (호환 계약) |
-| 16 | DB | `save_time` TEXT | `save_at` TIMESTAMPTZ와 중복, 매번 ISO 파싱 | DROP `save_time` → `save_at` 통일 | 중 | 🔲 DDL 배치 |
-| 17 | DB | `main_ch_send_yn` CHAR(1) | `telegram_sent` BOOLEAN이 이미 대체 | DROP COLUMN | 하 | 🔲 DDL 배치 |
-| 18 | DB | `key` 컬럼 | `report_unique_key`가 대체, INSERT가 양쪽 다 씀 | INSERT에서 제거 → DROP | 하 | 🔲 DDL 배치 |
-| 19 | DB | `reg_dt` TEXT `"YYYYMMDD"` | 날짜연산 시 매번 `::date` 캐스팅 | DATE 타입 ALTER (또는 `report_date`로 통합) | 중 | 🔲 DDL 배치 |
+| 16 | DB | `save_time` TEXT | 운영 DB 물리 컬럼에서 이미 제거됨 | 새 작업 없음 (`save_at` 사용) | 중 | ✅ 완료 |
+| 17 | DB | `main_ch_send_yn` CHAR(1) | 운영 DB 물리 컬럼에서 이미 제거됨 | 새 작업 없음 (`telegram_sent` 사용) | 하 | ✅ 완료 |
+| 18 | DB | `key` 컬럼 | 운영 DB 물리 컬럼에서 이미 제거됨 | 새 작업 없음 (`report_unique_key` 사용) | 하 | ✅ 완료 |
+| 19 | DB | `reg_dt` TEXT `"YYYYMMDD"` | 운영 DB 물리 컬럼에서 이미 제거됨 | 새 작업 없음 (`report_date` 사용) | 중 | ✅ 완료 |
 | 20 | DB | `download_status_yn` + `pdf_sync_status` + `sync_status` | 비슷한 컬럼 3개 | 통합 검토 | 상 | 🔲 검토 |
 | 21 | DB | `gemini_summary` | DeepSeek/Gemini 여러 모델 쓰는데 컬럼명 고정 | `ai_summary` 또는 `llm_summary` | 중 | 🔲 검토 |
 | 22 | DB | `firm_nm` | `nm` = name 축약 (5글자) | `firm_name` 뷰 alias | 하 | ✅ 완료 |
@@ -55,8 +56,9 @@
 | 47 | 코드 | SQLiteManager | 운영 DB 전환 후 legacy 잔재 | archive 브랜치 보존 후 main 제거 | 중 | ✅ 완료 |
 | 48 | 코드 | `models/WebScraper.py` | `firm_id` 기준 if/elif 10개 체인 | dict 기반 dispatch | 중 | 🔲 검토 |
 | 49 | 테스트 | `tests/ls.py`, `tests/diagnose_ls_urls.py` | legacy test | archive | 하 | 🔲 검토 |
-| 50 | DB | `tbl_sec_reports` 컬럼 30개+ | 정규화 부족 (tags, stock_names JSONB) | 검토 | 상 | 🔲 검토 |
-| 51 | 코드 | standalone news | 뉴스가 별도 컨테이너로 이관됨 | workflow/core/entrypoint 제거 | 하 | ✅ 완료 |
-| 52 | 코드 | `utils/json_util.py` / `utils/report_json_store.py` | telegram/local-json 처리 이중화 | 호환 계약 보존을 위해 보류 | 하 | 🔶 보류 (호환 계약) |
-| 53 | 코드 | `validate_scrape_result.py` | 결과 검증 규칙 | 호환 계약 보존을 위해 보류 | 하 | 🔶 보류 (호환 계약) |
-| 54 | 코드 | `modules/LS_0.py` / `modules/BNKfn_23.py` | LS 및 BNK 모듈 내 스크래핑 | 호환 계약 보존을 위해 보류 | 하 | 🔶 보류 (호환 계약) |
+| 50 | DB | `tbl_sec_reports` 컬럼 35개 | 정규화 부족 + 일부 enrichment/AI 컬럼 저사용 | 검토 | 상 | 🔲 검토 |
+| 51 | DB | `report_unique_key` 인덱스 3개 | unique `idx_report_unique_uid`, unique `tb_sec_reports_uid_key`, non-unique `idx_report_unique_key` 중복 | DDL 실행 전 정리 후보로 검토 | 하 | 🔲 검토 |
+| 52 | 코드 | standalone news | 뉴스가 별도 컨테이너로 이관됨 | workflow/core/entrypoint 제거 | 하 | ✅ 완료 |
+| 53 | 코드 | `utils/json_util.py` / `utils/report_json_store.py` | telegram/local-json 처리 이중화 | 호환 계약 보존을 위해 보류 | 하 | 🔶 보류 (호환 계약) |
+| 54 | 코드 | `validate_scrape_result.py` | 결과 검증 규칙 | 호환 계약 보존을 위해 보류 | 하 | 🔶 보류 (호환 계약) |
+| 55 | 코드 | `modules/LS_0.py` / `modules/BNKfn_23.py` | LS 및 BNK 모듈 내 스크래핑 | 호환 계약 보존을 위해 보류 | 하 | 🔶 보류 (호환 계약) |

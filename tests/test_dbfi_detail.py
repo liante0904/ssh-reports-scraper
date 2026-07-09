@@ -100,7 +100,7 @@ class TestDbfiDetailNaming:
                     "report_id": article["report_id"],
                     "article_title": article.get("article_title", "title"),
                     "telegram_url": "https://msg.example.test/doc.pdf",
-                    "pdf_url": "https://msg.example.test/doc.pdf",
+                    "pdf_file_url": "https://msg.example.test/doc.pdf",
                 }
                 for article in articles
             ]

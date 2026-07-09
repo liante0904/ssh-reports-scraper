@@ -51,9 +51,9 @@ def scrape_hanwha(cfg: dict) -> list[dict]:
                 if not dl:
                     continue
                 result.append(dict(firm_id=cfg["firm_id"],board_id=0,
-                    firm_nm=cfg["firm_nm"],report_date=re.sub(r"[-./]","",rd),download_url=dl,
+                    firm_nm=cfg["firm_nm"],report_date=re.sub(r"[-./]","",rd),
                     article_title=title,writer=writer,mkt_tp=mkt,report_unique_key=dl,
-                    telegram_url=dl,pdf_url=dl,save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
+                    telegram_url=dl,pdf_file_url=dl,save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
             except Exception: continue
     print(f"[hanwha] {len(result)} articles collected", file=sys.stderr)
     return result

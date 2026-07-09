@@ -156,7 +156,7 @@ def test_broadcast_ga_reports_filters_unresolved_dbfi(monkeypatch):
             "article_title": "미확정 DBFI",
             "report_unique_key": "dbfi_unresolved",
             "telegram_url": "https://dbfi.example.test/pv/gate?q=abc",
-            "pdf_url": "https://dbfi.example.test/pv/gate?q=abc",
+            "pdf_file_url": "https://dbfi.example.test/pv/gate?q=abc",
         },
         {
             "report_id": 2,
@@ -165,7 +165,7 @@ def test_broadcast_ga_reports_filters_unresolved_dbfi(monkeypatch):
             "article_title": "확정 DBFI",
             "report_unique_key": "dbfi_ready",
             "telegram_url": "https://dbfi.example.test/pv/gate?q=def",
-            "pdf_url": "https://dbfi.example.test/streamdocs/v4/documents/doc-id",
+            "pdf_file_url": "https://dbfi.example.test/streamdocs/v4/documents/doc-id",
         },
     ]
 
@@ -176,7 +176,7 @@ def test_broadcast_ga_reports_filters_unresolved_dbfi(monkeypatch):
             return [
                 r for r in self.rows
                 if r.get("report_unique_key") in params
-                and r.get("pdf_url", "").startswith("https://dbfi.example.test/streamdocs/v4/documents/")
+                and r.get("pdf_file_url", "").startswith("https://dbfi.example.test/streamdocs/v4/documents/")
             ]
 
     db = FilteringMockDB(mock_rows)

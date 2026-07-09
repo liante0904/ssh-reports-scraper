@@ -67,7 +67,7 @@ def scrape_sks(cfg: dict) -> list[dict]:
                 writer = item.get(cfg.get("writer_key","RWRITER"),"").strip()
                 result.append(dict(firm_id=cfg.get("firm_id",26),
                     board_id=board_order,firm_nm=cfg.get("firm_nm","SK증권"),
-                    report_date=report_date,download_url=dl,telegram_url=dl,pdf_url=dl,
+                    report_date=report_date,telegram_url=dl,pdf_file_url=dl,
                     article_title=title,writer=writer,
                     save_at=datetime.now(timezone(timedelta(hours=9))).isoformat(),
                     report_unique_key=dl))

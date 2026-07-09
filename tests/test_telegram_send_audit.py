@@ -206,7 +206,7 @@ class TestTelegramMessageChunks:
                 "firm_nm": "DB증권",
                 "article_title": "DBFI",
                 "telegram_url": "https://dbfi.example.test/pv/gate?q=old",
-                "pdf_url": "https://dbfi.example.test/streamdocs/v4/documents/new",
+                "pdf_file_url": "https://dbfi.example.test/streamdocs/v4/documents/new",
             }
         ]
 
@@ -311,7 +311,7 @@ def test_sync_scraped_reports_normalizes_dedupes_inserts_and_clears():
         {
             "article_title": "최신 전략",
             "mkt_tp": "US",
-            "article_url": "same-key",
+            "source_url": "same-key",
         },
         {
             "article_title": "No key",
@@ -341,7 +341,7 @@ def test_scraped_report_helpers_normalize_and_dedupe():
         {
             "article_title": "해외 전략",
             "mkt_tp": "US",
-            "article_url": "second-key",
+            "source_url": "second-key",
         },
     ]
 

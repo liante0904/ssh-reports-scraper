@@ -178,10 +178,10 @@ def scrape_list(max_pages: int = 2) -> list[dict]:
                         "writer": writer,
                         "report_unique_key": key,
                         "list_article_url": article_url,
-                        "article_url": "",
-                        "download_url": "",
+                        "source_url": "",
+                        
                         "telegram_url": "",
-                        "pdf_url": "",
+                        "pdf_file_url": "",
                         "save_at": datetime.now().isoformat(),
                     })
                     page_has_data = True
@@ -233,10 +233,9 @@ async def process_detail_article(
 
         # PDF direct URL이면 즉시 할당
         if ".pdf" in detail_url.lower():
-            article["article_url"] = detail_url
+            article["source_url"] = detail_url
             article["telegram_url"] = detail_url
-            article["pdf_url"] = detail_url
-            article["download_url"] = detail_url
+            article["pdf_file_url"] = detail_url
             return article
 
         html = await fetch_detail(session, detail_url)
@@ -292,10 +291,9 @@ async def process_detail_article(
             print(f"  [DETAIL][fallback] {resolved_url}", file=sys.stderr)
 
         if resolved_url:
-            article["article_url"] = resolved_url
+            article["source_url"] = resolved_url
             article["telegram_url"] = resolved_url
-            article["pdf_url"] = resolved_url
-            article["download_url"] = resolved_url
+            article["pdf_file_url"] = resolved_url
 
         article["ATTACH_FILE_NAME"] = attach_file_name
         return article

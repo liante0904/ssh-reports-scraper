@@ -27,10 +27,10 @@ CREATE TABLE public.tbl_sec_reports (
     board_id integer,
     firm_nm text,
     article_title text,
-    article_url text,
+    -- article_url text,  -- DEPRECATED: renamed to source_url (2026-07-09)
     telegram_sent boolean DEFAULT false,
     download_status_yn text DEFAULT ''::text,
-    download_url text,
+    -- download_url text,  -- DEPRECATED: absorbed into pdf_url (2026-07-09)
     save_time text,
     reg_dt text DEFAULT ''::text,
     writer text DEFAULT ''::text,

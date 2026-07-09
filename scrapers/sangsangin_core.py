@@ -59,7 +59,7 @@ def scrape_sangsangin(cfg: dict) -> list[dict]:
                     board_id=board_idx,
                     firm_nm=cfg.get("firm_nm", "상상인증권"),
                     report_date=rdt, article_title=title, writer="",
-                    download_url=dl, telegram_url=dl, pdf_url=dl,
+                     telegram_url=dl, pdf_file_url=dl,
                     report_unique_key=dl,
                     save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
             except Exception: continue

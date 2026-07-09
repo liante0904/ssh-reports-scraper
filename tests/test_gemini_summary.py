@@ -37,7 +37,7 @@ async def test_summary():
         
         # 2. PDF 다운로드 대상 URL 선정
         # telegram_url, download_url 중 유효한 것 찾기
-        download_url = report.get('telegram_url') or report.get('download_url') or report.get('pdf_url')
+        download_url = report.get('telegram_url') or report.get('download_url') or report.get('pdf_file_url')
         
         # URL이 .pdf로 끝나지 않으면 건너뜀 (디렉토리 링크 방지)
         if not download_url or not ('.pdf' in download_url.lower() or '.PDF' in download_url.lower()):

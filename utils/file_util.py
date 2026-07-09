@@ -25,11 +25,9 @@ async def download_file_wget(report_info_row, URL=None, FILE_NAME=None):
     logger.info("download_file_wget()")
 
     BOARD_NM = ''
-    URL = (
-        report_info_row.get('download_url') if report_info_row.get('download_url')
-        else report_info_row.get('article_url') if report_info_row.get('article_url')
-        else report_info_row.get('telegram_url')
-    )
+    _pdf = report_info_row.get('pdf_file_url') or report_info_row.get('pdf_url')
+    _src = report_info_row.get('source_url') or report_info_row.get('article_url')
+    URL = _pdf or _src or report_info_row.get('telegram_url')
 
     if FILE_NAME is None:
         # FILE_NAME이 None인 경우 기존 로직으로 파일 이름 생성

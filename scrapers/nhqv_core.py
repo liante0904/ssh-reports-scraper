@@ -18,7 +18,7 @@ DEFAULT_NHQV_CFG = {
     "count_path": "H3211.H3211OutBlock1.0.iqrCnt",
     "list_path": "H3211.H3211OutBlock2",
     "item_keys": {
-        "pdf_url": "hpgeFleUrlCts",
+        "pdf_file_url": "hpgeFleUrlCts",
         "report_date": "rshPprDruDtNm",
         "writer": "rshPprDruEmpFnm",
         "title": "rshPprTilCts"
@@ -66,11 +66,11 @@ def scrape_nhqv(cfg: dict, target_date: str = None) -> list[dict]:
         cnt = int(_jp(cfg["count_path"]))
         if cnt == 0: break
         for a in _jp(cfg["list_path"]):
-            u = a.get(ik["pdf_url"])
+            u = a.get(ik["pdf_file_url"])
             if not u: continue
             result.append(dict(firm_id=2,board_id=0,firm_nm="NH투자증권",
                 report_date=a[ik["report_date"]].replace(".",""),writer=a.get(ik["writer"],""),
-                telegram_url=u,pdf_url=u,article_title=a[ik["title"]],
+                telegram_url=u,pdf_file_url=u,article_title=a[ik["title"]],
                 report_unique_key=u,save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
         if cnt >= cfg["page_size"]: p["rshPprNo"] = _jp(cfg["list_path"])[-1]["rshPprNo"]
         else: break

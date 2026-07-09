@@ -76,9 +76,9 @@ def scrape_imfn(cfg) -> list[dict]:
                     result.append({
                         "firm_id": 18, "board_id": board_order,
                         "firm_nm": "IM증권", "report_date": re.sub(r"[-./]", "", item["report_date"]),
-                        "telegram_url": attach_url, "pdf_url": attach_url,
+                        "telegram_url": attach_url, "pdf_file_url": attach_url,
                         "article_title": item["title"], "writer": item["username"],
-                        "report_unique_key": attach_url, "article_url": attach_url,
+                        "report_unique_key": attach_url, "source_url": attach_url,
                         "save_at": datetime.now(timezone(timedelta(hours=9))).isoformat(),
                     })
                 except Exception:

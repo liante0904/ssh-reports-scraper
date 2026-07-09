@@ -31,7 +31,7 @@ def scrape_samsung(cfg: dict) -> list[dict]:
                 if len(dds) > cfg["author_idx"]: author = dds[cfg["author_idx"]].text.strip()
                 title = title.replace(f"({author})", "")
                 result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
-                    firm_nm=cfg["firm_nm"],report_date=report_date,download_url="",telegram_url=dl,
+                    firm_nm=cfg["firm_nm"],report_date=report_date,telegram_url=dl,
                     article_title=title,writer=author,report_unique_key=dl,
                     save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
             except Exception: continue

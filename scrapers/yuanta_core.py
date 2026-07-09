@@ -58,7 +58,7 @@ def scrape_yuanta(cfg: dict) -> list[dict]:
                     if not dl: dl = article_url
                     result.append(dict(firm_id=cfg["firm_id"],board_id=board_idx,
                         firm_nm=cfg["firm_nm"],report_date=report_date,
-                        download_url=dl,telegram_url=dl,pdf_url=dl,writer=writer,
+                        telegram_url=dl,pdf_file_url=dl,writer=writer,
                         report_unique_key=article_url,
                         article_title=title,save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception: continue

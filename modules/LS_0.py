@@ -57,7 +57,7 @@ def _article_report_date(article: dict) -> str:
 
 
 def _article_unique_key(article: dict) -> str:
-    return str(article.get("report_unique_key") or article.get("article_url") or "")
+    return str(article.get("report_unique_key") or article.get("source_url") or "")
 
 def get_soup_with_warp(url, headers):
     global USE_WARP_ONLY
@@ -187,10 +187,10 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
                         "board_id": board_id,
                         "firm_nm": firm_info.get_firm_name(),
                         "report_date": re.sub(r"[-./]", "", str_date),
-                        "article_url": '',
-                        "download_url": '',
+                        "source_url": '',
+                        
                         "telegram_url": '',
-                        "pdf_url": '',
+                        "pdf_file_url": '',
                         "writer": writer,
                         "report_unique_key": LIST_ARTICLE_URL,
                         "article_title": LIST_ARTICLE_TITLE,
@@ -284,17 +284,16 @@ async def process_article(session: ClientSession, article: dict, headers: dict, 
     TARGET_URL = _article_unique_key(article)
 
     if ".pdf" in TARGET_URL:
-        article["article_url"] = TARGET_URL
+        article["source_url"] = TARGET_URL
         article["telegram_url"] = TARGET_URL
-        article["pdf_url"] = TARGET_URL
-        article["download_url"] = TARGET_URL
+        article["pdf_file_url"] = TARGET_URL
         # 건별 업데이트: PDF URL이 곧바로 확정되었으면 즉시 DB 반영
         if db and article.get('report_id'):
             await db.update_telegram_url(
                 record_id=article['report_id'],
                 telegram_url=TARGET_URL,
                 article_title=article.get('article_title'),
-                pdf_url=TARGET_URL
+                pdf_file_url=TARGET_URL
             )
             logger.debug(f"[건별업데이트] report_id={article['report_id']}: PDF 직접 URL → DB 반영")
         return
@@ -374,10 +373,9 @@ async def process_article(session: ClientSession, article: dict, headers: dict, 
 
                 # 최종 URL 할당
                 quoted = urllib.parse.quote(resolved_url, safe=":/") if resolved_url else ""
-                article["article_url"] = quoted
+                article["source_url"] = quoted
                 article["telegram_url"] = quoted
-                article["pdf_url"] = quoted
-                article["download_url"] = quoted
+                article["pdf_file_url"] = quoted
 
                 # 건별 업데이트: URL이 확정되면 즉시 DB 반영 (report_id가 있는 경우)
                 if db and quoted and article.get('report_id'):
@@ -385,7 +383,7 @@ async def process_article(session: ClientSession, article: dict, headers: dict, 
                         record_id=article['report_id'],
                         telegram_url=quoted,
                         article_title=article.get('article_title'),
-                        pdf_url=quoted
+                        pdf_file_url=quoted
                     )
                     logger.debug(f"[건별업데이트] report_id={article['report_id']}: {article.get('article_title')}")
 
@@ -461,7 +459,7 @@ async def LS_detailAll(articles=None, firm_info=None):
                 record_id=article['report_id'], 
                 telegram_url=article['telegram_url'],
                 article_title=article.get('article_title'),
-                pdf_url=article.get('pdf_url') or article.get('telegram_url')
+                pdf_file_url=article.get('pdf_file_url') or article.get('telegram_url')
             )
             logger.debug(f"DB 업데이트 완료: {article.get('article_title')}")
             
@@ -714,7 +712,7 @@ async def LS_enrich(db, records, firm_info, is_idle_time):
     """LS enrichment: msg URL 복구 + upload fallback + 유휴시간 backlog"""
     update_records = await LS_detail(articles=records, firm_info=firm_info)
     tasks = [db.update_telegram_url(r['report_id'], r['telegram_url'], r.get('article_title'),
-              pdf_url=r.get('pdf_url') or r['telegram_url']) for r in update_records if r.get('telegram_url')]
+              pdf_file_url=r.get('pdf_file_url') or r['telegram_url']) for r in update_records if r.get('telegram_url')]
     if tasks:
         await asyncio.gather(*tasks)
 
@@ -733,7 +731,7 @@ async def LS_enrich(db, records, firm_info, is_idle_time):
         logger.info(f"[LS] upload/ fallback {len(fallback_records)}건 재시도...")
         refixed = await LS_detail(articles=fallback_records, firm_info=firm_info)
         tasks = [db.update_telegram_url(r['report_id'], r['telegram_url'], r.get('article_title'),
-                  pdf_url=r.get('pdf_url') or r['telegram_url']) for r in refixed
+                  pdf_file_url=r.get('pdf_file_url') or r['telegram_url']) for r in refixed
                  if r.get('telegram_url', '').startswith(LS_MSG_PREFIX)]
         if tasks:
             await asyncio.gather(*tasks)
@@ -753,7 +751,7 @@ async def LS_enrich(db, records, firm_info, is_idle_time):
             logger.info(f"[LS][유휴] 전체 backlog {len(backlog)}건 재처리...")
             fixed = await LS_detail(articles=backlog, firm_info=firm_info)
             tasks = [db.update_telegram_url(r['report_id'], r['telegram_url'], r.get('article_title'),
-                      pdf_url=r.get('pdf_url') or r['telegram_url']) for r in fixed
+                      pdf_file_url=r.get('pdf_file_url') or r['telegram_url']) for r in fixed
                      if r.get('telegram_url', '').startswith(LS_MSG_PREFIX)]
             if tasks:
                 await asyncio.gather(*tasks)

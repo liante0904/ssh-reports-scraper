@@ -94,10 +94,10 @@ async def parse_article_list(html_text, board_id):
                     "firm_nm": firm_info.get_firm_name(),
                     "report_date": report_date,
                     "writer": writer,
-                    "article_url": '',
-                    "download_url": url,  # 필요시 변경
+                    "source_url": '',
+                      # 필요시 변경
                     "telegram_url": url,
-                    "pdf_url": url,
+                    "pdf_file_url": url,
                     "article_title": title,
                     "report_unique_key": url,
                     "save_at": datetime.now().isoformat()

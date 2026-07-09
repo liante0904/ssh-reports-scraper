@@ -16,12 +16,12 @@ SELECT
     -- 핵심 컬럼 (tbl_sec_reports)
     r.report_id, r.firm_id, r.board_id, r.firm_nm,
     r.firm_id AS firm_id, r.board_id AS board_id,
-    r.article_title, r.article_url, r.report_unique_key AS key, r.report_unique_key,
+    r.article_title, r.article_url AS source_url, r.report_unique_key AS key, r.report_unique_key,
     r.report_date AS reg_dt, r.report_date,
     r.save_at AS save_time, r.save_at,
     r.telegram_sent,
     r.telegram_url, r.writer, r.mkt_tp,
-    r.download_url, r.pdf_url,
+    r.pdf_url AS pdf_file_url,
     -- pdf-archiver 관리 컬럼 (tbl_sec_reports에 직접 씀)
     r.download_status_yn, r.pdf_sync_status, r.pdf_hash,
     r.sync_status, r.retry_count, r.archive_path,

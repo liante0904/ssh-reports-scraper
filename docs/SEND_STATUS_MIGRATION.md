@@ -1,7 +1,8 @@
 # Canonical Column Migration
 
 > Created: 2026-06-21
-> Scope: `report_unique_key`/`key`, `save_at`/`save_time`, and `is_sent`/`main_ch_send_yn` handling across scraper, scheduler, backend API, and frontend consumers.
+> Updated: 2026-07-09 KST
+> Scope: historical `report_unique_key`/`key`, `save_at`/`save_time`, and send-status migration notes across scraper, scheduler, backend API, and frontend consumers.
 
 ## Read This First
 
@@ -15,31 +16,32 @@ The scraper collects report metadata. Telegram delivery state is a side effect a
 
 Canonical columns:
 
-- `report_unique_key` replaces legacy `key`.
-- `save_at` replaces legacy `save_time`.
-- `is_sent` replaces legacy `main_ch_send_yn`.
+- `report_unique_key` replaced legacy `key`.
+- `save_at` replaced legacy `save_time`.
+- `report_date` replaced legacy `reg_dt`.
+- `telegram_sent` replaced legacy `main_ch_send_yn` / older `is_sent` naming.
 
-Transition rule:
+Current production rule:
 
-- Writers dual-populate legacy columns while old consumers exist.
-- Readers use canonical-first fallback through `v_sec_reports_canonical`.
-- `main_ch_send_yn='Y'` can make `is_sent=true`.
-- `main_ch_send_yn='N'` must never make `is_sent=false`.
+- 2026-07-09 KST production `public.tbl_sec_reports` has 35 physical columns.
+- `key`, `reg_dt`, `save_time`, and `main_ch_send_yn` are already absent as physical columns.
+- New operational SQL must use `report_unique_key`, `report_date`, `save_at`, and `telegram_sent`.
+- Historical fallback examples below are retained as incident context, not as current DDL instructions.
 
 ### Highest Priority Work
 
 1. Keep `insert_json_data_list()` limited to metadata upsert.
 2. Keep send completion inside `mark_reports_sent()` / `daily_update_data(type='send')`.
-3. Remove or quarantine any code that sets `is_sent=false` during scrape/upsert.
+3. Remove or quarantine any code that sets `telegram_sent=false` during scrape/upsert.
 4. Canonicalize URL-based keys before insert, starting with brokers that changed domains.
-5. Only after production mismatch checks are clean, remove legacy columns.
+5. Treat duplicate `report_unique_key` indexes as a cleanup candidate only; do not execute DDL from this doc.
 
 ### Never Do This
 
-- Do not set `is_sent = EXCLUDED.is_sent` in upsert SQL.
-- Do not reset `is_sent=false` because title/date/firm changed or duplicated.
+- Do not set `telegram_sent = EXCLUDED.telegram_sent` in metadata upsert SQL.
+- Do not reset `telegram_sent=false` because title/date/firm changed or duplicated.
 - Do not use raw source URLs as keys when the broker is known to change domains, protocols, or URL paths.
-- Do not drop `key`, `save_time`, or `main_ch_send_yn` until all readers have moved to canonical fields or the canonical view.
+- Do not reference `key`, `reg_dt`, `save_time`, or `main_ch_send_yn` as current production columns.
 - Do not retry a scraper job blindly after Telegram messages were already sent.
 
 ### Safe Mental Model
@@ -49,8 +51,8 @@ Think of the system as three separate lanes:
 | Lane | What it can change | What it must not change |
 |------|--------------------|-------------------------|
 | Scrape/upsert | report title, URLs, dates, analyst, canonical key | delivery state |
-| Send pipeline | `is_sent=true`, `main_ch_send_yn='Y'` | report identity |
-| Migration/view | fallback reads, one-way backfill to canonical fields | destructive resets |
+| Send pipeline | `telegram_sent=true` | report identity |
+| Migration/view | canonical reads, one-way historical backfill if needed | destructive resets |
 
 ## Summary
 
@@ -60,19 +62,10 @@ The canonical columns are:
 |-----------|--------|---------|
 | `report_unique_key` | `key` | report dedupe key |
 | `save_at` | `save_time` | scrape/save timestamp |
-| `is_sent` | `main_ch_send_yn` | Telegram main-channel send status |
+| `report_date` | `reg_dt` | report date |
+| `telegram_sent` | `main_ch_send_yn` / older `is_sent` naming | Telegram main-channel send status |
 
-The legacy columns cannot be removed in one sweep yet.
-
-The safe transition plan is:
-
-1. Dual-write send status during the transition.
-2. Read with `is_sent = true OR main_ch_send_yn = 'Y'`.
-3. Stop any migration from turning `is_sent=true` back to `false`.
-4. Verify both columns stay aligned in production.
-5. Drop `main_ch_send_yn` only after all readers and migration code are no longer dependent on it.
-
-The same pattern applies to `key` and `save_time`: canonical first, legacy fallback during reads, dual-populated writes until consumers are migrated.
+The legacy physical columns above have already been removed from production. This document should no longer be used as a “drop later” checklist.
 
 ## Incident Analysis
 
@@ -112,13 +105,13 @@ Recent 3-day production check:
 | `is_sent=true`, `main_ch_send_yn!='Y'` | 10 |
 | `is_sent=false`, `main_ch_send_yn='Y'` | 50 |
 
-Production has unique indexes on both legacy and canonical report keys:
+Production now has duplicate indexes on the canonical report key:
 
-- `tb_sec_reports_key_key` on `key`
 - `idx_report_unique_uid` on `report_unique_key`
 - `tb_sec_reports_uid_key` on `report_unique_key`
+- `idx_report_unique_key` on `report_unique_key` (non-unique)
 
-There were no recent or all-time duplicate groups by `key`, `report_unique_key`, or canonical `COALESCE(report_unique_key, key)` at the time of inspection.
+This is a cleanup candidate, not an instruction to run DDL from this doc.
 
 ### Shinhan URL-Domain Duplication
 
@@ -136,98 +129,76 @@ Mitigation:
 - `scrapers/shinhan_core.py` now canonicalizes Shinhan report URLs before using them as `key` / `report_unique_key`.
 - Future rows with only domain/protocol/path migration differences should collapse to the same canonical key.
 
-## Why Not Remove `main_ch_send_yn` Globally Now
+## Current Production Cleanup Status
 
-Global removal is risky because the column still appears in more than one role:
-
-- Legacy API response compatibility.
-- Backend startup migration / backfill code.
-- Existing tests and maintenance scripts.
-- Historical SQLite/PostgreSQL migration scripts.
-- Documentation and contract examples.
-
-Removing all references at once can create a worse failure mode: `is_sent` may become the only writer, while an old backend or migration still reads `main_ch_send_yn` and hides reports or resets send state.
+`main_ch_send_yn`, `key`, `reg_dt`, and `save_time` have already been removed from the production `public.tbl_sec_reports` physical schema. Remaining references in older incident notes, tests, SQLite fixtures, or migration examples are historical/compatibility context and must not be copied into current production SQL.
 
 ## Current Safe Alternative
 
-### Canonical Read View
+### Canonical Read Path
 
-Use `sql/canonical_sec_reports_view.sql` as the read/API/analysis transition layer:
+Use the physical canonical columns directly in new production queries:
 
-```sql
-CREATE OR REPLACE VIEW public.v_sec_reports_canonical AS
-SELECT
-    r.*,
-    r.firm_id AS firm_id,
-    r.board_id AS board_id,
-    COALESCE(r.save_at, save_time_fallback) AS scraped_at
-FROM public.tbl_sec_reports r;
-```
+- `report_unique_key`
+- `report_date`
+- `save_at`
+- `telegram_sent`
 
-This view makes readers consume clearer read-only names for firm/board/time without forcing all writers and old scripts to change at the same time.
+Do not introduce aliases such as `report_key` or `notification_sent` in new read paths. They add another translation layer without fixing the underlying schema.
 
-Do not introduce these aliases in new read paths:
-
-- `report_key`: report identity stays `report_unique_key`.
-- `notification_sent`: report channel delivery state stays `telegram_sent`.
-
-The view is not a substitute for base-table uniqueness. Keep unique indexes on `key` and `report_unique_key` until legacy writes are gone; then keep the unique guarantee on `report_unique_key` or a generated canonical key.
+The read path is not a substitute for base-table uniqueness. Production currently has duplicate `report_unique_key` indexes (`idx_report_unique_uid`, `tb_sec_reports_uid_key`, and non-unique `idx_report_unique_key`), which should be reviewed separately before any DDL cleanup.
 
 ### Write Path
 
 When a report is marked sent:
 
 ```sql
-SET is_sent = true,
-    main_ch_send_yn = 'Y'
+SET telegram_sent = true
 ```
 
 When a report is intentionally reset for resend:
 
 ```sql
-SET is_sent = false,
-    main_ch_send_yn = 'N'
+SET telegram_sent = false
 ```
 
 Upsert must preserve existing sent status:
 
 ```sql
-is_sent = existing.is_sent OR incoming.is_sent
+telegram_sent = existing.telegram_sent OR incoming.telegram_sent
 ```
-
-The legacy flag should mirror the combined sent state during the transition.
 
 For report keys:
 
 ```sql
 report_unique_key = canonical_key
-key = canonical_key
 ```
-
-During migration, `key` should mirror `report_unique_key`; after migration, only `report_unique_key` should be used by writers.
 
 For save timestamps:
 
 ```sql
 save_at = canonical timestamptz
-save_time = legacy string mirror
 ```
 
-During migration, `save_time` should mirror `save_at` for old scripts; after migration, readers should use `save_at` / `scraped_at`.
+For report dates:
+
+```sql
+report_date = canonical report date
+```
 
 ### Read Path
 
 Public report fetches should use the compatibility predicate:
 
 ```sql
-is_sent = true OR main_ch_send_yn = 'Y'
+telegram_sent = true
 ```
 
-This avoids hiding rows when one column is ahead of the other during deploys, backfills, or partial migrations.
+Older OR predicates that reference `main_ch_send_yn` are not valid against the current production physical schema.
 
 ### Migration Path
 
-Startup/backfill migration must be one-way only:
+Historical startup/backfill migration had to be one-way only:
 
 ```sql
 UPDATE tbl_sec_reports
@@ -236,9 +207,11 @@ WHERE main_ch_send_yn = 'Y'
   AND COALESCE(is_sent, false) = false;
 ```
 
-It must not set `is_sent=false` from `main_ch_send_yn='N'`.
+This snippet is retained as incident context. It is not valid current production SQL because `main_ch_send_yn` is no longer a physical column. Current code should write `telegram_sent` only.
 
-### Applied Changes
+### Historical Applied Changes
+
+The following items describe the 2026-06-21 incident-era fixes and may reference fields that are no longer physical columns in production.
 
 ### Scraper Repository
 
@@ -285,55 +258,53 @@ It must not set `is_sent=false` from `main_ch_send_yn='N'`.
 
 ## Production Checks
 
-Run these before dropping legacy columns:
+Use these checks to confirm the current post-drop schema and cleanup candidates:
 
 ```sql
-SELECT
-  count(*) FILTER (WHERE is_sent IS true AND main_ch_send_yn IS DISTINCT FROM 'Y') AS is_sent_true_legacy_not_y,
-  count(*) FILTER (WHERE COALESCE(is_sent, false) = false AND main_ch_send_yn = 'Y') AS legacy_y_is_sent_false
-FROM tbl_sec_reports;
+SELECT column_name
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'tbl_sec_reports'
+ORDER BY ordinal_position;
 ```
 
 ```sql
 SELECT
-  count(*) FILTER (WHERE NULLIF(key, '') IS NULL) AS missing_key,
   count(*) FILTER (WHERE NULLIF(report_unique_key, '') IS NULL) AS missing_report_unique_key,
-  count(*) FILTER (
-    WHERE NULLIF(key, '') IS NOT NULL
-      AND NULLIF(report_unique_key, '') IS NOT NULL
-      AND key <> report_unique_key
-  ) AS key_mismatch,
   count(*) FILTER (WHERE save_at IS NULL) AS missing_save_at,
-  count(*) FILTER (WHERE NULLIF(save_time, '') IS NULL) AS missing_save_time
+  count(*) FILTER (WHERE report_date IS NULL) AS missing_report_date,
+  count(*) FILTER (WHERE telegram_sent IS NULL) AS missing_telegram_sent
 FROM tbl_sec_reports;
 ```
 
-The desired result is both counts at `0` for a full observation window.
+```sql
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE schemaname = 'public'
+  AND tablename = 'tbl_sec_reports'
+  AND indexdef ILIKE '%report_unique_key%';
+```
 
-Recommended observation window:
+Expected production facts as of 2026-07-09 KST:
 
-- At least one full trading day.
-- Preferably one full weekly cycle including GA import, server fallback scraping, enrichment, Telegram send, backend restart, and API cache invalidation.
+- Physical column count: 35
+- Absent physical columns: `key`, `reg_dt`, `save_time`, `main_ch_send_yn`
+- Duplicate key indexes present: unique `idx_report_unique_uid`, unique `tb_sec_reports_uid_key`, non-unique `idx_report_unique_key`
 
-## Drop Plan
+## Remaining Cleanup Candidates
 
-Do not drop `key`, `save_time`, or `main_ch_send_yn` until all steps are complete.
+Do not use this document to run DDL directly.
 
-1. Keep dual-write and OR-read in production.
-2. Add and use `v_sec_reports_canonical` for read/API/analysis paths.
-3. Remove backend startup dependency on legacy columns.
-4. Update frontend and Netlify/API tests if they consume legacy response fields.
-5. Update maintenance scripts and migration scripts.
-6. Verify mismatch counts stay `0`.
-7. Remove legacy columns from application models and insert/update SQL.
-8. Drop legacy columns in DB migrations.
+1. Review whether both unique `report_unique_key` indexes are still needed.
+2. Review whether the non-unique `idx_report_unique_key` adds value beyond the unique indexes.
+3. Remove or archive old migration/test snippets that still imply `key`, `reg_dt`, `save_time`, or `main_ch_send_yn` are production physical columns.
 
 ## Anti-Regression Rules
 
-- Do not write `is_sent = EXCLUDED.is_sent` in upsert code.
-- Do not run a migration that derives `is_sent=false` from `main_ch_send_yn='N'`.
+- Do not write `telegram_sent = EXCLUDED.telegram_sent` in metadata upsert code.
+- Do not run a migration that derives `telegram_sent=false` from old send-status fields.
 - Do not send Telegram from a path that skips the post-send status update.
-- Do not switch readers back to `is_sent=true` only until legacy writes are removed and DB mismatch checks are clean.
+- Do not switch readers back to old `is_sent` / `main_ch_send_yn` naming.
 - Do not use a raw URL as a report key for sources with known URL migrations unless the URL is canonicalized first.
 - Do not rely on the canonical view for dedupe enforcement; dedupe must be protected by base-table unique indexes.
 
@@ -416,7 +387,7 @@ ast.parse(Path(path).read_text(), filename=path)
 
 ### 6. Docs and DB metadata differ depending on where you look
 
-`pg_constraint` only showed the primary key, but `pg_indexes` showed unique indexes on both `key` and `report_unique_key`.
+`pg_constraint` only showed the primary key, but `pg_indexes` showed unique indexes that application docs had missed. As of 2026-07-09 KST, the relevant cleanup candidate is duplicate indexing on `report_unique_key`.
 
 Operational check should inspect both:
 
@@ -432,7 +403,7 @@ WHERE tablename = 'tbl_sec_reports';
 
 ### 7. Shinhan duplicates are URL canonicalization issues, not DB uniqueness failures
 
-The DB had no duplicate groups by `key`, `report_unique_key`, or `COALESCE(report_unique_key, key)`, but Shinhan had same-title rows split by URL variants.
+The DB had no duplicate groups by the report key in the historical incident window, but Shinhan had same-title rows split by URL variants.
 
 The prevention point is source-specific key canonicalization before insert, not a generic DB view.
 

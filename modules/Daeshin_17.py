@@ -97,10 +97,10 @@ async def Daeshin_checkNewArticle():
                         "board_id": board_id,
                         "firm_nm": firm_info.get_firm_name(),
                         "report_date": re.sub(r"[-./]", "", report_date),
-                        "article_url": article_url,
-                        "download_url": attach_url,
+                        "source_url": article_url,
+                        
                         "telegram_url": attach_url,
-                        "pdf_url": attach_url,
+                        "pdf_file_url": attach_url,
                         "report_unique_key": attach_url,
                         "article_title": title,
                         "writer": author,

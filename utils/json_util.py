@@ -32,7 +32,7 @@ def format_message(data_list):
     return report_json_store.format_legacy_message(data_list)
 
 
-def save_data_to_local_json(filename, firm_id, board_id, firm_nm, pdf_url, article_title, article_url=None, download_url=None, telegram_sent=False):
+def save_data_to_local_json(filename, firm_id, board_id, firm_nm, pdf_url, article_title, source_url=None, telegram_sent=False):
     directory = os.path.dirname(filename)
 
     # 디렉터리가 존재하는지 확인하고, 없으면 생성합니다.
@@ -46,8 +46,7 @@ def save_data_to_local_json(filename, firm_id, board_id, firm_nm, pdf_url, artic
         firm_nm=firm_nm,
         pdf_url=pdf_url,
         article_title=article_title,
-        article_url=article_url,
-        download_url=download_url,
+        source_url=source_url,
         telegram_sent=telegram_sent,
         save_at=datetime.now().isoformat(),
     )

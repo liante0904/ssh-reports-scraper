@@ -80,7 +80,7 @@ def scrape_shinyoung(cfg: dict) -> list[dict]:
                 "firm_id": 7, "board_id": 0, "firm_nm": cfg.get("firm_nm", "신영증권"),
                 "report_date": re.sub(r"[-./]", "", item[item_keys["report_date"]]),
                 "writer": item.get(item_keys["writer"], ""),
-                "article_title": title, "telegram_url": dl, "download_url": dl,
+                "article_title": title, "telegram_url": dl, 
                 "report_unique_key": dl,
                 "save_at": datetime.now(timezone(timedelta(hours=9))).isoformat(),
             })

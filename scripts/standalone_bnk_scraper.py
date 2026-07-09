@@ -160,8 +160,8 @@ async def scrape_bnk() -> list[dict]:
                     "firm_nm": "BNK투자증권",
                     "report_date": re.sub(r"[-./]", "", report_date),
                     "article_title": article_title,
-                    "article_url": article_url,
-                    "download_url": article_url,
+                    "source_url": article_url,
+                    
                     "telegram_url": article_url,
                     "writer": writer,
                     "save_at": datetime.now().isoformat(),

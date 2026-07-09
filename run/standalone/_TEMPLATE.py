@@ -23,7 +23,7 @@ json_data_list.append({
     "board_id": 0,
     "firm_nm": FIRM_NM,
     "report_date": "20260609",      # YYYYMMDD (canonical)
-    "download_url": "https://...",
+    
     "telegram_url": "https://...",
     "article_title": "리포트 제목",
     "writer": "작성자",

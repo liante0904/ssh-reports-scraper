@@ -33,12 +33,12 @@ def test_format_report_messages_groups_by_firm():
         {
             "firm_nm": "하나증권",
             "article_title": "B",
-            "pdf_url": "https://example.test/b.pdf",
+            "pdf_file_url": "https://example.test/b.pdf",
         },
         {
             "firm_nm": "KB증권",
             "article_title": "C",
-            "download_url": "https://example.test/c.pdf",
+            
         },
     ]
 
@@ -55,7 +55,7 @@ def test_format_legacy_message_matches_json_util_for_single_report():
         "firm_nm": "하나증권",
         "article_title": "A_B*",
         "telegram_url": "",
-        "pdf_url": "https://example.test/a.pdf",
+        "pdf_file_url": "https://example.test/a.pdf",
     }
 
     assert store.format_legacy_message(report) == json_util.format_message(report)
@@ -66,7 +66,7 @@ def test_json_util_format_message_keeps_legacy_single_report_text():
         "firm_nm": "하나증권",
         "article_title": "A_B*",
         "telegram_url": "",
-        "pdf_url": "https://example.test/a.pdf",
+        "pdf_file_url": "https://example.test/a.pdf",
     }
 
     assert json_util.format_message(report) == (
@@ -224,8 +224,8 @@ def test_append_report_if_new_writes_once(tmp_path):
 
     stored = json.loads(target.read_text(encoding="utf-8"))
     assert len(stored) == 1
-    assert stored[0]["article_url"] == "https://example.test/report.pdf"
-    assert stored[0]["download_url"] == "https://example.test/report.pdf"
+    assert stored[0]["source_url"] == "https://example.test/report.pdf"
+    assert stored[0]["pdf_file_url"] == "https://example.test/report.pdf"
 
 
 def test_json_util_save_data_to_local_json_keeps_legacy_return_and_payload(tmp_path, monkeypatch):
@@ -252,10 +252,10 @@ def test_json_util_save_data_to_local_json_keeps_legacy_return_and_payload(tmp_p
             "board_id": 0,
             "firm_nm": "하나증권",
             "article_title": "Report_Title*",
-            "article_url": "https://example.test/report.pdf",
+            "source_url": "https://example.test/report.pdf",
             "telegram_sent": False,
-            "download_url": "https://example.test/report.pdf",
-            "pdf_url": "https://example.test/report.pdf",
+            
+            "pdf_file_url": "https://example.test/report.pdf",
             "save_at": "2026-07-05T09:00:00",
         }
     ]
