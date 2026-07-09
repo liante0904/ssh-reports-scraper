@@ -74,3 +74,18 @@ def test_resolve_meritz_pdf_url_from_iframe_srcdoc():
         "https://home.imeritz.com/bbs/BbsRead.go?bbsCnttTurnNo=14386",
         {},
     ) == "http://home.imeritz.com/include/resource/research/WorkFlow/20260625074704120K_02.pdf"
+
+
+def test_resolve_meritz_pdf_url_from_download_title():
+    from scrapers.meritz_core import _resolve_meritz_pdf_url
+
+    html = """
+    <a href="#" onclick="getDownLoadFile('/bbs/BbsDownLoad.go', 'bascGrp', 'pricenewsrs', '14233', '0');"
+       title="20251001104659818K_02.pdf 파일 다운로드">20251001104659818K_02.pdf</a>
+    """
+
+    assert _resolve_meritz_pdf_url(
+        html,
+        "https://home.imeritz.com/bbs/BbsRead.go?bbsCnttTurnNo=14233",
+        {},
+    ) == "https://home.imeritz.com/include/resource/research/WorkFlow/20251001104659818K_02.pdf"

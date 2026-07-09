@@ -33,6 +33,10 @@ def _resolve_meritz_pdf_url(detail_html: str, article_url: str, cfg: dict) -> st
     match = re.search(r"""(?<![\w:/.-])/[^\s"'<>]+\.pdf(?:\?[^"'<>\s]*)?""", decoded, re.IGNORECASE)
     if match:
         return urljoin(article_url, match.group(0))
+    match = re.search(r"""title=["']([^"']+\.pdf)\s+파일\s+다운로드["']""", decoded, re.IGNORECASE)
+    if match:
+        filename = match.group(1).strip()
+        return urljoin(article_url, f"/include/resource/research/WorkFlow/{filename}")
     return ""
 
 def scrape_meritz(cfg: dict) -> list[dict]:
