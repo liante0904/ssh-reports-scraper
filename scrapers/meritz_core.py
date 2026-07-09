@@ -1,5 +1,6 @@
 import sys
 """Meritz Securities — config 기반 HTML 파싱."""
+import html
 import re, requests
 from datetime import datetime, timezone, timedelta
 from bs4 import BeautifulSoup
@@ -25,6 +26,13 @@ def _resolve_meritz_pdf_url(detail_html: str, article_url: str, cfg: dict) -> st
                 continue
             if ".pdf" in href.lower() or "workflow" in href.lower() or "resource/research" in href.lower():
                 return urljoin(article_url, href)
+    decoded = html.unescape(detail_html)
+    match = re.search(r"""https?://[^"'<>\s]+\.pdf(?:\?[^"'<>\s]*)?""", decoded, re.IGNORECASE)
+    if match:
+        return match.group(0)
+    match = re.search(r"""(?<![\w:/.-])/[^\s"'<>]+\.pdf(?:\?[^"'<>\s]*)?""", decoded, re.IGNORECASE)
+    if match:
+        return urljoin(article_url, match.group(0))
     return ""
 
 def scrape_meritz(cfg: dict) -> list[dict]:

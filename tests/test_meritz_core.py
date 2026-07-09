@@ -59,3 +59,18 @@ def test_scrape_meritz_sets_pdf_url_from_detail_pdf_link_with_query(monkeypatch)
     assert rows[0]["telegram_url"] == rows[0]["download_url"]
     assert rows[0]["pdf_url"] == rows[0]["download_url"]
     assert rows[0]["report_unique_key"] == rows[0]["download_url"]
+
+
+def test_resolve_meritz_pdf_url_from_iframe_srcdoc():
+    from scrapers.meritz_core import _resolve_meritz_pdf_url
+
+    html = """
+    <iframe srcdoc="&lt;HTML&gt;&lt;BODY&gt;&lt;A href='http://home.imeritz.com/include/resource/research/WorkFlow/20260625074704120K_02.pdf' target=_blank&gt;report&lt;/A&gt;&lt;/BODY&gt;&lt;/HTML&gt;"></iframe>
+    <a href="#" onclick="getDownLoadFile('/bbs/BbsDownLoad.go', 'bascGrp', 'pricenewsrs', '14386', '0');">20260625074704120K_02.pdf</a>
+    """
+
+    assert _resolve_meritz_pdf_url(
+        html,
+        "https://home.imeritz.com/bbs/BbsRead.go?bbsCnttTurnNo=14386",
+        {},
+    ) == "http://home.imeritz.com/include/resource/research/WorkFlow/20260625074704120K_02.pdf"
