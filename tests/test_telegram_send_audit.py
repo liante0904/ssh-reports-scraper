@@ -9,6 +9,20 @@ sys.path.insert(0, SCRAPER_DIR)
 os.environ["DB_BACKEND"] = "static"
 
 
+def _import_scraper_module():
+    loaded = sys.modules.get("scraper_registry")
+    if loaded and "/tests/scraper_registry.py" in str(getattr(loaded, "__file__", "")):
+        sys.modules.pop("scraper_registry", None)
+    test_dir = os.path.dirname(os.path.abspath(__file__))
+    original_path = list(sys.path)
+    sys.path[:] = [p for p in sys.path if os.path.abspath(p or os.getcwd()) != test_dir]
+    try:
+        import scraper
+        return scraper
+    finally:
+        sys.path[:] = original_path
+
+
 class TestMarkReportsSentSafety:
     """mark_reports_sent가 기본적으로 report_id만 마킹하는지 검증."""
 
@@ -201,9 +215,27 @@ class TestTelegramMessageChunks:
         assert "streamdocs/v4/documents/new" in chunks[0]["message"]
         assert "pv/gate" not in chunks[0]["message"]
 
+    def test_chunks_use_dbfi_aliased_telegram_url_when_pdf_url_not_selected(self):
+        from utils.telegram_message_builder import build_telegram_message_chunks
+
+        rows = [
+            {
+                "report_id": 19,
+                "firm_id": 19,
+                "firm_nm": "DB증권",
+                "article_title": "DBFI",
+                "telegram_url": "https://dbfi.example.test/streamdocs/v4/documents/new",
+            }
+        ]
+
+        chunks = build_telegram_message_chunks(rows)
+
+        assert "streamdocs/v4/documents/new" in chunks[0]["message"]
+        assert "링크없음" not in chunks[0]["message"]
+
 
 def test_daily_send_report_marks_only_successful_chunks(monkeypatch):
-    import scraper
+    scraper = _import_scraper_module()
 
     rows = [
         {
@@ -260,7 +292,7 @@ def test_daily_send_report_marks_only_successful_chunks(monkeypatch):
 
 
 def test_sync_scraped_reports_normalizes_dedupes_inserts_and_clears():
-    import scraper
+    scraper = _import_scraper_module()
 
     class FakeDB:
         def __init__(self):
@@ -298,7 +330,7 @@ def test_sync_scraped_reports_normalizes_dedupes_inserts_and_clears():
 
 
 def test_scraped_report_helpers_normalize_and_dedupe():
-    import scraper
+    scraper = _import_scraper_module()
 
     scraped_reports = [
         {

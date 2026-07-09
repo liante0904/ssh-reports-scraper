@@ -271,7 +271,7 @@ class SecReportsManager(LibrarySecReportsManager):
             board_id AS board_id,
             firm_nm,report_date,
             article_title,article_url,
-            download_url,writer,save_at,scraped_at,
+            download_url,pdf_url,writer,save_at,scraped_at,
             report_unique_key,
             CASE
                 WHEN firm_id = 19 THEN pdf_url
