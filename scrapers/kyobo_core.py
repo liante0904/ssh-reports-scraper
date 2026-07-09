@@ -44,7 +44,7 @@ def scrape_kyobo(cfg: dict) -> list[dict]:
                     tc = row.select_one(cfg["title_sel"])
                     if not tc: continue
                     title = tc.get_text(strip=True)
-                    article_url = cfg["base_url"] + tc["href"]
+                    source_url = cfg["base_url"] + tc["href"]
                     cat = row.select_one(f"td:nth-child({cfg['cell_cat']})").get_text(strip=True)
                     atype = row.select_one(f"td:nth-child({cfg['cell_type']})").get_text(strip=True)
                     board = cfg["board_types"].get(atype, 4)

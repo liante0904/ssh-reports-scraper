@@ -26,7 +26,7 @@ async def download_file_wget(report_info_row, URL=None, FILE_NAME=None):
 
     BOARD_NM = ''
     _pdf = report_info_row.get('pdf_file_url') or report_info_row.get('pdf_url')
-    _src = report_info_row.get('source_url') or report_info_row.get('article_url')
+    _src = report_info_row.get('source_url')
     URL = _pdf or _src or report_info_row.get('telegram_url')
 
     if FILE_NAME is None:

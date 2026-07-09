@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
 
-def _resolve_meritz_pdf_url(detail_html: str, article_url: str, cfg: dict) -> str:
+def _resolve_meritz_pdf_url(detail_html: str, source_url: str, cfg: dict) -> str:
     soup = BeautifulSoup(detail_html, "html.parser")
     selectors = [
         cfg.get("detail_sel", ""),
@@ -25,18 +25,18 @@ def _resolve_meritz_pdf_url(detail_html: str, article_url: str, cfg: dict) -> st
             if not href:
                 continue
             if ".pdf" in href.lower() or "workflow" in href.lower() or "resource/research" in href.lower():
-                return urljoin(article_url, href)
+                return urljoin(source_url, href)
     decoded = html.unescape(detail_html)
     match = re.search(r"""https?://[^"'<>\s]+\.pdf(?:\?[^"'<>\s]*)?""", decoded, re.IGNORECASE)
     if match:
         return match.group(0)
     match = re.search(r"""(?<![\w:/.-])/[^\s"'<>]+\.pdf(?:\?[^"'<>\s]*)?""", decoded, re.IGNORECASE)
     if match:
-        return urljoin(article_url, match.group(0))
+        return urljoin(source_url, match.group(0))
     match = re.search(r"""title=["']([^"']+\.pdf)\s+파일\s+다운로드["']""", decoded, re.IGNORECASE)
     if match:
         filename = match.group(1).strip()
-        return urljoin(article_url, f"/include/resource/research/WorkFlow/{filename}")
+        return urljoin(source_url, f"/include/resource/research/WorkFlow/{filename}")
     return ""
 
 def scrape_meritz(cfg: dict) -> list[dict]:
@@ -71,21 +71,21 @@ def scrape_meritz(cfg: dict) -> list[dict]:
                     link = row.select_one(f'td:nth-child({hmap.get("제목",0)+1}) a')
                     if not link: continue
                     title = link.get_text(strip=True)
-                    article_url = urljoin(cfg["base_url"], link["href"])
+                    source_url = urljoin(cfg["base_url"], link["href"])
                     dc = "작성일" if "작성일" in hmap else "작성일시"
                     rd = re.sub(r"[-./]","",row.select_one(f'td:nth-child({hmap[dc]+1})').get_text(strip=True))
                     wc = "작성자" if "작성자" in hmap else "작성자명"
                     writer = row.select_one(f'td:nth-child({hmap[wc]+1})').get_text(strip=True)
                     # detail fetch for PDF (2026.06: a[href$='.pdf'] 직접)
                     try:
-                        dr = requests.get(article_url, headers=hdr, timeout=15, verify=False)
-                        dl = _resolve_meritz_pdf_url(dr.text, article_url, cfg)
+                        dr = requests.get(source_url, headers=hdr, timeout=15, verify=False)
+                        dl = _resolve_meritz_pdf_url(dr.text, source_url, cfg)
                     except Exception:
                         dl = ""
                     if not dl:
-                        dl = article_url
+                        dl = source_url
                     result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
-                        firm_nm=cfg["firm_nm"],report_date=rd,source_url=article_url,
+                        firm_nm=cfg["firm_nm"],report_date=rd,source_url=source_url,
                         telegram_url=dl,pdf_file_url=dl,article_title=title,writer=writer,
                         report_unique_key=dl,save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception: continue

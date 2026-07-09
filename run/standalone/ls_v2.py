@@ -102,7 +102,7 @@ def report_month(article: dict) -> str:
     return str(article.get("report_date", ""))[:6]
 
 
-def resolve_cdn_url_from_detail(article_url: str, writer_emp_map: dict) -> str | None:
+def resolve_cdn_url_from_detail(source_url: str, writer_emp_map: dict) -> str | None:
     """
     GA 전용 detail resolver.
     1순위: detail HTML에서 upload filename 직접 파싱 → CDN URL → HEAD 검증
@@ -110,7 +110,7 @@ def resolve_cdn_url_from_detail(article_url: str, writer_emp_map: dict) -> str |
     """
     # detail 페이지 가져오기 (직접 접속, GA 클린IP)
     try:
-        resp = requests.get(article_url, headers=HEADERS, verify=False, timeout=30)
+        resp = requests.get(source_url, headers=HEADERS, verify=False, timeout=30)
         resp.raise_for_status()
     except Exception:
         return None
@@ -181,12 +181,12 @@ def resolve_batch(articles, writer_emp_map):
     resolved = []
     with_url = 0
     for i, a in enumerate(articles):
-        article_url = a.get("report_unique_key")
-        if not article_url:
+        source_url = a.get("report_unique_key")
+        if not source_url:
             resolved.append(a)
             continue
 
-        url = resolve_cdn_url_from_detail(article_url, writer_emp_map)
+        url = resolve_cdn_url_from_detail(source_url, writer_emp_map)
         if url:
             a["telegram_url"] = url
             a["pdf_file_url"] = url

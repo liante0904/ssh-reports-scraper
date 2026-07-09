@@ -158,8 +158,8 @@ def scrape_list(max_pages: int = 2) -> list[dict]:
                         continue
 
                     raw_href = a_tag["href"].replace("amp;", "")
-                    article_url = LS_FRONT_BOARD_PREFIX + raw_href
-                    key = clean_url(article_url).replace("&currPage=1", "")
+                    source_url = LS_FRONT_BOARD_PREFIX + raw_href
+                    key = clean_url(source_url).replace("&currPage=1", "")
 
                     if key in seen_keys:
                         continue
@@ -177,7 +177,7 @@ def scrape_list(max_pages: int = 2) -> list[dict]:
                         "article_title": title,
                         "writer": writer,
                         "report_unique_key": key,
-                        "list_article_url": article_url,
+                        "list_article_url": source_url,
                         "source_url": "",
                         
                         "telegram_url": "",

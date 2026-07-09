@@ -303,7 +303,7 @@ def normalize_scraped_report_payloads(scraped_reports):
 def dedupe_reports_by_unique_key(scraped_reports):
     reports_by_unique_key = {}
     for report_payload in scraped_reports:
-        unique_key = report_payload.get("report_unique_key") or report_payload.get("source_url") or report_payload.get("article_url")
+        unique_key = report_payload.get("report_unique_key") or report_payload.get("source_url")
         if unique_key:
             report_payload["report_unique_key"] = unique_key
             reports_by_unique_key[unique_key] = report_payload

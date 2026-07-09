@@ -62,11 +62,11 @@ def DS_checkNewArticle(full_scan=False):
                         continue 
 
                     title = title_element.get_text(strip=True)
-                    article_url = title_element["href"]
+                    source_url = title_element["href"]
 
                     # wr_id 및 bo_table 추출을 위한 정규식
-                    wr_id_match = re.search(r"wr_id=(\d+)", article_url)
-                    bo_table_match = re.search(r"bo_table=([^&]+)", article_url)
+                    wr_id_match = re.search(r"wr_id=(\d+)", source_url)
+                    bo_table_match = re.search(r"bo_table=([^&]+)", source_url)
                     
                     if wr_id_match and bo_table_match:
                         wr_id = wr_id_match.group(1)
@@ -95,12 +95,12 @@ def DS_checkNewArticle(full_scan=False):
                         "board_id": board_id,
                         "firm_nm": firm_info.get_firm_name(),
                         "article_title": title,
-                        "source_url": article_url,
+                        "source_url": source_url,
                         "telegram_url": telegram_url,
                         "pdf_file_url": pdf_url,
                         "report_date": report_date,
                         "save_at": save_time,
-                        "report_unique_key": pdf_url if pdf_url != "없음" else article_url
+                        "report_unique_key": pdf_url if pdf_url != "없음" else source_url
                     })
 
                 # 한 페이지만 가져올 경우 루프 종료

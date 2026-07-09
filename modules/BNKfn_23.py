@@ -106,11 +106,11 @@ def BNK_checkNewArticle():
 
                 onclick_attr = article_link.get("onclick", "")
                 match = re.search(r"viewAction\(this, '\d+', '(/uploads/[^']+)', '([^']+)'\);", onclick_attr)
-                article_url = ""
+                source_url = ""
                 if match:
                     base_path = match.group(1)
                     file_name = match.group(2)
-                    article_url = f"https://www.bnkfn.co.kr{base_path}/{file_name}"
+                    source_url = f"https://www.bnkfn.co.kr{base_path}/{file_name}"
 
                 report_date = cells[4].get_text(strip=True)
 
@@ -120,12 +120,12 @@ def BNK_checkNewArticle():
                     "firm_nm": firm_info.get_firm_name(),
                     "report_date": re.sub(r"[-./]", "", report_date),
                     "article_title": article_title,
-                    "source_url": article_url,
+                    "source_url": source_url,
                     
-                    "telegram_url": article_url,
+                    "telegram_url": source_url,
                     "writer": writer,
                     "save_at": datetime.now().isoformat(),
-                    "report_unique_key": article_url
+                    "report_unique_key": source_url
                 })
 
             time.sleep(0.5)

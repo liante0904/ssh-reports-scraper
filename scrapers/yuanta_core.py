@@ -47,7 +47,7 @@ def scrape_yuanta(cfg: dict) -> list[dict]:
                         stag = item.select_one(cfg["stock_sel"])
                         if stag: title = f"{stag.get_text(strip=True)}: {title}"
                     seq = ttag.get("data-seq","")
-                    article_url = cfg["url_tpl"].replace("{code}",code).replace("{seq}",seq)
+                    source_url = cfg["url_tpl"].replace("{code}",code).replace("{seq}",seq)
                     writers = [a.get_text(strip=True) for a in item.select(cfg["writer_sel"])]
                     writer = ", ".join(writers)
                     pt = item.select_one(cfg["pdf_sel"])
@@ -55,11 +55,11 @@ def scrape_yuanta(cfg: dict) -> list[dict]:
                     if pt and pt.has_attr(cfg["pdf_attr"]):
                         dl = cfg["pdf_tpl"].replace("{path}", pt[cfg["pdf_attr"]])
                     # dl이 비어있으면 article_url을 fallback으로 사용
-                    if not dl: dl = article_url
+                    if not dl: dl = source_url
                     result.append(dict(firm_id=cfg["firm_id"],board_id=board_idx,
                         firm_nm=cfg["firm_nm"],report_date=report_date,
                         telegram_url=dl,pdf_file_url=dl,writer=writer,
-                        report_unique_key=article_url,
+                        report_unique_key=source_url,
                         article_title=title,save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception: continue
     print(f"[yuanta] {len(result)} articles collected", file=sys.stderr)

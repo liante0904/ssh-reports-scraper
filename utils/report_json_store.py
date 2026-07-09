@@ -38,7 +38,7 @@ def best_report_url(report):
     return (
         report.get("telegram_url")
         or report.get("pdf_file_url") or report.get("pdf_url")
-        or report.get("source_url") or report.get("article_url")
+        or report.get("source_url")
         or ""
     )
 

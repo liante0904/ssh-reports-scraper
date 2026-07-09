@@ -24,11 +24,11 @@ def scrape_ds(urls: list[str]) -> list[dict]:
             title_cell = cells[1].find("a")
             if not title_cell: continue
             title = title_cell.get_text(strip=True)
-            article_url = urljoin(url, title_cell.get("href",""))
+            source_url = urljoin(url, title_cell.get("href",""))
             report_date = re.sub(r"[-./]","",cells[3].get_text(strip=True))
             writer = cells[4].get_text(strip=True) if len(cells) > 4 else ""
             pdf_cell = cells[5].find("a") if len(cells) > 5 else None
-            download_url = urljoin(url, pdf_cell.get("href","")) if pdf_cell else article_url
+            download_url = urljoin(url, pdf_cell.get("href","")) if pdf_cell else source_url
             # 2026.06.21 fix: GA Import 중복제거 및 DB 업서트 시 식별값으로 사용될 key, report_unique_key 설정 추가
             result.append({"firm_id":11,"board_id":board_order,
                 "firm_nm":"DS투자증권","report_date":report_date,"article_title":title,

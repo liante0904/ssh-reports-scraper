@@ -72,9 +72,9 @@ def scrape_bnk(urls: list[str]) -> list[dict]:
                 # onclick에서 PDF URL 추출
                 onclick = article_link.get("onclick", "")
                 m = re.search(r"viewAction\(this, '\d+', '(/uploads/[^']+)', '([^']+)'\);", onclick)
-                article_url = ""
+                source_url = ""
                 if m:
-                    article_url = f"https://www.bnkfn.co.kr{m.group(1)}/{m.group(2)}"
+                    source_url = f"https://www.bnkfn.co.kr{m.group(1)}/{m.group(2)}"
 
                 result.append({
                     "firm_id": FIRM_ID,
@@ -82,12 +82,12 @@ def scrape_bnk(urls: list[str]) -> list[dict]:
                     "firm_nm": FIRM_NM,
                     "report_date": re.sub(r"[-./]", "", report_date),
                     "article_title": title,
-                    "source_url": article_url,
+                    "source_url": source_url,
                     
-                    "telegram_url": article_url,
-                    "pdf_file_url": article_url,
+                    "telegram_url": source_url,
+                    "pdf_file_url": source_url,
                     "writer": writer,
-                    "report_unique_key": article_url,
+                    "report_unique_key": source_url,
                     "save_at": datetime.now().isoformat(),
                 })
             except Exception:

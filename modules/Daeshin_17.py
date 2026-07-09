@@ -82,14 +82,14 @@ async def Daeshin_checkNewArticle():
                 link_tag = item.find("a")
                 if link_tag and 'href' in link_tag.attrs:
                     href = link_tag['href']
-                    article_url = urljoin(url, href)
+                    source_url = urljoin(url, href)
                 else:
                     logger.warning("No href found for a Daeshin item")
                     return
                 
                 # 대상 서버 과부하 방지 및 IP 차단 예방을 위해 세마포어로 동시 요청수 제어
                 async with sem:
-                    attach_url = await fetch_attach_url(session, article_url)
+                    attach_url = await fetch_attach_url(session, source_url)
 
                 if attach_url:
                     json_data_list.append({
@@ -97,7 +97,7 @@ async def Daeshin_checkNewArticle():
                         "board_id": board_id,
                         "firm_nm": firm_info.get_firm_name(),
                         "report_date": re.sub(r"[-./]", "", report_date),
-                        "source_url": article_url,
+                        "source_url": source_url,
                         
                         "telegram_url": attach_url,
                         "pdf_file_url": attach_url,
@@ -111,10 +111,10 @@ async def Daeshin_checkNewArticle():
             item_tasks = [process_item(item) for item in items]
             await asyncio.gather(*item_tasks)
 
-    async def fetch_attach_url(session, article_url):
-        """article_url 페이지에서 pdf_url 추출"""
+    async def fetch_attach_url(session, source_url):
+        """source_url 페이지에서 pdf_url 추출"""
         try:
-            async with session.get(article_url, headers=headers) as response:
+            async with session.get(source_url, headers=headers) as response:
                 html = await response.text()
                 soup = BeautifulSoup(html, 'html.parser')
                 attach_element = soup.find(id="btnPdfLoad")
@@ -122,7 +122,7 @@ async def Daeshin_checkNewArticle():
                 if attach_element:
                     return attach_element['href']
         except Exception as e:
-            logger.error(f"Error fetching attach URL from {article_url}: {e}")
+            logger.error(f"Error fetching attach URL from {source_url}: {e}")
         return None
 
     # 명시적 타임아웃 세팅 (Hanging으로 인한 무한 대기 현상 전면 방지)

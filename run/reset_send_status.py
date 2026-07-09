@@ -36,8 +36,8 @@ async def reset_and_send(firm_order, date_str, board_order=None, do_send=False):
         # 해당 업체/날짜의 데이터를 다시 읽어옴
         select_query = """
         SELECT report_id, firm_id, board_id, firm_nm, report_date,
-               article_title, article_url, telegram_sent,
-               download_url, writer, save_at,
+               article_title, telegram_sent,
+               writer, save_at,
                CASE WHEN firm_id = 19 THEN pdf_url ELSE telegram_url END AS telegram_url,
                report_unique_key
         FROM v_sec_reports_read

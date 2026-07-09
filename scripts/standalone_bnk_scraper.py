@@ -149,9 +149,9 @@ async def scrape_bnk() -> list[dict]:
                     r"viewAction\(this, '\d+', '(/uploads/[^']+)', '([^']+)'\);",
                     onclick_attr,
                 )
-                article_url = ""
+                source_url = ""
                 if match:
-                    article_url = f"https://www.bnkfn.co.kr{match.group(1)}/{match.group(2)}"
+                    source_url = f"https://www.bnkfn.co.kr{match.group(1)}/{match.group(2)}"
                 report_date = cells[4].get_text(strip=True)
                 articles.append({
                     "firm_id": 23,
@@ -160,12 +160,12 @@ async def scrape_bnk() -> list[dict]:
                     "firm_nm": "BNK투자증권",
                     "report_date": re.sub(r"[-./]", "", report_date),
                     "article_title": article_title,
-                    "source_url": article_url,
+                    "source_url": source_url,
                     
-                    "telegram_url": article_url,
+                    "telegram_url": source_url,
                     "writer": writer,
                     "save_at": datetime.now().isoformat(),
-                    "report_unique_key": article_url,
+                    "report_unique_key": source_url,
                 })
 
     return articles

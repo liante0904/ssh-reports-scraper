@@ -3,7 +3,7 @@ EMOJI_PICK = u'\U0001F449'
 
 def telegram_link_for_report(row):
     _pdf = row.get('pdf_file_url') or row.get('pdf_url')
-    _src = row.get('source_url') or row.get('article_url')
+    _src = row.get('source_url')
     if row.get('firm_id') == 19:
         return _pdf or row.get('telegram_url') or ""
     if row.get('firm_id') == 11:

@@ -106,7 +106,7 @@ class SecReportsManager(LibrarySecReportsManager):
         for entry in json_data_list:
             unique_key = (
                 entry.get("report_unique_key")
-                or entry.get("source_url") or entry.get("article_url")
+                or entry.get("source_url")
                 or ""
             )
             save_at = entry.get("save_at")
