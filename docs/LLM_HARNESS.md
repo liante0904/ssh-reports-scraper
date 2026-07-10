@@ -3,6 +3,10 @@
 > **통합 일자**: 2026-07-01
 > **대상 원본 문서**: LLM_CONTROL_HARNESS.md, LLM_DISPATCH_AUTOMATION.md, LLM_HARNESS_PORTING_GUIDE.md, LLM_HARNESS_README.md
 
+> **현재 상태 주의 (2026-07-10):** 이 문서의 후반부는 과거 계획과 사고 기록을 포함한다.
+> 현재 firm 구성의 권위는 `config/firms.yaml`과 `scraper_registry.py`며,
+> 실행 경로는 `docs/DEBUG_ENTRYPOINTS.md`를 먼저 본다.
+
 ---
 
 ## [통합 섹션] LLM_CONTROL_HARNESS
@@ -44,7 +48,7 @@ MCP    = LLM이 운영 상태를 더 잘 보게 하는 눈
 부족한 점:
 
 - 문서에 적힌 규칙이 CI에서 강제되지 않는 부분이 많다.
-- firm별 entrypoint/env/workflow/config shape/result policy가 단일 manifest로 선언돼 있지 않다.
+- firm별 entrypoint/env/workflow/config shape/result policy는 `config/firms.yaml`에 선언되어 있다. 단, 정책을 모든 실행 경로가 같은 방식으로 강제하는지는 테스트로 확인해야 한다.
 - deploy workflow가 전체 위험면을 보지 않고 import/config 일부만 테스트한다.
 - 회사별 workflow YAML이 많아 LLM이 수동 수정하다가 쉽게 어긋난다.
 - `--require-non-empty`가 정상 0건과 파싱 장애를 구분하지 못한다.
@@ -66,9 +70,9 @@ MCP    = LLM이 운영 상태를 더 잘 보게 하는 눈
 
 LLM은 이 중 일부만 보고 수정하는 경향이 강하다. 그래서 테스트는 통과했는데 GA runtime이나 서버 fallback에서 터진다.
 
-### 2. SSoT가 없다
+### 2. Firm manifest SSoT (반영 완료)
 
-현재 필요한 SSoT는 firm manifest다. 이 manifest는 최소한 아래 정보를 담아야 한다.
+`config/firms.yaml`이 아래 정보를 담고 `scraper_registry.py`가 이를 로드한다. 예시는 현재 계약을 설명하는 것이며 실제 필드/경로는 manifest를 확인한다.
 
 ```yaml
 firms:
@@ -499,6 +503,7 @@ uv run python scripts/harness.py --check-manifest
 - `modules/LS_0.py`는 DB 의존성(`FirmInfo`, `get_db`), WARP 프록시(`SOCKS_PROXY`, `USE_WARP_ONLY`), 전역 상태(`skip_boards`)를 갖는다. 일반 `scrapers/*_core.py`처럼 독립 함수로 분리되어 있지 않다.
 - `scrape-ls.yml`은 env 이름으로 `urls`를 사용한다 (대다수 firm의 `*_URLS_JSON` 패턴과 다름).
 - `scrape-ls-v2.yml`는 schedule 없이 `workflow_dispatch`만 활성화되어 있으며, `run/standalone/ls_v2.py`를 사용한다.
+- manifest의 LS 항목은 primary 경로인 `run/standalone/ls.py` + `scrape-ls.yml`을 표현한다. LS v2는 독립 firm이 아닌 수동 companion 경로이므로 별도 firm ID를 만들지 않는다.
 - `scripts/standalone_ls_scraper.py`는 DB 의존성 없이 순수 HTTP 크롤링만 수행하는 GA 전용 스크래퍼다.
 - **금지**: LS에 일반 core import 패턴을 강제하지 마라. LS 수정 시 `modules/LS_0.py` + `run/standalone/ls.py` + `run/standalone/ls_v2.py` + `scripts/standalone_ls_scraper.py` + `scrape-ls.yml` + `scrape-ls-v2.yml` 6개 파일을 함께 확인한다.
 
@@ -639,7 +644,7 @@ LLM 작업 완료 보고에 아래 체크리스트 출력을 요구한다. 사�
 - **증상**: GA workflow 전체 SyntaxError → GA 수집 12시간 중단.
 - **현재 방어**: `scripts/verify_standalones.sh` pre-push 훅.
 - **하네스 검출**: `harness.py --firm {firm} --offline` → "standalone py_compile failed"
-- **참고**: 2026-06-24 현재 `ls_v2.py`가 `verify_standalones.sh`에서 문법 오류 발생 중.
+- **해결**: 2026-07-10 `scripts/verify_standalones.sh`에서 `ls_v2.py`를 포함한 전체 standalone 문법 검증이 통과한다.
 
 ### 사례 3: core/wrapper config shape 불일치 (실제, 2026-06-15)
 

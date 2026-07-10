@@ -433,7 +433,7 @@ DB증권(19)은 텔레그램용 URL과 PDF URL이 다를 수 있다 (gate viewer
 |------|------|------|------|
 | **scraper** (29개 모듈) | - | `report_id`, `firm_id`, `board_id`, `firm_nm`, `article_title`, `telegram_url`, `pdf_url`, `report_date`, `writer`, `mkt_tp`, `report_unique_key`, `save_at`, `telegram_sent` | - |
 | **enricher** (tag_extractor) | `article_title`, `firm_nm` | `tags`, `stock_names`, `stock_tickers`, `sector`, `gemini_summary`, `summary_time`, `summary_model`, `target_price`, `rating`, `revision_type`, `report_type`, `fnguide_summary_id`, `sync_status` | `tbl_sec_reports` (enricher 컬럼) |
-| **pdf-archiver** | `pdf_url` | `pdf_sync_status`, `download_status_yn`, `pdf_hash` | `tbl_sec_reports_pdf_archive` (`download_url`, `download_status_yn` 물리 컬럼 없음) |
+| **pdf-archiver** | `pdf_url` | `tbl_sec_reports.pdf_sync_status`, `tbl_sec_reports.download_status_yn`, `tbl_sec_reports.pdf_hash` | `tbl_sec_reports_pdf_archive`에는 `download_url`, `download_status_yn` 물리 컬럼 없음 |
 | **scraper.py enrich_data()** | `telegram_url`, `report_unique_key`, `writer`, `report_date` | `telegram_url` (DBfi gate/LS msg URL 복구) | - |
 | **scheduler.py** | `telegram_sent`, `telegram_url`, `article_title` | `telegram_sent=true` (발송 완료) | - |
 
@@ -453,7 +453,7 @@ DB증권(19)은 텔레그램용 URL과 PDF URL이 다를 수 있다 (gate viewer
 
 ### 7.1.1 `tbl_sec_reports` 운영 물리 컬럼
 
-2026-07-10 KST 기준 `public.tbl_sec_reports` 물리 컬럼은 33개다.
+2026-07-10 KST catalog snapshot에서 확인한 물리 컬럼은 아래와 같다. 개수와 데이터 분포는 변할 수 있으므로 현재 판단은 `information_schema`/`pg_catalog`을 다시 조회한다.
 
 ```text
 report_id, firm_id, board_id, firm_nm, article_title, download_status_yn,
@@ -467,7 +467,7 @@ report_unique_key, save_at, article_text, gdrive_pdf_url
 
 `article_url`, `download_url`, `key`, `reg_dt`, `save_time`, `main_ch_send_yn`은 `information_schema` 기준 운영 물리 컬럼에 없다.
 
-호환 뷰 `v_sec_reports_canonical`, `v_sec_reports_full`, `v_reports_api`, `v_reports`, `v_scraper_workbench`는 재생성 후 정상 조회된다. 각 view count는 310,395이며, legacy 호환 alias는 다음처럼 동작한다.
+호환 뷰 `v_sec_reports_canonical`, `v_sec_reports_full`, `v_reports_api`, `v_reports`, `v_scraper_workbench`는 재생성 후 정상 조회됐다. row count는 운영 시점에 따라 변하므로 문서에 고정하지 않는다. legacy 호환 alias는 다음처럼 동작한다.
 
 - `article_url`, `source_page_url`: NULL alias
 - `download_url`, `source_pdf_url_fallback`: `pdf_url` 매핑

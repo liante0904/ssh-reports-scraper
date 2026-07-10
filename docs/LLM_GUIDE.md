@@ -403,7 +403,7 @@ Codex가 직접 토큰을 많이 써야 하는 경우:
 
 1. workflow run step 공통화: 실패해도 `*_log.txt`를 반드시 출력.
 2. `*_URLS_JSON` 스키마를 회사별 manifest로 선언: `url_list`/`full_config` 구분을 코드에 박아둔다.
-3. `scraper_registry.py`를 실제 SSoT로 만들고 `scraper.py`, `standalone_all_scraper.py`, docs 표를 거기서 생성.
+3. (완료) `config/firms.yaml`을 firm manifest SSoT로 두고 `scraper_registry.py`가 로드/검증한다. 새 예외 매핑을 별도 Python 목록으로 추가하지 않는다.
 4. 0건 허용 정책을 `validate_scrape_result.py`에 회사/시간대별로 반영.
 5. `telegram_sent` 전환 이후 남은 `is_sent`/`main_ch_send_yn` 문서·legacy 예시는 운영 SQL로 복사되지 않게 격리.
 
@@ -417,7 +417,7 @@ Codex가 직접 토큰을 많이 써야 하는 경우:
 | 4 | scheduler.py dead code | 61줄 제거 |
 | 5 | KB board_id=0 | 13종 게시판 분류 + 8,142건 백필 |
 | 6 | DB 타입 불일치 (Pain 17.2) | `saved_at`(timestamptz), `report_date`(date), `telegram_sent`(bool) |
-| 7 | DB 33컬럼 짬뽕 테이블 (Pain 17.1) | 4종 정규화 테이블 분리 + `v_sec_reports_full` 뷰 |
+| 7 | DB 정규화 시도 (Pain 17.1) | 4종 분리를 시도했으나 2026-07-09 롤백; 역사 기록으로만 유지 |
 | 8 | FnGuide 매칭 성능 | `report_date`+`writer`+`board` 인덱스, `v_fnguide_authors` 뷰 |
 | 9 | `key` 컬럼명 모호 | `report_unique_key` 추가, dedup 우선 사용 |
 | 10 | 애널리스트 마스터 공백 | 2,355명 시딩 (`tbm_analyst_master`) |
@@ -546,7 +546,7 @@ _GA_FIRMS_ASYNC = {NHQV_checkNewArticle, KB_checkNewArticle, ...}
 - 함수가 sync인지 async인지 `scraper_registry.py`에도 정의되어 있음 → 이중 관리
 - `is_full` 조건으로 GA 함수들이 extend되는데, 이 로직이 직관적이지 않음
 
-**권장**: `scraper_registry.py`를 단일 진실 공급원(SSoT)으로 만들고 scraper.py는 registry만 참조.
+**현재**: 이 목록 분산 문제는 `config/firms.yaml` + `scraper_registry.py`로 통합했다. 위 코드는 이전 구조를 설명하는 역사적 예시다.
 
 ---
 
@@ -751,7 +751,7 @@ if asyncio.iscoroutine(res):
 ## 단기 개선 제안 (다음 스프린트)
 
 1. **공통 리턴 스키마 정의**: `models/report_schema.py` → `ReportArticle` dataclass + 런타임 검증
-2. **모듈 레지스트리 자동화**: `scraper_registry.py` → `@register_firm` 데코레이터로 SSoT 통합
+2. **모듈 레지스트리 자동화**: ✅ `config/firms.yaml` manifest + `scraper_registry.py` lazy import/검증으로 통합. 데코레이터 전환 예시는 폐기.
 3. **GA/서버 코드 통합**: `scrapers/kb_core.py` 패턴으로 중복 제거, 11개 standalone을 core 모듈로 대체
 4. **FirmInfo 단순화**: 메타클래스 제거, 일반 함수로 교체
 5. **Dead code 제거**: ShinHanInvest `_back` 함수, scheduler 주석 블록
@@ -764,7 +764,7 @@ if asyncio.iscoroutine(res):
 
 ### 17.1 거의 100% 미사용 컬럼 (제거 검토)
 
-운영 DB 310,244건 기준:
+아래 수치는 2026-07-09 시점의 역사적 snapshot이다. 현재 상태 판단에 재사용하지 말고 catalog을 재조회한다.
 
 | 컬럼 | 채워진 row | fill rate | 비고 |
 |------|:---:|:---:|------|
@@ -806,7 +806,7 @@ if asyncio.iscoroutine(res):
 - `article_url`
 - `download_url`
 
-호환 뷰 `v_sec_reports_canonical`, `v_sec_reports_full`, `v_reports_api`, `v_reports`, `v_scraper_workbench`는 재생성 후 정상 조회되며 각 count는 310,395다.
+호환 뷰 `v_sec_reports_canonical`, `v_sec_reports_full`, `v_reports_api`, `v_reports`, `v_scraper_workbench`는 2026-07-10 재생성 후 정상 조회됐다. 현재 row count는 실시간 catalog/query로 확인한다.
 
 - `article_url`, `source_page_url`: NULL alias
 - `download_url`, `source_pdf_url_fallback`: `pdf_url` 매핑
