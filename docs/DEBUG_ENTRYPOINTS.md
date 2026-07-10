@@ -119,8 +119,7 @@ Read in this order:
 1. `models/SecReportsManager.py`
 2. `models/db_factory.py`
 3. `scripts/validate_scrape_result.py`
-4. `docs/COLUMN_DEPRECATION_SCRAPER_STATUS.md`
-5. `docs/COLUMN_DEPRECATION_IMPL_SPEC.md`
+4. `sql/TB_SEC_REPORTS.sql` ← DB 스키마 SSoT
 
 Relevant tests:
 
