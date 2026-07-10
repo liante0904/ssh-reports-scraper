@@ -7,6 +7,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scripts.validate_scrape_result import validate
 
 
+ROOT = Path(__file__).resolve().parents[1]
+WORKFLOWS = ROOT / ".github" / "workflows"
+
+
 def _write(tmp_path, filename, data):
     path = tmp_path / filename
     path.write_text(json.dumps(data), encoding="utf-8")
@@ -43,3 +47,19 @@ def test_existing_workflow_filename_resolves_firm(tmp_path):
         "firm_nm": "KB증권",
     }])
     assert validate(path) == 0
+
+
+def test_workflow_validators_use_uv_environment():
+    validator_workflows = []
+    for workflow in WORKFLOWS.glob("*.yml"):
+        contents = workflow.read_text(encoding="utf-8")
+        if "scripts/validate_scrape_result.py" not in contents:
+            continue
+        validator_workflows.append(workflow.name)
+        assert "uv run python scripts/validate_scrape_result.py" in contents
+        assert any(
+            setup in contents
+            for setup in ("pip install uv", "astral-sh/setup-uv", "uv/install.sh")
+        )
+
+    assert validator_workflows, "no artifact validation workflows found"

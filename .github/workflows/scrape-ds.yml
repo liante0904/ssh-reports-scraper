@@ -26,7 +26,7 @@ jobs:
           COUNT=$(python3 -c "import json; print(len(json.load(open('ds_result.json'))))")
           echo "Articles collected: $COUNT"
       - name: Validate result
-        run: python scripts/validate_scrape_result.py ds_result.json --require-non-empty
+        run: uv run python scripts/validate_scrape_result.py ds_result.json --require-non-empty
       - name: SCP to server
         run: |
           mkdir -p ~/.ssh

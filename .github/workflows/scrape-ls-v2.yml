@@ -37,7 +37,7 @@ jobs:
           exit $RC
 
       - name: Validate
-        run: python scripts/validate_scrape_result.py ls_result.json
+        run: uv run python scripts/validate_scrape_result.py ls_result.json
 
       - name: SCP
         run: |

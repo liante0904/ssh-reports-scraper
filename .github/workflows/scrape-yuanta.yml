@@ -26,7 +26,7 @@ jobs:
           echo "Articles collected: $COUNT"
       - name: Validate result
         run: |
-          python scripts/validate_scrape_result.py yuanta_result.json --require-non-empty
+          uv run python scripts/validate_scrape_result.py yuanta_result.json --require-non-empty
       - name: SCP
         run: |
           mkdir -p ~/.ssh
