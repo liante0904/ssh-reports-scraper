@@ -1,5 +1,8 @@
 """Core contract tests — standalone → core 인자 타입 검증 (no network)."""
 import json, os, sys, pytest
+import urllib.request
+
+import requests
 
 SCRAPER_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SCRAPER_DIR)
@@ -28,11 +31,20 @@ def _import_core(name):
         return None
 
 
+@pytest.fixture
+def block_network(monkeypatch):
+    def _blocked(*args, **kwargs):
+        raise RuntimeError("network disabled in core contract tests")
+
+    monkeypatch.setattr(requests.sessions.Session, "request", _blocked)
+    monkeypatch.setattr(urllib.request, "urlopen", _blocked)
+
+
 class TestCoreBackwardCompat:
     """모든 core가 list/str을 dict로 변환하는지."""
 
     @pytest.mark.parametrize("core_file", [c for c in CORE_FILES if c not in ("sks_core.py","kb_core.py","nhqv_core.py")])
-    def test_core_accepts_list(self, core_file):
+    def test_core_accepts_list(self, core_file, block_network):
         """Core should not crash when receiving a URL list."""
         func = _import_core(core_file)
         if func is None:
@@ -46,7 +58,7 @@ class TestCoreBackwardCompat:
                 f"{core_file}: type error on list input: {e}"
 
     @pytest.mark.parametrize("core_file", [c for c in CORE_FILES if c not in ("sks_core.py","kb_core.py","nhqv_core.py")])
-    def test_core_accepts_str(self, core_file):
+    def test_core_accepts_str(self, core_file, block_network):
         """Core should not crash when receiving a single URL string."""
         func = _import_core(core_file)
         if func is None:
