@@ -18,7 +18,7 @@ Design:
     - This module reads it at import time and caches function lookups.
     - importlib.import_module is used for lazy loading — scraper functions
       are only imported when their accessor is called, not at registry import.
-    - Falls back to hardcoded registry if YAML is missing or unparseable.
+    - Missing or invalid manifests fail startup instead of silently disabling scrapers.
 """
 from __future__ import annotations
 
@@ -37,25 +37,70 @@ _FUNC_CACHE: dict[str, Callable] = {}
 # ── Firm registry entries (loaded from YAML) ────────────────────────────────
 _registry: list[dict] = []
 
+_REQUIRED_FIELDS: dict[str, type] = {
+    "display_name": str,
+    "firm_id": int,
+    "mode": str,
+    "server_module": str,
+    "server_list": str,
+    "ga_full_scrape_list": str,
+    "ga_fallback_excluded": bool,
+    "func_name": str,
+    "enrichment_skip": bool,
+}
+_LIST_MODES = {"sync", "async", "none"}
+_FIRM_MODES = {"ga", "server", "dual", "ga_disabled", "blocked"}
+
+
+def _validate_manifest(data: object) -> list[dict]:
+    """Validate the dispatch fields required by runtime registry builders."""
+    if not isinstance(data, dict) or not isinstance(data.get("firms"), dict):
+        raise ValueError("config/firms.yaml must contain a 'firms' mapping")
+
+    firms = list(data["firms"].values())
+    if not firms:
+        raise ValueError("config/firms.yaml must contain at least one firm")
+
+    seen_ids: set[int] = set()
+    for key, firm in data["firms"].items():
+        if not isinstance(firm, dict):
+            raise ValueError(f"firm '{key}' must be a mapping")
+        for field, expected_type in _REQUIRED_FIELDS.items():
+            value = firm.get(field)
+            if type(value) is not expected_type or (
+                expected_type is str and not value.strip()
+            ):
+                raise ValueError(
+                    f"firm '{key}' field '{field}' must be a non-empty "
+                    f"{expected_type.__name__}"
+                )
+        firm_id = firm["firm_id"]
+        if firm_id in seen_ids:
+            raise ValueError(f"duplicate firm_id: {firm_id}")
+        seen_ids.add(firm_id)
+        if firm["mode"] not in _FIRM_MODES:
+            raise ValueError(
+                f"firm '{key}' field 'mode' must be one of {sorted(_FIRM_MODES)}"
+            )
+        for field in ("server_list", "ga_full_scrape_list"):
+            if firm[field] not in _LIST_MODES:
+                raise ValueError(
+                    f"firm '{key}' field '{field}' must be one of {sorted(_LIST_MODES)}"
+                )
+    return firms
+
 
 def _load_yaml_manifest() -> list[dict]:
     """Load firm manifest from YAML. Returns list of firm dicts."""
     import yaml
     with open(_MANIFEST_PATH, encoding="utf-8") as f:
         data = yaml.safe_load(f)
-    return list(data["firms"].values())
+    return _validate_manifest(data)
 
 
 def _init_registry() -> list[dict]:
-    """Initialize registry from YAML, falling back to empty list on error."""
-    try:
-        return _load_yaml_manifest()
-    except FileNotFoundError:
-        logger.warning("config/firms.yaml not found — registry will be empty")
-        return []
-    except Exception as e:
-        logger.error(f"Failed to load config/firms.yaml: {e}")
-        return []
+    """Initialize registry, raising when dispatch configuration is unusable."""
+    return _load_yaml_manifest()
 
 
 _registry = _init_registry()

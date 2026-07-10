@@ -1,13 +1,16 @@
 -- ⚠️  THIS FILE IS STALE — DO NOT USE AS SCHEMA REFERENCE
 -- =============================================================================
--- The canonical Single Source of Truth for the database schema is:
+-- The cross-repository conceptual schema is:
 --   external.reports-hub/docs/schema.sql
+--   Relative path from this file: ../../../docs/schema.sql
+-- It documents ownership and intended names, but is not an executable or
+-- production-authoritative snapshot of constraints, defaults, views, or indexes.
 --
 -- This file (sql/TB_SEC_REPORTS.sql) was a legacy pg_dump snapshot that had
 -- columns (reg_dt, save_time, download_url, article_url) which no longer exist
 -- in production. It is kept as a pointer only.
 --
--- LLM agents: read ../../docs/schema.sql for the full, production-accurate DDL.
+-- Production authority: query pg_catalog/information_schema on the live database.
 -- =============================================================================
 -- Last validated against production: 2026-07-10
 -- Production columns (psql \d tbl_sec_reports):

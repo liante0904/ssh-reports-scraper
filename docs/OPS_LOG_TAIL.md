@@ -47,14 +47,16 @@ bash scripts/ops_tail_errors.sh --firm-order 3 --firm-name 'HANA|하나|hana' --
 
 `firm hits=0`이고 최신 row가 오래됐다면 스케줄러/GA policy/regular path에서 제외됐을 가능성이 높다.
 
-`firm hits=0`가 여러 server-only firm에서 동시에 발생하거나 로그에 아래 메시지가 반복되면,
-스케줄러가 살아 있어도 registry가 비어 있는 상태다.
+`firm hits=0`가 여러 server-only firm에서 동시에 발생하면 manifest 로드 실패를
+먼저 확인한다. 현재 registry는 manifest가 없거나 잘못되면 fail-fast하며,
+아래 문구는 2026-07-08 이전 버전의 과거 로그이다.
 
 ```text
 config/firms.yaml not found — registry will be empty
 ```
 
-이 경우 active scraper 컨테이너에 manifest가 들어갔는지 먼저 확인한다.
+현재 버전에서는 컨테이너 시작 실패 traceback을 확인한 뒤 active image에
+manifest가 들어갔는지 확인한다.
 
 ```bash
 ssh oci 'CT=$(docker ps --format "{{.Names}}" | grep "ssh-reports-scraper-main-scraper" | head -1); docker exec "$CT" sh -lc "ls -la /app/config /app/config/firms.yaml"'

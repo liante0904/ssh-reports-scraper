@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 import asyncio
+from datetime import datetime
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -80,6 +81,36 @@ def test_insert_includes_legacy_and_canonical_keys(monkeypatch):
     assert "EXCLUDED.telegram_sent" not in connection.cursor_instance.sql
     assert "EXCLUDED.main_ch_send_yn" not in connection.cursor_instance.sql
     assert connection.closed is True
+
+
+def test_insert_preserves_legacy_artifact_save_time(monkeypatch):
+    from models.SecReportsManager import SecReportsManager
+
+    connection = FakeConnection()
+    manager = object.__new__(SecReportsManager)
+    manager.table_name = "tbl_sec_reports"
+    manager.get_connection = lambda: connection
+
+    def fake_execute_values(cursor, sql, records, page_size):
+        cursor.sql = sql
+        cursor.records = records
+
+    monkeypatch.setattr(
+        "models.SecReportsManager.psycopg2.extras.execute_values",
+        fake_execute_values,
+    )
+    manager.insert_json_data_list([{
+        "firm_id": 7,
+        "board_id": 0,
+        "firm_nm": "신영증권",
+        "article_title": "legacy artifact",
+        "report_unique_key": "legacy-key",
+        "save_time": "2026-06-15T08:00:00+09:00",
+    }])
+
+    assert connection.cursor_instance.records[0][11] == datetime.fromisoformat(
+        "2026-06-15T08:00:00+09:00"
+    )
 
 
 def test_mark_reports_sent_marks_is_sent_and_legacy_main_channel_flag():

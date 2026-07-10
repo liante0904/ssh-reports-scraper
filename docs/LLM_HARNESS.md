@@ -628,7 +628,7 @@ LLM 작업 완료 보고에 아래 체크리스트 출력을 요구한다. 사�
 ### 사례 1-1: runtime manifest COPY 누락 (실제, 2026-07-08)
 
 - **원인**: `config/firms.yaml`이 Docker image에 포함되지 않아 `/app/config/firms.yaml` 없음.
-- **증상**: `config/firms.yaml not found — registry will be empty` 로그 반복. 스케줄러는 살아 있지만 `scraper_registry.py`가 빈 registry를 반환하여 server-only firm인 `HANA_3`가 2026-07-06 14:04 KST 이후 미실행.
+- **증상(구버전)**: `config/firms.yaml not found — registry will be empty` 로그 반복. 스케줄러는 살아 있지만 빈 registry로 `HANA_3`가 2026-07-06 14:04 KST 이후 미실행. 현재는 manifest 누락/오류 시 시작을 fail-fast한다.
 - **복구**: server-only/누락 대상 JSON 백필 후 DB import. 하나증권은 2026-07-07 15건, 2026-07-08 17건, 2026-07-09 11건 복구.
 - **현재 방어**: `Dockerfile`에서 `config/` COPY, `scripts/verify_dockerfile.sh`, `tests/test_dockerfile_copy.py`.
 - **운영 확인**: `docker exec "$CT" sh -lc "ls -la /app/config /app/config/firms.yaml"`.

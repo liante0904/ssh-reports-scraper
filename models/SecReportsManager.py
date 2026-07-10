@@ -113,8 +113,21 @@ class SecReportsManager(LibrarySecReportsManager):
             )
             save_at = entry.get("save_at")
             if not save_at:
-                from datetime import datetime, timezone
-                save_at = datetime.now(timezone.utc)
+                # Artifact files created before the canonical rename can still
+                # contain save_time. Keep this input adapter out of SQL/DDL.
+                save_time = entry.get("save_time")
+                if save_time:
+                    try:
+                        save_at = datetime.fromisoformat(
+                            str(save_time).replace("Z", "+00:00")
+                        )
+                    except (TypeError, ValueError):
+                        logger.warning(
+                            "[SCRAPER-DB] Invalid legacy save_time; using current time"
+                        )
+                if not save_at:
+                    from datetime import timezone
+                    save_at = datetime.now(timezone.utc)
 
             firm_id = entry.get("firm_id")
             board_id = entry.get("board_id")

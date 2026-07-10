@@ -186,10 +186,10 @@ class TestYamlStructure:
             result = self.reg.get_enricher(fid)
             if enricher_str:
                 mod_path, fn_name = enricher_str.split(":", 1)
-                # get_enricher returns None if module can't be imported
-                if result is not None:
-                    assert result.__name__ == fn_name, \
-                        f"{firm['display_name']}: get_enricher returned {result.__name__}, expected {fn_name}"
+                assert callable(result), \
+                    f"{firm['display_name']}: {mod_path}.{fn_name} is not importable"
+                assert result.__name__ == fn_name, \
+                    f"{firm['display_name']}: get_enricher returned {result.__name__}, expected {fn_name}"
             else:
                 assert result is None, f"{firm['display_name']}: get_enricher should be None"
 
@@ -212,6 +212,33 @@ class TestYamlStructure:
                 mod_path, fn_name = path.split(":", 1)
                 expected[name] = (mod_path, fn_name)
         assert self.reg._SPECIAL_FUNCTIONS == expected
+
+    def test_special_funcs_importable(self):
+        for name, (module_path, func_name) in self.reg._SPECIAL_FUNCTIONS.items():
+            result = self.reg.get_func(module_path, func_name)
+            assert callable(result), f"{name}: {module_path}.{func_name} is not importable"
+
+    def test_missing_manifest_fails(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(self.reg, "_MANIFEST_PATH", tmp_path / "missing.yaml")
+        with pytest.raises(FileNotFoundError):
+            self.reg._init_registry()
+
+    def test_malformed_manifest_fails(self, monkeypatch, tmp_path):
+        manifest = tmp_path / "firms.yaml"
+        manifest.write_text("firms:\n  broken:\n    firm_id: 1\n", encoding="utf-8")
+        monkeypatch.setattr(self.reg, "_MANIFEST_PATH", manifest)
+        with pytest.raises(ValueError, match="display_name"):
+            self.reg._init_registry()
+
+    def test_duplicate_firm_ids_fail(self):
+        firm = {
+            "display_name": "A", "firm_id": 1, "mode": "server",
+            "server_module": "modules.A_1", "server_list": "sync",
+            "ga_full_scrape_list": "none", "ga_fallback_excluded": False,
+            "func_name": "A_checkNewArticle", "enrichment_skip": False,
+        }
+        with pytest.raises(ValueError, match="duplicate firm_id"):
+            self.reg._validate_manifest({"firms": {"a": firm, "b": dict(firm)}})
 
 
 class TestScraperHealthUtility:

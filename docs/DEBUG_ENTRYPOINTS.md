@@ -121,11 +121,12 @@ Read in this order:
 3. `scripts/validate_scrape_result.py`
 4. `docs/LLM_GUIDE.md` section 17 for the last verified production contract
 
-`sql/TB_SEC_REPORTS.sql` is a stale historical dump. It still defines removed
-`reg_dt` and `save_time` columns, so it is not the production schema SSoT and
-must not be used to generate migrations. Until a current schema snapshot and a
-schema-drift check are added, verify physical columns against production
-PostgreSQL before changing DDL. The canonical runtime fields are
+`sql/TB_SEC_REPORTS.sql` is a pointer, not production DDL. The external
+`../../../docs/schema.sql` is a conceptual ownership model and must not be
+executed as a production snapshot. Until a generated snapshot and schema-drift
+check are added, live `pg_catalog`/`information_schema` is authoritative.
+Compatibility views expose `source_url`/`article_url` as NULL aliases; they do
+not map to `telegram_url`. The canonical runtime fields are
 `report_unique_key`, `report_date`, `save_at`, and `telegram_sent`.
 
 Relevant tests:

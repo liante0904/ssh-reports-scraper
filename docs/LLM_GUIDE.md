@@ -22,14 +22,14 @@ physical columns.
 | `report_date` | `reg_dt` | Report date (date type) |
 | `save_at` | `save_time` | Insert/update timestamp |
 | `telegram_sent` | `main_ch_send_yn` | Telegram send status (boolean) |
-| `telegram_url` | `article_url`, `source_url` | Article page URL (stored before Telegram enrichment; `source_url` is a VIEW alias, a known gap) |
+| `telegram_url` | N/A | Runtime delivery/original URL; legacy article aliases do not map to it |
 | `pdf_url` | `download_url` | PDF download URL (`pdf_file_url` is a VIEW alias in `v_reports_api`) |
 
 ### View aliases (not physical columns)
 
 | View alias | Maps to physical column | View |
 |-----------|------------------------|------|
-| `source_url` | N/A (NULL alias for legacy compatibility) | `v_reports_api` |
+| `source_url`, `article_url` | N/A (NULL aliases for legacy compatibility) | compatibility views |
 | `pdf_file_url` | `pdf_url` | `v_reports_api` |
 | `scraped_at` | `save_at` | `v_reports_api` |
 | `market_type` | `mkt_tp` | `v_reports_api` |
@@ -41,6 +41,9 @@ physical columns.
 2. When writing application code (Python dict keys, INSERT column lists), use physical column names.
 3. Only reference `source_url`, `pdf_file_url`, `scraped_at`, `market_type`, `firm_name` when specifically documenting the `v_reports_api` VIEW.
 4. Never write `key`, `reg_dt`, `save_time`, `article_url`, `download_url`, or `main_ch_send_yn` as if they still exist in the physical table.
+5. Live `pg_catalog`/`information_schema` is authoritative for production constraints,
+   defaults, indexes, and view definitions. The external `docs/schema.sql` is a
+   conceptual ownership model, not an executable production snapshot.
 
 ---
 

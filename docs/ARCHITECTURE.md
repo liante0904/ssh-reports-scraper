@@ -476,10 +476,14 @@ report_unique_key, save_at, article_text, gdrive_pdf_url
 
 ### 7.2 DDL 파일 목록 및 역할
 데이터베이스 변경사항을 정의하는 DDL 스크립트는 `sql/` 디렉토리 내에 보관되어 관리됩니다:
-- `sql/TB_SEC_REPORTS.sql`: 메인 리포트 테이블 (`tbl_sec_reports`) DDL 구조 정의
+- `sql/TB_SEC_REPORTS.sql`: stale DDL 대신 운영 스키마 확인 경로를 알리는 pointer
 - `sql/TB_SEC_FIRM_INFO.sql`: 증권사 메타데이터 테이블 (`tbm_sec_firm_info`) DDL 구조 정의
 - `sql/TB_SEC_FIRM_BOARD_INFO.sql`: 증권사별 게시판 메타데이터 테이블 (`tbm_sec_firm_board_info`) DDL 구조 정의
 - `sql/VIEWS.sql`: 레거시 호환을 위한 `v_sec_reports_full` 등 종합 뷰(View) 정의
+
+운영 물리 스키마의 권위는 live `pg_catalog`/`information_schema`이다. 외부
+`../../../docs/schema.sql`은 컴포넌트 소유권과 의도를 설명하는 conceptual model이며
+운영에 실행할 DDL snapshot이 아니다.
 
 ### 7.3 `tbl_sec_reports` — upsert 로직 (report_unique_key 기반)
 ```sql
