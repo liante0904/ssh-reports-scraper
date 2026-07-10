@@ -26,7 +26,10 @@ while IFS='|' read -r test_path reason; do
 done < "$EXCLUSIONS"
 
 echo "==> Offline manifest and runtime file guards"
-uv run python scripts/harness.py --all --offline
+timeout --signal=TERM --kill-after=10s 30s \
+    uv run python scripts/harness.py --all --offline
 
 echo "==> Deterministic unit and contract regression suite"
-CI=true DB_BACKEND=static ENV=dev uv run pytest -q "${ignore_args[@]}"
+CI=true DB_BACKEND=static ENV=dev \
+    timeout --signal=TERM --kill-after=10s 240s \
+    uv run pytest -vv "${ignore_args[@]}"
