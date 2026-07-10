@@ -37,6 +37,32 @@ uv run pytest tests/test_standalone_runner.py tests/test_db_factory.py tests/tes
 Avoid using `tests/test_scrapers_health.py` as a quick smoke test. It can touch
 real scraper paths and take network time.
 
+### Evidence Before Main
+
+Do not report a change as broadly "verified." Record the exact commit and the
+highest evidence tier actually completed:
+
+1. **Deterministic unit/contract** (required before merge):
+
+   ```bash
+   git diff --check
+   bash scripts/verify_dockerfile.sh
+   bash scripts/verify_standalones.sh
+   uv run python scripts/harness.py --check-manifest
+   uv run pytest -q tests/test_report_payload_contract.py tests/test_validate_scrape_result.py tests/test_registry_consistency.py tests/test_sec_reports_manager.py tests/test_core_contract.py tests/test_standalone_runner.py tests/test_hana_scheduler_path.py tests/test_config_manager.py tests/test_db_factory.py tests/test_scraper_imports.py
+   ```
+
+2. **Build/import**: the import/config job and multi-architecture image build in
+   `.github/workflows/deploy.yml` are green for the pushed commit.
+3. **Live/network/production**: name the firm or service, command/workflow,
+   commit, and observation window. This tier includes
+   `tests/test_scrapers_health.py`, PostgreSQL integration, live firm workflows,
+   deployment revision, and production log checks.
+
+Tier 1 does not prove Tier 2 or Tier 3. After rebase, cherry-pick, or merge,
+rerun Tier 1 on the resulting tree before pushing `main`; report Tier 2 as
+pending until CI finishes. Never call Tier 1 or Tier 2 "production verified."
+
 ## Common Debug Paths
 
 ### GA Workflow Fails
