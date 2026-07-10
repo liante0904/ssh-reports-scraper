@@ -22,7 +22,7 @@ class FakeCursor:
         return False
 
     def fetchall(self):
-        return [(self.records[0][11], True)]
+        return [(self.records[0][9], True)]
 
 
 class FakeConnection:
@@ -72,9 +72,9 @@ def test_insert_includes_legacy_and_canonical_keys(monkeypatch):
     assert (inserted, updated) == (1, 0)
     assert " key," not in connection.cursor_instance.sql
     assert "report_unique_key" in connection.cursor_instance.sql
-    assert connection.cursor_instance.records[0][11] == "https://example.test/report.pdf"
-    assert connection.cursor_instance.records[0][13] is not None  # save_at
-    assert connection.cursor_instance.records[0][12] is False
+    assert connection.cursor_instance.records[0][9] == "https://example.test/report.pdf"
+    assert connection.cursor_instance.records[0][11] is not None  # save_at
+    assert connection.cursor_instance.records[0][10] is False
     assert "main_ch_send_yn     = CASE" not in connection.cursor_instance.sql
     assert "telegram_sent       = COALESCE" in connection.cursor_instance.sql
     assert "EXCLUDED.telegram_sent" not in connection.cursor_instance.sql
@@ -99,6 +99,32 @@ def test_mark_reports_sent_marks_is_sent_and_legacy_main_channel_flag():
     assert "SET telegram_sent = true" in calls[0][0]
     assert "main_ch_send_yn" not in calls[0][0]  # legacy column must NOT appear in UPDATE
     assert calls[0][1] == (1,)  # default: report_id only, not match_by_url
+
+
+def test_update_telegram_url_accepts_pdf_file_url_alias():
+    from models.SecReportsManager import SecReportsManager
+
+    calls = []
+    manager = object.__new__(SecReportsManager)
+    manager.table_name = "tbl_sec_reports"
+    manager._execute = lambda sql, params: calls.append((sql, params)) or {"status": "success"}
+
+    result = asyncio.run(manager.update_telegram_url(
+        record_id=1,
+        telegram_url="https://example.test/viewer",
+        article_title="Report",
+        pdf_file_url="https://example.test/report.pdf",
+    ))
+
+    assert result == {"status": "success"}
+    assert len(calls) == 1
+    assert "SET telegram_url=%s,pdf_url=%s,article_title=%s" in calls[0][0]
+    assert calls[0][1] == (
+        "https://example.test/viewer",
+        "https://example.test/report.pdf",
+        "Report",
+        1,
+    )
 
 
 def test_daily_update_data_delegates_send_status_to_mark_reports_sent(monkeypatch):

@@ -227,6 +227,24 @@ class SecReportsManager(LibrarySecReportsManager):
                 )
         return {"status": "success"}
 
+    async def update_telegram_url(
+        self,
+        record_id,
+        telegram_url,
+        article_title=None,
+        pdf_url=None,
+        pdf_file_url=None,
+    ):
+        """Update resolved report URLs with scraper naming compatibility."""
+        if pdf_url is None:
+            pdf_url = pdf_file_url
+        return await super().update_telegram_url(
+            record_id=record_id,
+            telegram_url=telegram_url,
+            article_title=article_title,
+            pdf_url=pdf_url,
+        )
+
     async def select_reports_ready_for_telegram(self, date_str=None, type=None):
         """텔레그램 발송 대상 레포트 조회. DBfi streamdocs PDF 확정 완료 + 미발송.
 

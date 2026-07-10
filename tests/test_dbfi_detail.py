@@ -17,8 +17,15 @@ class FakeEnrichmentDB:
         self.fetchall_calls.append((sql, params))
         return list(self.fetch_rows)
 
-    async def update_telegram_url(self, report_id, telegram_url, article_title=None, pdf_url=None):
-        self.update_calls.append((report_id, telegram_url, article_title, pdf_url))
+    async def update_telegram_url(
+        self,
+        report_id,
+        telegram_url,
+        article_title=None,
+        pdf_url=None,
+        pdf_file_url=None,
+    ):
+        self.update_calls.append((report_id, telegram_url, article_title, pdf_url or pdf_file_url))
 
 
 class TestDbfiDetailNaming:
