@@ -1,0 +1,9 @@
+# Tests excluded from the deterministic CI regression suite.
+# Format: repository-relative path|reason
+tests/test_db_export.py|requires a live PostgreSQL database
+tests/test_db_export_postgres.py|requires PostgreSQL and the private ssh_library checkout
+tests/test_db_import_postgres.py|requires a live PostgreSQL database
+tests/test_db_logic.py|requires a live PostgreSQL database
+tests/test_enricher_premium.py|targets the separately deployed enricher package
+tests/test_gemini_summary.py|requires PostgreSQL, network access, and a Gemini API key
+tests/test_scrapers_health.py|executes live scraper network requests
