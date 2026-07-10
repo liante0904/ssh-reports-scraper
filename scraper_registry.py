@@ -60,23 +60,42 @@ def _init_registry() -> list[dict]:
 
 _registry = _init_registry()
 
-# ── Special function mappings (non-checkNewArticle convention) ──────────────
-# (module_path, func_name) for functions that don't follow the standard
-# "*_checkNewArticle" naming pattern used in FIRM_ENTRIES.
-_SPECIAL_FUNCTIONS: dict[str, tuple[str, str]] = {
-    "LS_detail":      ("modules.LS_0",   "LS_detail"),
-    "LS_enrich":      ("modules.LS_0",   "LS_enrich"),
-    "DBfi_enrich":    ("modules.DBfi_19", "DBfi_enrich"),
-}
+# ── Special functions, enrichers, enrichment skip (built from YAML) ────────
 
-# ── Enricher mapping: firm_id → (module_path, func_name) ────────────────────
-_ENRICHER_MAP: dict[int, tuple[str, str]] = {
-    0:  ("modules.LS_0",   "LS_enrich"),       # LS증권
-    19: ("modules.DBfi_19", "DBfi_enrich"),      # DB금융투자
-}
 
-# ── Enrichment skip firm IDs ────────────────────────────────────────────────
-_ENRICHMENT_SKIP: frozenset[int] = frozenset({11})  # DS투자증권
+def _build_special_functions() -> dict[str, tuple[str, str]]:
+    """Aggregate special_funcs from all firms in YAML."""
+    result: dict[str, tuple[str, str]] = {}
+    for firm in _registry:
+        special = firm.get("special_funcs")
+        if special:
+            for name, path in special.items():
+                module_path, func_name = path.split(":", 1)
+                result[name] = (module_path, func_name)
+    return result
+
+
+def _build_enricher_map() -> dict[int, tuple[str, str]]:
+    """Build firm_id → (module_path, func_name) from YAML enricher field."""
+    result: dict[int, tuple[str, str]] = {}
+    for firm in _registry:
+        enricher_str = firm.get("enricher")
+        if enricher_str:
+            module_path, func_name = enricher_str.split(":", 1)
+            result[firm["firm_id"]] = (module_path, func_name)
+    return result
+
+
+def _build_enrichment_skip() -> frozenset[int]:
+    """Collect firm_ids whose enrichment should be skipped."""
+    return frozenset(
+        f["firm_id"] for f in _registry if f.get("enrichment_skip")
+    )
+
+
+_SPECIAL_FUNCTIONS = _build_special_functions()
+_ENRICHER_MAP = _build_enricher_map()
+_ENRICHMENT_SKIP = _build_enrichment_skip()
 
 
 # ── Public: lazy function import ────────────────────────────────────────────
@@ -129,7 +148,7 @@ def get_regular_sync_funcs() -> list[Callable]:
     for firm in _registry:
         if firm.get("server_list") != "sync":
             continue
-        fn = get_func(firm["server_module"], firm.get("func_name", f"{_func_name_from_module(firm)}"))
+        fn = get_func(firm["server_module"], _func_name_from_module(firm))
         if fn:
             funcs.append(fn)
     return funcs
@@ -145,7 +164,7 @@ def get_regular_async_funcs() -> list[Callable]:
     for firm in _registry:
         if firm.get("server_list") != "async":
             continue
-        fn = get_func(firm["server_module"], firm.get("func_name", f"{_func_name_from_module(firm)}"))
+        fn = get_func(firm["server_module"], _func_name_from_module(firm))
         if fn:
             funcs.append(fn)
     return funcs
@@ -166,7 +185,7 @@ def get_ga_sync_mapping() -> dict[int, Callable]:
             continue
         if firm.get("ga_fallback_excluded"):
             continue
-        fn = get_func(firm["server_module"], firm.get("func_name", f"{_func_name_from_module(firm)}"))
+        fn = get_func(firm["server_module"], _func_name_from_module(firm))
         if fn:
             result[firm["firm_id"]] = fn
     return result
@@ -188,7 +207,7 @@ def get_ga_async_mapping() -> dict[int, Callable]:
             continue
         if firm.get("ga_fallback_excluded"):
             continue
-        fn = get_func(firm["server_module"], firm.get("func_name", f"{_func_name_from_module(firm)}"))
+        fn = get_func(firm["server_module"], _func_name_from_module(firm))
         if fn:
             result[firm["firm_id"]] = fn
     return result
@@ -223,57 +242,23 @@ def get_ls_module_func(func_name: str) -> Callable | None:
 # ── Internal helpers ────────────────────────────────────────────────────────
 
 def _func_name_from_module(firm: dict) -> str:
-    """Derive the checkNewArticle function name from server_module.
+    """Resolve the checkNewArticle function name for a firm.
 
-    This is a heuristic fallback when func_name is not explicitly set.
-    We use the lazy import pattern — the function name is resolved when
-    get_func() is called, so we just need a reasonable default.
+    Uses func_name from YAML first. Falls back to a heuristic derivation
+    from server_module name for backward compatibility if func_name is missing.
     """
+    # Use explicit func_name from YAML if available
+    fn_name = firm.get("func_name")
+    if fn_name:
+        return fn_name
+    # Fallback heuristic: e.g. "modules.KBsec_4" → "KBsec_checkNewArticle"
     module_name = firm.get("server_module", "")
-    # e.g. "modules.KBsec_4" → "KB_checkNewArticle"
-    # Extract the class/module name part
     parts = module_name.split(".")
     if len(parts) >= 2:
-        base = parts[-1]  # e.g. "KBsec_4", "ShinHanInvest_1", "LS_0"
-        # Strip _N suffix
+        base = parts[-1]
         if "_" in base:
-            name_part = base.rsplit("_", 1)[0]  # "KBsec", "ShinHanInvest", "LS"
+            name_part = base.rsplit("_", 1)[0]
         else:
             name_part = base
-        # Map known exceptions to their actual function names
-        return _KNOWN_FUNC_NAMES.get(name_part, f"{name_part}_checkNewArticle")
+        return f"{name_part}_checkNewArticle"
     return "unknown"
-
-
-# Known function name mappings for modules that don't follow *_checkNewArticle pattern
-_KNOWN_FUNC_NAMES: dict[str, str] = {
-    "LS":                 "LS_checkNewArticle",
-    "ShinHanInvest":      "ShinHanInvest_checkNewArticle",
-    "NHQV":               "NHQV_checkNewArticle",
-    "HANA":               "HANA_checkNewArticle",
-    "KBsec":              "KB_checkNewArticle",
-    "Samsung":            "Samsung_checkNewArticle",
-    "Sangsanginib":       "Sangsanginib_checkNewArticle",
-    "Shinyoung":          "Shinyoung_checkNewArticle",
-    "Miraeasset":         "Miraeasset_checkNewArticle",
-    "Hmsec":              "Hmsec_checkNewArticle",
-    "Kiwoom":             "Kiwoom_checkNewArticle",
-    "DS":                 "DS_checkNewArticle",
-    "eugenefn":           "eugene_checkNewArticle",
-    "Koreainvestment":    "Koreainvestment_selenium_checkNewArticle",
-    "DAOL":               "DAOL_checkNewArticle",
-    "TOSSinvest":         "TOSSinvest_checkNewArticle",
-    "Leading":            "Leading_checkNewArticle",
-    "Daeshin":            "Daeshin_checkNewArticle",
-    "iMfnsec":            "iMfnsec_checkNewArticle",
-    "DBfi":               "DBfi_checkNewArticle",
-    "MERITZ":             "MERITZ_checkNewArticle",
-    "Hanwhawm":           "Hanwha_checkNewArticle",
-    "Hygood":             "Hanyang_checkNewArticle",
-    "BNKfn":              "BNK_checkNewArticle",
-    "Kyobo":              "Kyobo_checkNewArticle",
-    "IBKs":               "IBK_checkNewArticle",
-    "SKS":                "Sks_checkNewArticle",
-    "Yuanta":             "Yuanta_checkNewArticle",
-    "Heungkuk":           "Heungkuk_checkNewArticle",
-}

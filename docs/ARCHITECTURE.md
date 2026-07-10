@@ -230,7 +230,7 @@ uv run python scripts/import_ls_artifact.py [--repo ...] [--json-file ...]
 
 1. `gh run list --workflow scrape-ls.yml --status success` → 최신 run ID
 2. `gh run download` → `ls-scraped-data` artifact 다운로드
-3. DB에 이미 존재하는 key는 건너뛰고 신규만 `insert_json_data_list()` (ON CONFLICT dedup)
+3. DB에 이미 존재하는 `report_unique_key`는 건너뛰고 신규만 `insert_json_data_list()` (ON CONFLICT dedup)
 4. `telegram_url`이 없는 LS 레포트에 대해 `LS_detail()`로 msg URL 복구 후처리
 
 #### `scripts/import_all_artifact.py`

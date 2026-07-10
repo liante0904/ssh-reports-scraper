@@ -5,6 +5,45 @@
 
 ---
 
+## CANONICAL COLUMN NAMES
+
+> **Last verified**: 2026-07-10 KST | **Scope**: `public.tbl_sec_reports` physical columns
+
+All documentation, SQL, and code in this repo MUST use the canonical column names below.
+Legacy names (`key`, `reg_dt`, `save_time`, `article_url`, `download_url`, `main_ch_send_yn`)
+have been **dropped** from the production physical table and must NOT be referenced as
+physical columns.
+
+### Physical columns (canonical → legacy)
+
+| Canonical | Legacy (dropped) | Notes |
+|-----------|-----------------|-------|
+| `report_unique_key` | `key` | Dedup identifier |
+| `report_date` | `reg_dt` | Report date (date type) |
+| `save_at` | `save_time` | Insert/update timestamp |
+| `telegram_sent` | `main_ch_send_yn` | Telegram send status (boolean) |
+| `telegram_url` | `article_url`, `source_url` | Article page URL (stored before Telegram enrichment; `source_url` is a VIEW alias, a known gap) |
+| `pdf_url` | `download_url` | PDF download URL (`pdf_file_url` is a VIEW alias in `v_reports_api`) |
+
+### View aliases (not physical columns)
+
+| View alias | Maps to physical column | View |
+|-----------|------------------------|------|
+| `source_url` | N/A (NULL alias for legacy compatibility) | `v_reports_api` |
+| `pdf_file_url` | `pdf_url` | `v_reports_api` |
+| `scraped_at` | `save_at` | `v_reports_api` |
+| `market_type` | `mkt_tp` | `v_reports_api` |
+| `firm_name` | `firm_nm` | `v_reports_api` |
+
+### Rules
+
+1. In SQL DML/DDL, always use the **physical column** name (left column above).
+2. When writing application code (Python dict keys, INSERT column lists), use physical column names.
+3. Only reference `source_url`, `pdf_file_url`, `scraped_at`, `market_type`, `firm_name` when specifically documenting the `v_reports_api` VIEW.
+4. Never write `key`, `reg_dt`, `save_time`, `article_url`, `download_url`, or `main_ch_send_yn` as if they still exist in the physical table.
+
+---
+
 ## [통합 섹션] LLM_DELEGATION_PROTOCOL
 
 # 하위 LLM 단계적 작업 프로토콜
@@ -532,7 +571,7 @@ _GA_FIRMS_ASYNC = {NHQV_checkNewArticle, KB_checkNewArticle, ...}
 
 ## 7. 모듈별 리턴 딕셔너리 필드 비일치 (⭐⭐)
 
-각 모듈이 반환하는 dict 필드가 다름. 아래 표는 2026-06-11 당시 스냅샷이며, 현재 운영 DB 물리 컬럼은 `report_date`, `report_unique_key`, `save_at`, `telegram_sent`가 canonical이다.
+각 모듈이 반환하는 dict 필드가 다름. 아래 표는 Canonical Column Names을 사용한다 (운영 DB 물리 컬럼 기준: `report_date`, `report_unique_key`, `save_at`, `telegram_sent`). `download_url` / `article_url` legacy 필드는 `pdf_url` / `telegram_url`로 통합되었다.
 
 | 필드 | KBsec | HANA | NHQV | Shinyoung | Leading | DAOL |
 |------|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -542,13 +581,11 @@ _GA_FIRMS_ASYNC = {NHQV_checkNewArticle, KB_checkNewArticle, ...}
 | `report_date` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `article_title` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `writer` | ✅ | ✅ | ✅ | - | - | ✅ |
-| `download_url` | ✅ | ✅ | - | ✅ | ✅ | ✅ |
 | `telegram_url` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `pdf_url` | ✅ | ✅ | ✅ | - | ✅ | - |
+| `pdf_url` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `report_unique_key` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `save_at` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `mkt_tp` | ✅ | ✅ | - | ✅ | - | - |
-| `article_url` | - | - | - | - | - | - |
 
 **LLM 혼란 포인트**:
 - 필수 필드가 무엇인지 명세가 없음

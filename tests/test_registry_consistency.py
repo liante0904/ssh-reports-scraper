@@ -115,16 +115,103 @@ class TestRegistryConsistency:
             if firm.get("mode") == "blocked":
                 continue
             module = firm["server_module"]
-            base = module.split(".")[-1]
-            name_part = base.rsplit("_", 1)[0] if "_" in base else base
-            fn_name = self.reg._KNOWN_FUNC_NAMES.get(name_part)
-            if fn_name is None:
-                failed.append(f"{firm['display_name']}: no known func name for {name_part}")
-                continue
+            fn_name = self.reg._func_name_from_module(firm)
             fn = self.reg.get_func(module, fn_name)
             if fn is None:
                 failed.append(f"{firm['display_name']}: {module}.{fn_name} not importable")
         assert failed == [], "\n".join(failed)
+
+
+class TestYamlStructure:
+    """Validate config/firms.yaml structure and new field consistency."""
+
+    @pytest.fixture(autouse=True)
+    def _imports(self):
+        self.reg = _root_module("scraper_registry")
+
+    def test_all_29_firms_have_func_name(self):
+        """Every firm must have func_name in YAML."""
+        missing = [f["display_name"] for f in self.reg.all_firms() if not f.get("func_name")]
+        assert missing == [], f"Missing func_name for: {missing}"
+
+    def test_func_names_unique(self):
+        """func_name should be unique across all non-blocked firms."""
+        names = [f["func_name"] for f in self.reg.all_firms() if f.get("mode") != "blocked"]
+        assert len(names) == len(set(names)), f"Duplicate func_names: {names}"
+
+    def test_enricher_format_valid(self):
+        """Enricher field must be null or valid 'module.path:func_name'."""
+        for firm in self.reg.all_firms():
+            enricher = firm.get("enricher")
+            if enricher is None:
+                continue
+            assert ":" in enricher, f"{firm['display_name']}: enricher '{enricher}' missing ':'"
+            parts = enricher.split(":")
+            assert len(parts) == 2, f"{firm['display_name']}: enricher '{enricher}' has {len(parts)} parts"
+            mod_path, func = parts
+            assert mod_path.startswith("modules."), f"{firm['display_name']}: enricher module '{mod_path}' must start with 'modules.'"
+            assert func, f"{firm['display_name']}: enricher func name is empty"
+
+    def test_special_funcs_format_valid(self):
+        """special_funcs values must be valid 'module.path:func_name' strings."""
+        for firm in self.reg.all_firms():
+            special = firm.get("special_funcs")
+            if not special:
+                continue
+            for name, path in special.items():
+                assert ":" in path, f"{firm['display_name']}: special_funcs['{name}']='{path}' missing ':'"
+                parts = path.split(":")
+                assert len(parts) == 2, f"{firm['display_name']}: special_funcs['{name}'] has {len(parts)} parts"
+                assert parts[0].startswith("modules."), f"{firm['display_name']}: special_funcs['{name}'] module '{parts[0]}' must start with 'modules.'"
+
+    def test_server_list_values_valid(self):
+        """server_list must be sync, async, or none."""
+        valid = {"sync", "async", "none"}
+        for firm in self.reg.all_firms():
+            val = firm.get("server_list")
+            assert val in valid, f"{firm['display_name']}: server_list='{val}' not in {valid}"
+
+    def test_ga_full_scrape_list_values_valid(self):
+        """ga_full_scrape_list must be sync, async, or none."""
+        valid = {"sync", "async", "none"}
+        for firm in self.reg.all_firms():
+            val = firm.get("ga_full_scrape_list")
+            assert val in valid, f"{firm['display_name']}: ga_full_scrape_list='{val}' not in {valid}"
+
+    def test_enricher_consistency(self):
+        """get_enricher matches YAML for known firms."""
+        for firm in self.reg.all_firms():
+            fid = firm["firm_id"]
+            enricher_str = firm.get("enricher")
+            result = self.reg.get_enricher(fid)
+            if enricher_str:
+                mod_path, fn_name = enricher_str.split(":", 1)
+                # get_enricher returns None if module can't be imported
+                if result is not None:
+                    assert result.__name__ == fn_name, \
+                        f"{firm['display_name']}: get_enricher returned {result.__name__}, expected {fn_name}"
+            else:
+                assert result is None, f"{firm['display_name']}: get_enricher should be None"
+
+    def test_enrichment_skip_consistency(self):
+        """get_enrichment_skip_firm_ids matches YAML enrichment_skip flags."""
+        expected = frozenset(
+            f["firm_id"] for f in self.reg.all_firms() if f.get("enrichment_skip")
+        )
+        actual = self.reg.get_enrichment_skip_firm_ids()
+        assert actual == expected, f"Expected {expected}, got {actual}"
+
+    def test_special_funcs_aggregated(self):
+        """All firms' special_funcs are aggregated into _SPECIAL_FUNCTIONS."""
+        expected = {}
+        for firm in self.reg.all_firms():
+            special = firm.get("special_funcs")
+            if not special:
+                continue
+            for name, path in special.items():
+                mod_path, fn_name = path.split(":", 1)
+                expected[name] = (mod_path, fn_name)
+        assert self.reg._SPECIAL_FUNCTIONS == expected
 
 
 class TestScraperHealthUtility:

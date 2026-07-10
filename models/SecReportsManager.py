@@ -104,6 +104,8 @@ class SecReportsManager(LibrarySecReportsManager):
 
         records = []
         for entry in json_data_list:
+            # report_unique_key is canonical. Falls back to source_url (scraper output key
+            # stored in telegram_url column) for legacy modules that don't emit unique keys.
             unique_key = (
                 entry.get("report_unique_key")
                 or entry.get("source_url")
@@ -111,20 +113,15 @@ class SecReportsManager(LibrarySecReportsManager):
             )
             save_at = entry.get("save_at")
             if not save_at:
-                # DEPRECATED (2026-07-06): save_time 컬럼 드랍. 하위호환 폴백 — 모든 스크래퍼가 save_at 사용 시 제거.
-                save_time_val = entry.get("save_time", "")
-                if save_time_val:
-                    try:
-                        from datetime import datetime
-                        save_at = datetime.fromisoformat(str(save_time_val).replace("Z", "+00:00"))
-                    except Exception:
-                        pass
-                if not save_at:
-                    from datetime import datetime, timezone
-                    save_at = datetime.now(timezone.utc)
+                from datetime import datetime, timezone
+                save_at = datetime.now(timezone.utc)
 
             firm_id = entry.get("firm_id")
             board_id = entry.get("board_id")
+
+            # Canonical: pdf_file_url (scraper output key) → DB pdf_url col
+            # Legacy fallbacks: pdf_url (old scraper key), telegram_url (last resort)
+            pdf_url_val = entry.get("pdf_file_url") or entry.get("pdf_url") or entry.get("telegram_url")
 
             records.append((
                 firm_id,
@@ -133,7 +130,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 entry.get("report_date") or None,
                 entry.get("article_title"),
                 entry.get("telegram_url"),
-                entry.get("pdf_file_url") or entry.get("pdf_url") or entry.get("telegram_url"),
+                pdf_url_val,
                 entry.get("writer", ""),
                 entry.get("mkt_tp", "KR"),
                 unique_key,

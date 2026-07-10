@@ -23,6 +23,10 @@
 #       ga_full_scrape_list: str  # sync | async | none — GA fallback in full-scrape mode
 #       ga_fallback_excluded: bool  # true if excluded from full-scrape despite GA mode
 #       ga_fallback_exclusion_reason: str|null  # why excluded (if applicable)
+#       func_name: str             # explicit function name (e.g. "KB_checkNewArticle")
+#       enricher: str|null         # "module.path:func_name" or null
+#       enrichment_skip: bool      # true to skip enrichment for this firm
+#       special_funcs: dict|null   # {"name": "module.path:func"} or null
 
 firms:
   # =========================================================================
@@ -44,6 +48,10 @@ firms:
     ga_full_scrape_list: none
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "ShinHanInvest_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "서버 전용 (GA standalone 미해당). SyncWebScraper + aiohttp 직접 사용 혼합. env 이름으로 SHINHAN_URLS_JSON 사용."
 
   shinyoung:
@@ -62,6 +70,10 @@ firms:
     ga_full_scrape_list: none
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "Shinyoung_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "서버 전용 sync 스크래퍼. _runner.py 정규 패턴."
 
   ds:
@@ -80,6 +92,10 @@ firms:
     ga_full_scrape_list: none
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "DS_checkNewArticle"
+    enricher: null
+    enrichment_skip: true
+    special_funcs: null
     notes: "서버 전용 sync 스크래퍼. env 이름으로 'urls' 사용 (비정규 패턴). _runner.py 정규 패턴."
 
   daeshin:
@@ -98,6 +114,10 @@ firms:
     ga_full_scrape_list: none
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "Daeshin_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "서버 전용 async 스크래퍼. core 패턴 미이관 (modules/Daeshin_17.py가 독자 구현). env 이름으로 'urls' 사용."
 
   koreainvestment:
@@ -116,6 +136,10 @@ firms:
     ga_full_scrape_list: none
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "Koreainvestment_selenium_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "Selenium 의존(browser-actions/setup-chrome@v1). ChromeDriver ARM64/amd64 분기. _runner.py 미사용 — modules/Koreainvestment_13.py의 selenium 함수 직접 호출. core 정규 패턴(scrapers/koreainvestment_core.py) 미이관."
 
   sks:
@@ -134,6 +158,10 @@ firms:
     ga_full_scrape_list: sync
     ga_fallback_excluded: true
     ga_fallback_exclusion_reason: "서버 legacy secrets가 URL list만 제공 — full_config 기반 core에서 list input 방어 전까지 제외."
+    func_name: "Sks_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA sync 전용 (서버 full-scrape fallback 제외). 서버 config 정규화 전까지 GA standalone만 작동. _runner.py 정규 패턴."
 
   # =========================================================================
@@ -155,6 +183,10 @@ firms:
     ga_full_scrape_list: async
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "NHQV_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA async + server full-scrape fallback. _runner.py 정규 패턴. core는 JSON POST 기반 (page_size=11)."
 
   kb:
@@ -173,6 +205,10 @@ firms:
     ga_full_scrape_list: async
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "KB_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA async + server full-scrape fallback. 13종 게시판 분류(pCategoryId). _runner.py 정규 패턴."
 
   samsung:
@@ -191,6 +227,10 @@ firms:
     ga_full_scrape_list: sync
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "Samsung_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA sync + server full-scrape fallback. _runner.py 정규 패턴."
 
   sangsangin:
@@ -209,6 +249,10 @@ firms:
     ga_full_scrape_list: async
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "Sangsanginib_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA async + server full-scrape fallback. _runner.py 정규 패턴. standalone 파일명은 sangsanginib.py (레거시 네이밍)."
 
   hmsec:
@@ -227,6 +271,10 @@ firms:
     ga_full_scrape_list: sync
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "Hmsec_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA sync + server full-scrape fallback. _runner.py 정규 패턴."
 
   toss:
@@ -245,6 +293,10 @@ firms:
     ga_full_scrape_list: sync
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "TOSSinvest_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA sync + server full-scrape fallback. _runner.py 정규 패턴."
 
   dbfi:
@@ -263,6 +315,10 @@ firms:
     ga_full_scrape_list: async
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "DBfi_checkNewArticle"
+    enricher: "modules.DBfi_19:DBfi_enrich"
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA async + server full-scrape fallback. PDF URL 추출 로직 2벌(async extract_dbfi_pdf_url + sync DBfi_detail). enricher 보유(DBfi_enrich). _runner.py 정규 패턴."
 
   meritz:
@@ -281,6 +337,10 @@ firms:
     ga_full_scrape_list: async
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "MERITZ_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA async + server full-scrape fallback. GA IP 차단으로 schedule 제거(2026-06-23), workflow_dispatch 수동 실행만 유지. _runner.py 정규 패턴."
 
   hanwha:
@@ -299,6 +359,10 @@ firms:
     ga_full_scrape_list: async
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "Hanwha_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA async + server full-scrape fallback. _runner.py 정규 패턴."
 
   kyobo:
@@ -317,6 +381,10 @@ firms:
     ga_full_scrape_list: async
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "Kyobo_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA async + server full-scrape fallback. _runner.py 정규 패턴."
 
   ibk:
@@ -335,6 +403,10 @@ firms:
     ga_full_scrape_list: async
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "IBK_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA async + server full-scrape fallback. _runner.py 정규 패턴. IBK Daily(GUBUN=DAIL)는 invrespect CDN 경로 사용."
 
   yuanta:
@@ -353,6 +425,10 @@ firms:
     ga_full_scrape_list: async
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "Yuanta_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA async + server full-scrape fallback. _runner.py 정규 패턴."
 
   heungkuk:
@@ -371,6 +447,10 @@ firms:
     ga_full_scrape_list: sync
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "Heungkuk_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA sync + server full-scrape fallback. _runner.py 정규 패턴."
 
   # =========================================================================
@@ -392,6 +472,10 @@ firms:
     ga_full_scrape_list: sync
     ga_fallback_excluded: true
     ga_fallback_exclusion_reason: "서버 legacy secrets가 URL list만 제공 — full_config(row_sel) 필요. config 정규화 전까지 GA 전용."
+    func_name: "Miraeasset_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA sync 전용 (서버 full-scrape fallback 제외). _runner.py 정규 패턴."
 
   kiwoom:
@@ -410,6 +494,10 @@ firms:
     ga_full_scrape_list: async
     ga_fallback_excluded: true
     ga_fallback_exclusion_reason: "서버 legacy secrets가 URL list만 제공 — full_config(payload) 필요. config 정규화 전까지 GA 전용."
+    func_name: "Kiwoom_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA async 전용 (서버 full-scrape fallback 제외). _runner.py 정규 패턴."
 
   daol:
@@ -428,6 +516,10 @@ firms:
     ga_full_scrape_list: async
     ga_fallback_excluded: true
     ga_fallback_exclusion_reason: "서버 legacy secrets가 URL list만 제공 — full_config(path_tpl) 필요. config 정규화 전까지 GA 전용."
+    func_name: "DAOL_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA async 전용 (서버 full-scrape fallback 제외). _runner.py 정규 패턴."
 
   leading:
@@ -446,6 +538,10 @@ firms:
     ga_full_scrape_list: async
     ga_fallback_excluded: true
     ga_fallback_exclusion_reason: "서버 full-scrape fallback에서 report_date 미검출. config 정규화 전까지 GA 전용."
+    func_name: "Leading_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA async 전용 (서버 full-scrape fallback 제외). _runner.py 정규 패턴."
 
   hanyang:
@@ -464,6 +560,10 @@ firms:
     ga_full_scrape_list: async
     ga_fallback_excluded: true
     ga_fallback_exclusion_reason: "서버 full-scrape fallback에서 report_date 미검출. config 정규화 전까지 GA 전용."
+    func_name: "Hanyang_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA async 전용 (서버 full-scrape fallback 제외). _runner.py 정규 패턴."
 
   imfn:
@@ -482,6 +582,10 @@ firms:
     ga_full_scrape_list: async
     ga_fallback_excluded: true
     ga_fallback_exclusion_reason: "현재 사이트 측 응답/수집 불가. 수동 재검증은 workflow_dispatch로 수행."
+    func_name: "iMfnsec_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA async 전용 (서버 full-scrape fallback 제외). 인증만료 상태 (secure key 갱신 필요). _runner.py 정규 패턴."
 
   # =========================================================================
@@ -503,6 +607,10 @@ firms:
     ga_full_scrape_list: none
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "HANA_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "GA 러너 IP(미국/유럽) 차단으로 schedule 비활성화(2026-06-22). 서버 scheduler가 직접 스크래핑. server_list=async — ga_enabled_yn='N' 이므로 full-scrape에서도 regular async로 포함됨. _runner.py 정규 패턴."
 
   # =========================================================================
@@ -524,6 +632,13 @@ firms:
     ga_full_scrape_list: none
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "LS_checkNewArticle"
+    enricher: "modules.LS_0:LS_enrich"
+    enrichment_skip: false
+    special_funcs:
+      LS_detail: "modules.LS_0:LS_detail"
+      LS_enrich: "modules.LS_0:LS_enrich"
+      DBfi_enrich: "modules.DBfi_19:DBfi_enrich"
     notes: "DB 의존(FirmInfo, get_db), WARP 프록시(SOCKS_PROXY), 전역 상태(skip_boards, USE_WARP_ONLY). _runner.py 미사용 — modules/LS_0.py의 LS_checkNewArticle() 직접 호출. v2 standalone(ls_v2.py)+workflow(scrape-ls-v2.yml)+scripts/standalone_ls_scraper.py 별도 존재. scraper.py에서 run_ls_scraper() 전용 경로로 실행. enricher 보유(LS_enrich)."
 
   # =========================================================================
@@ -545,6 +660,10 @@ firms:
     ga_full_scrape_list: none
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "BNK_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "IP 차단(BLOCKED_BY_SOURCE_IP). GA schedule + local scheduler auto-call both disabled (2026-06-26). workflow_dispatch + manual diagnostic only. run/standalone/bnk.py 없음 — scripts/standalone_bnk_scraper.py 사용. SCP 대신 artifact 업로드 방식. Colab/external IP로 수동 진단 가능."
 
   eugene:
@@ -563,4 +682,8 @@ firms:
     ga_full_scrape_list: none
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
+    func_name: "eugene_checkNewArticle"
+    enricher: null
+    enrichment_skip: false
+    special_funcs: null
     notes: "세션 만료 및 제한 에러로 local scheduler + GA 모두 제외. workflow/standalone 없음. modules/eugenefn_12.py는 독자 구현(149줄). 수동 진단 전용."
