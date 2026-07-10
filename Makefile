@@ -1,7 +1,7 @@
 SECRETS := python3 $(HOME)/secrets/generate_env.py $(CURDIR)
 COMPOSE := docker compose
 
-.PHONY: up down build restart restart-scraper restart-alert logs logs-scraper logs-alert ps env env-scraper env-alert env-api test test-ci test-imports lint
+.PHONY: up down build restart restart-scraper restart-alert logs logs-scraper logs-alert ps env env-scraper env-alert env-api test test-ci test-network test-imports lint
 
 ## 전체 서비스 기동 (빌드 포함, 환경 변수 갱신)
 up: env build
@@ -42,11 +42,15 @@ ps:
 
 ## 테스트 실행 (표준 인터페이스)
 test:
-	uv run pytest tests/test_scrapers_health.py -v
+	bash scripts/verify_ci.sh
 
-## CI와 동일한 네트워크/운영 의존성 없는 전체 회귀 검증
+## CI와 동일한 네트워크/운영 의존성 없는 전체 회귀 검증 (명시적 별칭)
 test-ci:
 	bash scripts/verify_ci.sh
+
+## 실제 증권사 네트워크를 호출하는 수동 health 검사
+test-network:
+	uv run pytest tests/test_scrapers_health.py -v
 
 ## 네트워크 호출 없는 모듈 import/config 가드 테스트
 test-imports:
