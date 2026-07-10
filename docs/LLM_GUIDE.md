@@ -801,7 +801,7 @@ DBfi는 `telegram_url`과 `pdf_url`이 다를 수 있는 알려진 특수 케이
 | ~~🟢~~ | ~~`COMMENT_PDF_URL` → 소문자~~ → 3개사만 사용, 개발자 노트 용도 확인 |
 | 🟢 | `mkt_tp` `US`/`JP` → 보류 (국가 구분 정보 손실 우려) |
 | ~~🟡~~ | ~~`save_time` → `timestamptz`, `reg_dt` → `date`~~ ✅ 완료 (2026-06-11) |
-| ~~🟡~~ | ~~14개 미사용 컬럼 분리~~ → 롤백 (2026-07-09): 3종 좀비 테이블 DROP, enricher가 `tbl_sec_reports` 직접 사용, `docs/schema.sql`이 SSoT |
+| ~~🟡~~ | ~~14개 미사용 컬럼 분리~~ → 롤백 (2026-07-09): 3종 좀비 테이블 DROP, enricher가 `tbl_sec_reports` 직접 사용. 현재 checked-in DDL SSoT는 없음; 운영 `information_schema`/`pg_catalog` 확인이 우선이며 `sql/TB_SEC_REPORTS.sql`은 stale dump |
 | 🟡 | `sync_status` enum 의미를 DB comment로 문서화 |
 | ✅ | URL 컬럼 통합: `article_url` / `download_url` 물리 컬럼 제거, 호환 뷰 alias 유지 |
 | ✅ | FnGuide 매칭 성능: `report_date` + `writer` + `board_order` 인덱스, `v_fnguide_authors` 뷰 |

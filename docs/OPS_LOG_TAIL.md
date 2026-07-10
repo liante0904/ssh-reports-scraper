@@ -130,6 +130,51 @@ LLM은 운영 로그 확인 요청을 받으면, 사용자가 로그를 복붙�
 
 이 도구는 로그 조회 도구이지 복구 도구가 아니다. 장애 수정, 컨테이너 재시작, DB 수정은 별도 명령과 사용자 승인 절차를 따른다.
 
+## PostgreSQL connection exhaustion
+
+다음 로그가 watchdog에서 반복되면 scraper 오류로 단정하지 않는다.
+
+```text
+FATAL: sorry, too many clients already
+```
+
+2026-07-10 확인된 장애에서는 1분마다 시작된 `pg_dump`/`COPY` 세션이 이전 실행과
+겹치면서 PostgreSQL `max_connections`를 소진했다. watchdog의 반복 `FATAL`은 원인이
+아니라 신규 진단 연결까지 거부된 결과였다.
+
+### 읽기 전용 확인 순서
+
+```bash
+# 1. 같은 시간대의 watchdog 증상과 최초 발생 시각 확인
+bash scripts/ops_tail_errors.sh --docker-only --watchdog --since "06:00"
+
+# 2. 운영 호스트에서 중첩된 dump/COPY 프로세스와 실행 시간을 확인
+ssh oci 'ps -eo pid,ppid,lstart,etime,args | grep -E "[p]g_dump|[p]sql.*COPY"'
+
+# 3. 새 DB 연결이 가능해진 뒤 연결 소유자와 상태를 확인
+ssh oci 'docker exec main-postgres sh -lc '\''psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -X -c "select application_name, usename, state, count(*) from pg_stat_activity group by 1,2,3 order by 4 desc;"'\'''
+
+# 4. 연결 상한과 현재 사용량 확인
+ssh oci 'docker exec main-postgres sh -lc '\''psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -X -c "show max_connections" -c "select count(*) as current_connections from pg_stat_activity;"'\'''
+```
+
+컨테이너 이름은 고정값을 추측하지 말고 필요하면 먼저 확인한다.
+
+```bash
+ssh oci 'docker ps --format "{{.Names}}" | grep -E "postgres|watchdog"'
+```
+
+### 복구 판단
+
+- 먼저 backup timer/cron에서 새 실행이 겹치지 않도록 잠금 또는 실행 주기를 수정한다.
+- 이미 실행 중인 dump를 종료할지는 데이터 백업 소유자와 확인 후 결정한다.
+- scraper/backend 재시작은 연결을 더 만들 수 있으므로 최초 대응으로 사용하지 않는다.
+- watchdog은 같은 fingerprint를 집계하고 cooldown 동안 재알림하지 않아야 한다.
+- 복구 완료 조건은 신규 DB 연결 성공, `pg_dump`/`COPY` 중첩 없음, 연결 수 baseline
+  복귀, watchdog 반복 알림 중단이다.
+
+운영 변경 뒤에는 같은 조회 명령의 before/after 결과를 incident 기록에 남긴다.
+
 ## 로그 DB 저장 정책
 
 전체 운영 로그를 PostgreSQL에 저장하는 방식은 기본값으로 쓰지 않는다.

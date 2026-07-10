@@ -119,7 +119,14 @@ Read in this order:
 1. `models/SecReportsManager.py`
 2. `models/db_factory.py`
 3. `scripts/validate_scrape_result.py`
-4. `sql/TB_SEC_REPORTS.sql` ← DB 스키마 SSoT
+4. `docs/LLM_GUIDE.md` section 17 for the last verified production contract
+
+`sql/TB_SEC_REPORTS.sql` is a stale historical dump. It still defines removed
+`reg_dt` and `save_time` columns, so it is not the production schema SSoT and
+must not be used to generate migrations. Until a current schema snapshot and a
+schema-drift check are added, verify physical columns against production
+PostgreSQL before changing DDL. The canonical runtime fields are
+`report_unique_key`, `report_date`, `save_at`, and `telegram_sent`.
 
 Relevant tests:
 
@@ -129,6 +136,21 @@ uv run pytest tests/test_sec_reports_manager.py tests/test_db_factory.py tests/t
 
 Do not reintroduce SQLite runtime paths. SQLite history lives on
 `archive/sqlite-legacy-20260705`.
+
+### PostgreSQL Connection Exhaustion or Watchdog FATAL Storm
+
+Read in this order:
+
+1. `docs/OPS_LOG_TAIL.md` section "PostgreSQL connection exhaustion"
+2. watchdog logs for the exact incident window
+3. the live host's backup timer/cron and active `pg_dump`/`COPY` processes
+4. PostgreSQL `pg_stat_activity` after a diagnostic connection is available
+
+Known 2026-07-10 incident signature: overlapping `pg_dump`/`COPY` sessions were
+started every minute, exhausted `max_connections`, and caused watchdog to
+repeat `FATAL: sorry, too many clients already`. Treat the repeated watchdog
+line as a symptom. First stop new backup overlap and confirm the existing dump
+processes drain; do not restart scraper containers as the first response.
 
 ### FnGuide Matcher Trigger Fails
 
