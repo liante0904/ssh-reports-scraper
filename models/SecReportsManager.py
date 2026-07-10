@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from loguru import logger
 import psycopg2.extras
 from ssh_library import SecReportsManager as LibrarySecReportsManager
+from models.report_payload import ReportPayload
 
 _DBFI_GATE_ENV = "DBFI_GATE_URL_PREFIX"
 _DBFI_STREAMDOCS_ENV = "DBFI_STREAMDOCS_URL_PREFIX"
@@ -102,54 +103,10 @@ class SecReportsManager(LibrarySecReportsManager):
         # Do not reset send status during upsert; see _reset_duplicate_send_yn.
         self._reset_duplicate_send_yn(json_data_list, table_name)
 
-        records = []
-        for entry in json_data_list:
-            # report_unique_key is canonical. Falls back to source_url (scraper output key
-            # stored in telegram_url column) for legacy modules that don't emit unique keys.
-            unique_key = (
-                entry.get("report_unique_key")
-                or entry.get("source_url")
-                or ""
-            )
-            save_at = entry.get("save_at")
-            if not save_at:
-                # Artifact files created before the canonical rename can still
-                # contain save_time. Keep this input adapter out of SQL/DDL.
-                save_time = entry.get("save_time")
-                if save_time:
-                    try:
-                        save_at = datetime.fromisoformat(
-                            str(save_time).replace("Z", "+00:00")
-                        )
-                    except (TypeError, ValueError):
-                        logger.warning(
-                            "[SCRAPER-DB] Invalid legacy save_time; using current time"
-                        )
-                if not save_at:
-                    from datetime import timezone
-                    save_at = datetime.now(timezone.utc)
-
-            firm_id = entry.get("firm_id")
-            board_id = entry.get("board_id")
-
-            # Canonical: pdf_file_url (scraper output key) → DB pdf_url col
-            # Legacy fallbacks: pdf_url (old scraper key), telegram_url (last resort)
-            pdf_url_val = entry.get("pdf_file_url") or entry.get("pdf_url") or entry.get("telegram_url")
-
-            records.append((
-                firm_id,
-                board_id,
-                entry.get("firm_nm"),
-                entry.get("report_date") or None,
-                entry.get("article_title"),
-                entry.get("telegram_url"),
-                pdf_url_val,
-                entry.get("writer", ""),
-                entry.get("mkt_tp", "KR"),
-                unique_key,
-                False,
-                save_at,
-            ))
+        records = [
+            ReportPayload.from_scraper(entry).to_db_record()
+            for entry in json_data_list
+        ]
 
         if not records:
             logger.info("[SCRAPER-DB] Data inserted: 0 rows, updated: 0 rows.")

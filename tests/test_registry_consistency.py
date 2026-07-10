@@ -7,6 +7,7 @@ Verifies:
 3. Registry YAML loads correctly (using filesystem import to avoid name shadowing)
 """
 import importlib
+import inspect
 import sys
 from pathlib import Path
 import pytest
@@ -120,6 +121,41 @@ class TestRegistryConsistency:
             if fn is None:
                 failed.append(f"{firm['display_name']}: {module}.{fn_name} not importable")
         assert failed == [], "\n".join(failed)
+
+    def test_active_callable_modes_match_manifest(self):
+        for firm in self.reg.all_firms():
+            for field in ("server_list", "ga_full_scrape_list"):
+                mode = firm[field]
+                if mode == "none" or (
+                    field == "ga_full_scrape_list" and firm["ga_fallback_excluded"]
+                ):
+                    continue
+                fn = self.reg._get_active_func(firm, mode)
+                assert inspect.iscoroutinefunction(fn) == (mode == "async")
+
+    def test_active_callable_mode_mismatch_fails(self, monkeypatch):
+        async def async_scraper():
+            return []
+
+        monkeypatch.setattr(self.reg, "_import_func", lambda *_: async_scraper)
+        with pytest.raises(RuntimeError, match="callable mode mismatch"):
+            self.reg._get_active_func({
+                "firm_id": 99,
+                "server_module": "modules.fake",
+                "func_name": "fake",
+            }, "sync")
+
+    def test_active_missing_callable_fails(self, monkeypatch):
+        def missing(*_):
+            raise AttributeError("missing")
+
+        monkeypatch.setattr(self.reg, "_import_func", missing)
+        with pytest.raises(RuntimeError, match="callable is unavailable"):
+            self.reg._get_active_func({
+                "firm_id": 99,
+                "server_module": "modules.fake",
+                "func_name": "fake",
+            }, "sync")
 
 
 class TestYamlStructure:

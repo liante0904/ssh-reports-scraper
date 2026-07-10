@@ -23,6 +23,7 @@ Design:
 from __future__ import annotations
 
 import importlib
+import inspect
 from pathlib import Path
 from typing import Callable
 
@@ -47,9 +48,13 @@ _REQUIRED_FIELDS: dict[str, type] = {
     "ga_fallback_excluded": bool,
     "func_name": str,
     "enrichment_skip": bool,
+    "config_shape": str,
+    "empty_policy": str,
 }
 _LIST_MODES = {"sync", "async", "none"}
 _FIRM_MODES = {"ga", "server", "dual", "ga_disabled", "blocked"}
+_CONFIG_SHAPES = {"url_list", "full_config"}
+_EMPTY_POLICIES = {"require_non_empty", "allow_empty", "server_only"}
 
 
 def _validate_manifest(data: object) -> list[dict]:
@@ -62,6 +67,12 @@ def _validate_manifest(data: object) -> list[dict]:
         raise ValueError("config/firms.yaml must contain at least one firm")
 
     seen_ids: set[int] = set()
+    for firm in firms:
+        if isinstance(firm, dict) and type(firm.get("firm_id")) is int:
+            if firm["firm_id"] in seen_ids:
+                raise ValueError(f"duplicate firm_id: {firm['firm_id']}")
+            seen_ids.add(firm["firm_id"])
+
     for key, firm in data["firms"].items():
         if not isinstance(firm, dict):
             raise ValueError(f"firm '{key}' must be a mapping")
@@ -74,13 +85,17 @@ def _validate_manifest(data: object) -> list[dict]:
                     f"firm '{key}' field '{field}' must be a non-empty "
                     f"{expected_type.__name__}"
                 )
-        firm_id = firm["firm_id"]
-        if firm_id in seen_ids:
-            raise ValueError(f"duplicate firm_id: {firm_id}")
-        seen_ids.add(firm_id)
         if firm["mode"] not in _FIRM_MODES:
             raise ValueError(
                 f"firm '{key}' field 'mode' must be one of {sorted(_FIRM_MODES)}"
+            )
+        if firm["config_shape"] not in _CONFIG_SHAPES:
+            raise ValueError(
+                f"firm '{key}' field 'config_shape' must be one of {sorted(_CONFIG_SHAPES)}"
+            )
+        if firm["empty_policy"] not in _EMPTY_POLICIES:
+            raise ValueError(
+                f"firm '{key}' field 'empty_policy' must be one of {sorted(_EMPTY_POLICIES)}"
             )
         for field in ("server_list", "ga_full_scrape_list"):
             if firm[field] not in _LIST_MODES:
@@ -166,6 +181,31 @@ def get_func(module_path: str, func_name: str) -> Callable | None:
         return None
 
 
+def _get_active_func(firm: dict, expected_mode: str) -> Callable:
+    """Import an active scraper and enforce its manifest dispatch mode."""
+    module_path = firm["server_module"]
+    func_name = _func_name_from_module(firm)
+    try:
+        fn = _import_func(module_path, func_name)
+    except (ImportError, AttributeError) as exc:
+        raise RuntimeError(
+            f"active firm_id={firm['firm_id']} callable is unavailable: "
+            f"{module_path}.{func_name}"
+        ) from exc
+    if not callable(fn):
+        raise RuntimeError(
+            f"active firm_id={firm['firm_id']} target is not callable: "
+            f"{module_path}.{func_name}"
+        )
+    actual_mode = "async" if inspect.iscoroutinefunction(fn) else "sync"
+    if actual_mode != expected_mode:
+        raise RuntimeError(
+            f"firm_id={firm['firm_id']} callable mode mismatch: "
+            f"manifest={expected_mode}, callable={actual_mode} ({module_path}.{func_name})"
+        )
+    return fn
+
+
 # ── Public: firm data access ────────────────────────────────────────────────
 
 def all_firms() -> list[dict]:
@@ -193,9 +233,7 @@ def get_regular_sync_funcs() -> list[Callable]:
     for firm in _registry:
         if firm.get("server_list") != "sync":
             continue
-        fn = get_func(firm["server_module"], _func_name_from_module(firm))
-        if fn:
-            funcs.append(fn)
+        funcs.append(_get_active_func(firm, "sync"))
     return funcs
 
 
@@ -209,9 +247,7 @@ def get_regular_async_funcs() -> list[Callable]:
     for firm in _registry:
         if firm.get("server_list") != "async":
             continue
-        fn = get_func(firm["server_module"], _func_name_from_module(firm))
-        if fn:
-            funcs.append(fn)
+        funcs.append(_get_active_func(firm, "async"))
     return funcs
 
 
@@ -230,9 +266,7 @@ def get_ga_sync_mapping() -> dict[int, Callable]:
             continue
         if firm.get("ga_fallback_excluded"):
             continue
-        fn = get_func(firm["server_module"], _func_name_from_module(firm))
-        if fn:
-            result[firm["firm_id"]] = fn
+        result[firm["firm_id"]] = _get_active_func(firm, "sync")
     return result
 
 
@@ -252,9 +286,7 @@ def get_ga_async_mapping() -> dict[int, Callable]:
             continue
         if firm.get("ga_fallback_excluded"):
             continue
-        fn = get_func(firm["server_module"], _func_name_from_module(firm))
-        if fn:
-            result[firm["firm_id"]] = fn
+        result[firm["firm_id"]] = _get_active_func(firm, "async")
     return result
 
 
