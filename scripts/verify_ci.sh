@@ -6,6 +6,10 @@ EXCLUSIONS="$ROOT/tests/ci_excluded_tests.txt"
 
 cd "$ROOT"
 
+if [[ -d "$ROOT/vendor/ssh_library/ssh_library" ]]; then
+    export PYTHONPATH="$ROOT/vendor/ssh_library${PYTHONPATH:+:$PYTHONPATH}"
+fi
+
 if [[ ! -f "$EXCLUSIONS" ]]; then
     echo "Missing CI exclusion manifest: $EXCLUSIONS" >&2
     exit 1

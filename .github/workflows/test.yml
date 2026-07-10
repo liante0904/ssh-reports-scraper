@@ -1,5 +1,8 @@
 name: Deterministic Tests
 
+env:
+  SSH_LIBRARY_ENABLED: ${{ secrets.SSH_LIBRARY_DEPLOY_KEY != '' }}
+
 on:
   pull_request:
   push:
@@ -16,6 +19,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Prepare optional vendor context
+        run: mkdir -p vendor/ssh_library
+
+      - name: Checkout private ssh-library
+        if: ${{ env.SSH_LIBRARY_ENABLED == 'true' }}
+        uses: actions/checkout@v4
+        with:
+          repository: liante0904/ssh-library
+          path: vendor/ssh_library
+          ssh-key: ${{ secrets.SSH_LIBRARY_DEPLOY_KEY }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
