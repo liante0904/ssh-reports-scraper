@@ -125,7 +125,6 @@ ssh-reports-scraper/
 │   └── WebScraper.py               # HTTP/Selenium 공통 추상화
 ├── docs/
 │   ├── DEBUG_ENTRYPOINTS.md        # 장애 유형별 첫 확인 파일/명령
-│   ├── ARCHITECTURE.md             # 아키텍처와 운영 흐름
 │   ├── LLM_GUIDE.md                # LLM 작업/위임 규칙
 │   └── OPS_LOG_TAIL.md             # 운영 로그 조회 헬퍼
 └── sql/                            # PostgreSQL DDL (소문자 표준화)
@@ -149,11 +148,8 @@ LS증권 · 신한투자증권 · NH투자증권 · 하나증권 · KB증권 · 
 | 2026.05 | Enricher(태그/섹터) 통합, 인프라 고도화 (WARP 프록시 등) |
 
 - 다음 디버깅 진입점: [docs/DEBUG_ENTRYPOINTS.md](docs/DEBUG_ENTRYPOINTS.md)
-- 설계/운영 흐름: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - LLM 작업/위임 규칙: [docs/LLM_GUIDE.md](docs/LLM_GUIDE.md)
-- LLM 하네스 상세 기록: [docs/LLM_HARNESS.md](docs/LLM_HARNESS.md)
 - OCI 운영 로그 조회 헬퍼: [docs/OPS_LOG_TAIL.md](docs/OPS_LOG_TAIL.md)
-- 뉴스 워크플로 책임 분리 감사: [docs/NEWS_WORKFLOW_SPLIT_AUDIT.md](docs/NEWS_WORKFLOW_SPLIT_AUDIT.md)
 
 ---
 

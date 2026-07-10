@@ -145,7 +145,7 @@ Read in this order:
 1. `models/SecReportsManager.py`
 2. `models/db_factory.py`
 3. `scripts/validate_scrape_result.py`
-4. `docs/LLM_GUIDE.md` section 17 for the last verified production contract
+4. `docs/LLM_GUIDE.md` section "Database fields" for the runtime contract
 
 `sql/TB_SEC_REPORTS.sql` is a pointer, not production DDL. The external
 `../../../docs/schema.sql` is a conceptual ownership model and must not be
@@ -218,8 +218,8 @@ the article URL, and do not pretend the article URL is a PDF/download URL.
 
 - Old merge reports unless the task asks for history.
 - Broad refactor roadmaps before checking the concrete failing path.
-- Missing split-out LLM harness docs. The current consolidated docs are
-  `docs/LLM_GUIDE.md` and `docs/LLM_HARNESS.md`.
+- Historical architecture, refactor-roadmap, or harness documents. Current
+  runtime ownership comes from code, `config/firms.yaml`, and this entrypoint.
 
 ## Minimum Handoff Format
 
