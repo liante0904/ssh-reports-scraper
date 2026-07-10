@@ -51,7 +51,7 @@ MCP    = LLM이 운영 상태를 더 잘 보게 하는 눈
 - firm별 entrypoint/env/workflow/config shape/result policy는 `config/firms.yaml`에 선언되어 있다. 단, 정책을 모든 실행 경로가 같은 방식으로 강제하는지는 테스트로 확인해야 한다.
 - deploy workflow가 전체 위험면을 보지 않고 import/config 일부만 테스트한다.
 - 회사별 workflow YAML이 많아 LLM이 수동 수정하다가 쉽게 어긋난다.
-- `--require-non-empty`가 정상 0건과 파싱 장애를 구분하지 못한다.
+- `validate_scrape_result.py`는 manifest `empty_policy`로 정상 0건과 필수 non-empty를 구분한다. 파싱/schema 오류는 별도 exit code로 실패한다.
 
 ## 근본 원인
 

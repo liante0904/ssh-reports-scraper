@@ -404,7 +404,7 @@ Codex가 직접 토큰을 많이 써야 하는 경우:
 1. workflow run step 공통화: 실패해도 `*_log.txt`를 반드시 출력.
 2. `*_URLS_JSON` 스키마를 회사별 manifest로 선언: `url_list`/`full_config` 구분을 코드에 박아둔다.
 3. (완료) `config/firms.yaml`을 firm manifest SSoT로 두고 `scraper_registry.py`가 로드/검증한다. 새 예외 매핑을 별도 Python 목록으로 추가하지 않는다.
-4. 0건 허용 정책을 `validate_scrape_result.py`에 회사/시간대별로 반영.
+4. (완료) `validate_scrape_result.py`가 firm manifest의 `empty_policy`를 적용한다. 새 firm은 workflow 플래그를 복제하지 말고 manifest 정책을 선언한다.
 5. `telegram_sent` 전환 이후 남은 `is_sent`/`main_ch_send_yn` 문서·legacy 예시는 운영 SQL로 복사되지 않게 격리.
 
 ### 해결 완료 (2026-06-11)
@@ -750,7 +750,7 @@ if asyncio.iscoroutine(res):
 
 ## 단기 개선 제안 (다음 스프린트)
 
-1. **공통 리턴 스키마 정의**: `models/report_schema.py` → `ReportArticle` dataclass + 런타임 검증
+1. **공통 리턴 스키마 정의**: ✅ `models/report_payload.py`의 `ReportPayload`가 scraper payload 정규화와 DB row 변환을 담당한다.
 2. **모듈 레지스트리 자동화**: ✅ `config/firms.yaml` manifest + `scraper_registry.py` lazy import/검증으로 통합. 데코레이터 전환 예시는 폐기.
 3. **GA/서버 코드 통합**: `scrapers/kb_core.py` 패턴으로 중복 제거, 11개 standalone을 core 모듈로 대체
 4. **FirmInfo 단순화**: 메타클래스 제거, 일반 함수로 교체
