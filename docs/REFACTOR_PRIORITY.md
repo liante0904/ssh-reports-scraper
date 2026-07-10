@@ -1,7 +1,7 @@
 # Refactoring Priorities (LLM-Friendly Codebase)
 
-> 갱신: 2026-07-09 | 기준: LLM이 코드 읽을 때 헷갈리거나 컨텍스트 낭비를 유발하는 패턴
-> 운영 DB 확인: `public.tbl_sec_reports`는 현재 35개 물리 컬럼이며 `key`, `reg_dt`, `save_time`, `main_ch_send_yn`은 이미 없다.
+> 갱신: 2026-07-10 | 기준: LLM이 코드 읽을 때 헷갈리거나 컨텍스트 낭비를 유발하는 패턴
+> 운영 DB 확인: `public.tbl_sec_reports`는 현재 33개 물리 컬럼이며 `article_url`, `download_url`, `key`, `reg_dt`, `save_time`, `main_ch_send_yn`은 이미 없다.
 
 ## 전체 통합 테이블
 
@@ -26,7 +26,7 @@
 | 17 | DB | `main_ch_send_yn` CHAR(1) | 운영 DB 물리 컬럼에서 이미 제거됨 | 새 작업 없음 (`telegram_sent` 사용) | 하 | ✅ 완료 |
 | 18 | DB | `key` 컬럼 | 운영 DB 물리 컬럼에서 이미 제거됨 | 새 작업 없음 (`report_unique_key` 사용) | 하 | ✅ 완료 |
 | 19 | DB | `reg_dt` TEXT `"YYYYMMDD"` | 운영 DB 물리 컬럼에서 이미 제거됨 | 새 작업 없음 (`report_date` 사용) | 중 | ✅ 완료 |
-| 20 | DB | `download_status_yn` + `pdf_sync_status` + `sync_status` | 비슷한 컬럼 3개 | 통합 검토 | 상 | 🔲 검토 |
+| 20 | DB | `download_status_yn` + `pdf_sync_status` + `sync_status` | 비슷한 컬럼 3개 (`tbl_sec_reports_pdf_archive.download_status_yn`은 제거됨) | 통합 검토 | 상 | 🔲 검토 |
 | 21 | DB | `gemini_summary` | DeepSeek/Gemini 여러 모델 쓰는데 컬럼명 고정 | `ai_summary` 또는 `llm_summary` | 중 | 🔲 검토 |
 | 22 | DB | `firm_nm` | `nm` = name 축약 (5글자) | `firm_name` 뷰 alias | 하 | ✅ 완료 |
 | 23 | DB | `mkt_tp` | `tp` = type 축약 | `market_type` 뷰 alias | 하 | ✅ 완료 |
@@ -56,7 +56,7 @@
 | 47 | 코드 | SQLiteManager | 운영 DB 전환 후 legacy 잔재 | archive 브랜치 보존 후 main 제거 | 중 | ✅ 완료 |
 | 48 | 코드 | `models/WebScraper.py` | `firm_id` 기준 if/elif 10개 체인 | dict 기반 dispatch | 중 | 🔲 검토 |
 | 49 | 테스트 | `tests/ls.py`, `tests/diagnose_ls_urls.py` | legacy test | archive | 하 | 🔲 검토 |
-| 50 | DB | `tbl_sec_reports` 컬럼 35개 | 정규화 부족 + 일부 enrichment/AI 컬럼 저사용 | 검토 | 상 | 🔲 검토 |
+| 50 | DB | `tbl_sec_reports` 컬럼 33개 | 정규화 부족 + 일부 enrichment/AI 컬럼 저사용 | 검토 | 상 | 🔲 검토 |
 | 51 | DB | `report_unique_key` 인덱스 3개 | unique `idx_report_unique_uid`, unique `tb_sec_reports_uid_key`, non-unique `idx_report_unique_key` 중복 | DDL 실행 전 정리 후보로 검토 | 하 | 🔲 검토 |
 | 52 | 코드 | standalone news | 뉴스가 별도 컨테이너로 이관됨 | workflow/core/entrypoint 제거 | 하 | ✅ 완료 |
 | 53 | 코드 | `utils/json_util.py` / `utils/report_json_store.py` | telegram/local-json 처리 이중화 | 호환 계약 보존을 위해 보류 | 하 | 🔶 보류 (호환 계약) |

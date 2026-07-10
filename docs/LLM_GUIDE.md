@@ -384,7 +384,7 @@ Codex가 직접 토큰을 많이 써야 하는 경우:
 | 13 | FirmInfo 메타클래스 LLM 진입장벽 (Pain 2) | `models/firm_utils.py` 함수형 wrapper 추가 |
 | 14 | `COMMENT_PDF_URL` 대문자 (Pain 17.6) | `comment_pdf_url` 소문자로 마이그레이션 (운영 DB 반영) |
 | 15 | WebScraper `_set_headers()` if/elif | `headers=` 파라미터 추가, 기존 분기는 deprecation |
-| 16 | `tbl_report_ai_tags` → AI 아님 | `tbl_report_enricher_tags`로 rename (enricher = 규칙 기반) |
+| 16 | `tbl_report_ai_tags` → AI 아님 | `tbl_report_enricher_tags`로 rename → 이후 DROP (2026-07-09, enricher가 tbl_sec_reports 직접 사용) |
 | 17 | `tbl_report_downloads` 중복 | DROP (pdf-archiver가 `tbl_sec_reports` 직접 관리) |
 
 ### 아직 안 함
@@ -395,7 +395,7 @@ Codex가 직접 토큰을 많이 써야 하는 경우:
 | D | enricher 정규화 테이블 완전 전환 | 🟡 | 지금은 `tbl_sec_reports` + 신규 테이블 이중기록. 저사용 컬럼 정리 전 영향 범위 확인 |
 | E | 옛 컬럼 드랍 (save_time, reg_dt, main_ch_send_yn, key) | ✅ | 운영 DB 물리 컬럼에서 이미 제거됨 (2026-07-09 확인) |
 | F | ORM `v_sec_reports_full` 매핑 | 🟡 | Backend submodule 작업. 컬럼 드랍 전 필수 |
-| G | URL 컬럼 통합 (4개→2개) | 🟡 | DB증권 같은 특수케이스 있어서 신중히 |
+| G | URL 컬럼 통합 (`article_url`, `download_url` 물리 컬럼 제거) | ✅ | 운영 물리 컬럼은 `telegram_url`, `pdf_url`, `gdrive_pdf_url`; 호환 뷰 alias는 유지 |
 | H | `json_util` / `report_json_store` 통합 | 🔴 | telegram/local-json 호환 계약 보존을 위해 보류(보존) |
 | I | `validate_scrape_result` 규칙 개편 | 🟡 | 결과 유효성 검증 규칙 호환 계약 보존을 위해 보류(보존) |
 | J | `BNKfn_23` / `LS_0` standalone 및 모듈 | 🔴 | bnk/ls standalone 스크랩 호환 계약 보존을 위해 보류(보존) |
@@ -737,11 +737,11 @@ if asyncio.iscoroutine(res):
 | `fnguide_summary_id` | 8,069 | 2.60% | FnGuide 매칭 일부 사용 |
 | `rating` / `revision_type` / `report_type` | 약 9,567~9,570 | 3.08% | 프리미엄/분류 기능 저사용 |
 
-**LLM 혼란**: 운영 물리 컬럼 35개 중 일부 enrichment/AI 컬럼은 채움률이 낮다. `SELECT *`나 ORM 매핑 시 불필요한 데이터까지 로드하기 쉽다.
+**LLM 혼란**: 운영 물리 컬럼 33개 중 일부 enrichment/AI 컬럼은 채움률이 낮다. `SELECT *`나 ORM 매핑 시 불필요한 데이터까지 로드하기 쉽다.
 
 ### 17.2 이미 드랍된 legacy 물리 컬럼
 
-2026-07-09 KST 기준 `public.tbl_sec_reports`에는 `key`, `reg_dt`, `save_time`, `main_ch_send_yn` 물리 컬럼이 없다. 새 SQL/DDL/문서에서 이 컬럼들을 “나중에 드랍” 대상으로 쓰지 않는다.
+2026-07-10 KST 기준 `public.tbl_sec_reports`에는 `article_url`, `download_url`, `key`, `reg_dt`, `save_time`, `main_ch_send_yn` 물리 컬럼이 없다. 새 SQL/DDL/문서에서 이 컬럼들을 “나중에 드랍” 대상으로 쓰지 않는다.
 
 현재 canonical 컬럼은 `report_unique_key`, `report_date`, `save_at`, `telegram_sent`다.
 
@@ -753,22 +753,25 @@ if asyncio.iscoroutine(res):
 | `sync_status` | 2:233,909 / 0:57,516 / 3:17,155 / 9:1,664 | 0/2/3/9가 각각 무슨 의미인지 코드에만 존재, DB 주석 없음 |
 | `pdf_sync_status` | 2:261,846 / 0:41,238 / 3:5,497 / 9:1,663 | sync_status와 같은 enum인데 별도 컬럼 — 왜 분리했는지 불명 |
 
-### 17.4 URL 컬럼 중복
+### 17.4 URL 컬럼 정리
 
-4개의 URL 컬럼 존재:
-- `article_url` — 게시글 원문 페이지
-- `download_url` — PDF 다운로드 URL
+2026-07-10 KST 운영 DDL 이후 `tbl_sec_reports` 물리 URL 컬럼은 다음만 남았다:
+
 - `telegram_url` — 텔레그램 전송용 URL
-- `pdf_url` — PDF 직접 URL
+- `pdf_url` — PDF 직접 URL / 다운로드 기준 URL
+- `gdrive_pdf_url` — Google Drive PDF URL
 
-실제로 많은 증권사가 `download_url = telegram_url = pdf_url`로 동일한 값을 3개 컬럼에 중복 저장. `article_url`도 종종 같은 값.
+드랍 완료:
 
-2026-07-09 KST 기준:
+- `article_url`
+- `download_url`
 
-- `download_url = telegram_url = pdf_url`: 259,307건
-- `download_url = pdf_url`: 259,501건
-- 위 `download_url = pdf_url` 중 `telegram_url`만 다른 row: 194건
-- DBfi는 `telegram_url`과 `pdf_url`/`download_url`이 다를 수 있는 알려진 특수 케이스다.
+호환 뷰 `v_sec_reports_canonical`, `v_sec_reports_full`, `v_reports_api`, `v_reports`, `v_scraper_workbench`는 재생성 후 정상 조회되며 각 count는 310,395다.
+
+- `article_url`, `source_page_url`: NULL alias
+- `download_url`, `source_pdf_url_fallback`: `pdf_url` 매핑
+
+DBfi는 `telegram_url`과 `pdf_url`이 다를 수 있는 알려진 특수 케이스다.
 
 ### 17.5 mkt_tp 값 불일치
 
@@ -798,9 +801,9 @@ if asyncio.iscoroutine(res):
 | ~~🟢~~ | ~~`COMMENT_PDF_URL` → 소문자~~ → 3개사만 사용, 개발자 노트 용도 확인 |
 | 🟢 | `mkt_tp` `US`/`JP` → 보류 (국가 구분 정보 손실 우려) |
 | ~~🟡~~ | ~~`save_time` → `timestamptz`, `reg_dt` → `date`~~ ✅ 완료 (2026-06-11) |
-| ~~🟡~~ | ~~14개 미사용 컬럼 분리~~ ✅ 완료: `tbl_report_ai_tags`, `tbl_report_ai_summaries`, `tbl_report_price_targets`, `tbl_report_downloads` |
+| ~~🟡~~ | ~~14개 미사용 컬럼 분리~~ → 롤백 (2026-07-09): 3종 좀비 테이블 DROP, enricher가 `tbl_sec_reports` 직접 사용, `docs/schema.sql`이 SSoT |
 | 🟡 | `sync_status` enum 의미를 DB comment로 문서화 |
-| 🟡 | URL 컬럼 통합 (`article_url` / `download_url` / `telegram_url` / `pdf_url` → 2개로 축소) |
+| ✅ | URL 컬럼 통합: `article_url` / `download_url` 물리 컬럼 제거, 호환 뷰 alias 유지 |
 | ✅ | FnGuide 매칭 성능: `report_date` + `writer` + `board_order` 인덱스, `v_fnguide_authors` 뷰 |
 
 

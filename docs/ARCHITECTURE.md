@@ -411,34 +411,35 @@ EMERGENCY_SCRAPE=1 uv run scheduler.py &
 
 ## 6. URL 컬럼과 pdf-archiver
 
-`tbl_sec_reports`의 4개 URL 컬럼은 각자 목적이 다르다. 2026-07-09 KST 운영 DB 기준 전체 row 수는 310,244건이다.
+2026-07-10 KST 운영 DDL 이후 `tbl_sec_reports` 물리 URL 컬럼은 `telegram_url`, `pdf_url`, `gdrive_pdf_url`만 남아 있다. `article_url`, `download_url`은 더 이상 물리 컬럼이 아니다.
 
-| 컬럼 | 용도 | 비어있는 건수 | 관리 주체 |
-|------|------|:---:|------|
-| `article_url` | 증권사 원문 페이지 (nullable) | 231,977건 (74.77%) | scraper |
-| `download_url` | PDF 다운로드용 URL | 37,274건 (12.01%) | scraper → pdf-archiver |
-| `telegram_url` | 텔레그램 전송용 URL | 1건 (거의 0%) | scraper → Telegram |
-| `pdf_url` | PDF 원본 URL | 1건 (거의 0%) | scraper |
+| 컬럼/뷰 alias | 상태 | 용도 | 관리 주체 |
+|------|------|------|------|
+| `telegram_url` | `tbl_sec_reports` 물리 컬럼 | 텔레그램 전송용 URL | scraper → Telegram |
+| `pdf_url` | `tbl_sec_reports` 물리 컬럼 | PDF 원본/다운로드 기준 URL | scraper → pdf-archiver |
+| `gdrive_pdf_url` | `tbl_sec_reports` 물리 컬럼 | Google Drive PDF URL | pdf/archive 후처리 |
+| `article_url`, `source_page_url` | 호환 뷰 alias, 현재 NULL | 과거 원문 페이지 호환 필드 | compatibility views |
+| `download_url`, `source_pdf_url_fallback` | 호환 뷰 alias, `pdf_url` 매핑 | 과거 다운로드 URL 호환 필드 | compatibility views |
 
-**pdf-archiver** (`~/workspace/services/pdf-archiver/`)가 `download_url`에서 실제 PDF를 다운로드 → 해시 검증 → 클라우드 업로드 → `tbl_sec_reports_pdf_archive` + `pdf_sync_status` 업데이트.
+**pdf-archiver** (`~/workspace/services/pdf-archiver/`)는 현재 `pdf_url` 기준으로 실제 PDF를 다운로드 → 해시 검증 → 클라우드 업로드 → `tbl_sec_reports_pdf_archive` + `pdf_sync_status` 업데이트를 수행한다.
 
-운영 데이터에서는 `download_url = telegram_url = pdf_url`인 row가 259,307건이다. `download_url = pdf_url`인 row는 259,501건이고, 이 중 194건은 `telegram_url`만 다르다.
+과거 운영 데이터에서는 `download_url = telegram_url = pdf_url`인 row가 많았고, DDL 이후 호환 뷰의 `download_url` / `source_pdf_url_fallback`은 `pdf_url`로 매핑된다.
 
-DB증권(19)은 텔레그램용 URL과 다운로드용 URL이 다르다 (gate viewer vs StreamDocs). 그래서 `telegram_url ≠ download_url`인 케이스가 존재하며, URL 컬럼 통합 검토 시 이 특수 처리를 먼저 확인해야 한다.
+DB증권(19)은 텔레그램용 URL과 PDF URL이 다를 수 있다 (gate viewer vs StreamDocs). 그래서 `telegram_url ≠ pdf_url`인 케이스가 존재하며, URL 처리 변경 시 이 특수 처리를 먼저 확인해야 한다.
 
 ### 컴포넌트별 컬럼 책임
 
 | 컴포넌트 | READ | WRITE (tbl_sec_reports) | WRITE (다른 테이블) |
 |------|------|------|------|
-| **scraper** (29개 모듈) | - | `report_id`, `firm_id`, `board_id`, `firm_nm`, `article_title`, `article_url`, `download_url`, `telegram_url`, `pdf_url`, `report_date`, `writer`, `mkt_tp`, `report_unique_key`, `save_at`, `telegram_sent` | - |
-| **enricher** (tag_extractor) | `article_title`, `firm_nm` | `tags`, `stock_names`, `stock_tickers`, `sector`, `gemini_summary`, `summary_time`, `summary_model`, `target_price`, `rating`, `revision_type`, `report_type`, `fnguide_summary_id`, `sync_status` | `tbl_report_enricher_tags`, `tbl_report_ai_summaries`, `tbl_report_price_targets` |
-| **pdf-archiver** | `download_url` | `pdf_sync_status`, `download_status_yn`, `pdf_hash` | `tbl_sec_reports_pdf_archive` (26컬럼 전체) |
+| **scraper** (29개 모듈) | - | `report_id`, `firm_id`, `board_id`, `firm_nm`, `article_title`, `telegram_url`, `pdf_url`, `report_date`, `writer`, `mkt_tp`, `report_unique_key`, `save_at`, `telegram_sent` | - |
+| **enricher** (tag_extractor) | `article_title`, `firm_nm` | `tags`, `stock_names`, `stock_tickers`, `sector`, `gemini_summary`, `summary_time`, `summary_model`, `target_price`, `rating`, `revision_type`, `report_type`, `fnguide_summary_id`, `sync_status` | `tbl_sec_reports` (enricher 컬럼) |
+| **pdf-archiver** | `pdf_url` | `pdf_sync_status`, `download_status_yn`, `pdf_hash` | `tbl_sec_reports_pdf_archive` (`download_url`, `download_status_yn` 물리 컬럼 없음) |
 | **scraper.py enrich_data()** | `telegram_url`, `report_unique_key`, `writer`, `report_date` | `telegram_url` (DBfi gate/LS msg URL 복구) | - |
 | **scheduler.py** | `telegram_sent`, `telegram_url`, `article_title` | `telegram_sent=true` (발송 완료) | - |
 
 ---
 
-## 7. 데이터베이스 연동 및 스키마 구조 (2026-07-09 업데이트)
+## 7. 데이터베이스 연동 및 스키마 구조 (2026-07-10 업데이트)
 
 ### 7.1 주요 데이터 구조 변경사항
 * **`firm_id` 도입**: 기존의 `sec_firm_order` 물리적 컬럼명이 `firm_id`로 전면 개편되었습니다. (19개 스크래퍼 모듈 및 백엔드 맵핑 완료)
@@ -447,14 +448,16 @@ DB증권(19)은 텔레그램용 URL과 다운로드용 URL이 다르다 (gate vi
 * **`report_date` 마이그레이션 완료**: 기존 `reg_dt`는 운영 DB 물리 컬럼에서 이미 제거되었고, 리포트 기준일은 `report_date`로 통일되었습니다.
 * **`telegram_sent` 전환 완료**: 기존 `main_ch_send_yn`은 운영 DB 물리 컬럼에서 이미 제거되었고, Telegram 발송 상태는 `telegram_sent`를 사용합니다.
 * **`report_unique_key` 전환 완료**: 기존 `key` 컬럼은 운영 DB 물리 컬럼에서 이미 제거되었고, 모든 기사 식별은 `report_unique_key`로 단일 통일되었습니다.
+* **URL 컬럼 정리 완료**: `article_url`, `download_url`은 운영 `tbl_sec_reports` 물리 컬럼에서 제거되었습니다. 호환 뷰에서는 `article_url` / `source_page_url`을 NULL alias로 보존하고, `download_url` / `source_pdf_url_fallback`은 `pdf_url`로 매핑합니다.
+* **PDF archive 정리 완료**: `tbl_sec_reports_pdf_archive`에서도 `download_url`, `download_status_yn` 물리 컬럼이 제거되었습니다.
 
 ### 7.1.1 `tbl_sec_reports` 운영 물리 컬럼
 
-2026-07-09 KST 기준 `public.tbl_sec_reports` 물리 컬럼은 35개다.
+2026-07-10 KST 기준 `public.tbl_sec_reports` 물리 컬럼은 33개다.
 
 ```text
-report_id, firm_id, board_id, firm_nm, article_title, article_url,
-download_status_yn, download_url, writer, telegram_url, mkt_tp,
+report_id, firm_id, board_id, firm_nm, article_title, download_status_yn,
+writer, telegram_url, mkt_tp,
 gemini_summary, summary_time, summary_model, archive_path, retry_count,
 sync_status, pdf_url, pdf_sync_status, pdf_hash, tags, stock_names,
 sector, fnguide_summary_id, target_price, rating, revision_type,
@@ -462,7 +465,14 @@ report_type, stock_tickers, report_date, telegram_sent,
 report_unique_key, save_at, article_text, gdrive_pdf_url
 ```
 
-`report_unique_key`에는 unique `idx_report_unique_uid`, unique `tb_sec_reports_uid_key`, non-unique `idx_report_unique_key`가 함께 존재한다. 운영 DDL은 실행하지 않았고, 인덱스 중복은 별도 정리 후보로만 기록한다.
+`article_url`, `download_url`, `key`, `reg_dt`, `save_time`, `main_ch_send_yn`은 `information_schema` 기준 운영 물리 컬럼에 없다.
+
+호환 뷰 `v_sec_reports_canonical`, `v_sec_reports_full`, `v_reports_api`, `v_reports`, `v_scraper_workbench`는 재생성 후 정상 조회된다. 각 view count는 310,395이며, legacy 호환 alias는 다음처럼 동작한다.
+
+- `article_url`, `source_page_url`: NULL alias
+- `download_url`, `source_pdf_url_fallback`: `pdf_url` 매핑
+
+`report_unique_key`에는 unique `idx_report_unique_uid`, unique `tb_sec_reports_uid_key`, non-unique `idx_report_unique_key`가 함께 존재한다. 인덱스 중복은 별도 정리 후보로만 기록한다.
 
 ### 7.2 DDL 파일 목록 및 역할
 데이터베이스 변경사항을 정의하는 DDL 스크립트는 `sql/` 디렉토리 내에 보관되어 관리됩니다:
@@ -475,7 +485,7 @@ report_unique_key, save_at, article_text, gdrive_pdf_url
 ```sql
 INSERT INTO tbl_sec_reports (
     firm_id, board_id, firm_nm, report_date,
-    article_title, article_url, telegram_sent, download_url,
+    article_title, telegram_sent,
     telegram_url, pdf_url, writer, mkt_tp, report_unique_key, save_at
 ) VALUES %s
 ON CONFLICT (report_unique_key) DO UPDATE SET
@@ -485,7 +495,6 @@ ON CONFLICT (report_unique_key) DO UPDATE SET
     report_date         = EXCLUDED.report_date,
     writer              = EXCLUDED.writer,
     mkt_tp              = EXCLUDED.mkt_tp,
-    download_url        = COALESCE(NULLIF(EXCLUDED.download_url, ''), tbl_sec_reports.download_url),
     telegram_url        = COALESCE(NULLIF(EXCLUDED.telegram_url, ''), tbl_sec_reports.telegram_url),
     pdf_url             = COALESCE(NULLIF(EXCLUDED.pdf_url, ''),       tbl_sec_reports.pdf_url)
 RETURNING report_unique_key, (xmax = 0) AS inserted
@@ -510,7 +519,7 @@ RETURNING report_unique_key, (xmax = 0) AS inserted
 - [ ] CI 통과 확인 (GitHub Actions workflow green)
 - [ ] pre-push 훅 통과 (`scripts/verify_dockerfile.sh`, `scripts/verify_standalones.sh` 실행 완료)
 - [ ] `report_unique_key` ON CONFLICT 정상 동작 확인
-- [ ] `key` / `reg_dt` / `save_time` / `main_ch_send_yn`을 운영 SQL에 재도입하지 않았는지 확인
+- [ ] `article_url` / `download_url` / `key` / `reg_dt` / `save_time` / `main_ch_send_yn`을 운영 SQL에 재도입하지 않았는지 확인
 
 ### 9.2 장애 방지 및 예외 대책
 1. **Dockerfile COPY 누락 방지**: `verify_dockerfile.sh` 스크립트를 통해 신규 디렉토리 배포 누락 사전 차단.
