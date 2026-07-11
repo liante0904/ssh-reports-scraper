@@ -48,6 +48,27 @@ jobs:
               exit 1
               ;;
           esac
+      - name: Validate CANARY_POSTGRES secrets are configured
+        env:
+          CANARY_PG_HOST: ${{ secrets.CANARY_POSTGRES_HOST }}
+          CANARY_PG_PORT: ${{ secrets.CANARY_POSTGRES_PORT }}
+          CANARY_PG_DB: ${{ secrets.CANARY_POSTGRES_DB }}
+          CANARY_PG_USER: ${{ secrets.CANARY_POSTGRES_USER }}
+          CANARY_PG_PASSWORD: ${{ secrets.CANARY_POSTGRES_PASSWORD }}
+        run: |
+          missing=""
+          for v in CANARY_PG_HOST CANARY_PG_PORT CANARY_PG_DB CANARY_PG_USER CANARY_PG_PASSWORD; do
+            val="$(printenv "$v")"
+            if [ -z "$val" ]; then
+              missing="$missing $v"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "FATAL: required CANARY_POSTGRES secrets are empty or missing:$missing" >&2
+            echo "Set CANARY_POSTGRES_HOST, CANARY_POSTGRES_PORT, CANARY_POSTGRES_DB, CANARY_POSTGRES_USER, CANARY_POSTGRES_PASSWORD in the integration-canary environment." >&2
+            exit 1
+          fi
+          echo "All CANARY_POSTGRES secrets present."
       - name: Run read-only PostgreSQL checks
         env:
           POSTGRES_HOST: ${{ secrets.CANARY_POSTGRES_HOST }}
