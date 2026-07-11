@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*- 
 import os
+import signal
 import subprocess
 import sys
 from datetime import datetime
@@ -21,6 +22,46 @@ load_dotenv()
 from scraper_config import invalidate_api_cache
 
 
+def _scraper_process_timeout() -> int:
+    """Return the hard limit for one scraper job."""
+    try:
+        return max(30, int(os.getenv("SCRAPER_PROCESS_TIMEOUT_SECONDS", "900")))
+    except ValueError:
+        return 900
+
+
+def _run_scraper_process() -> subprocess.CompletedProcess:
+    """Run scraper in an isolated process group and reap it on timeout."""
+    process = subprocess.Popen(
+        [sys.executable, "scraper.py"],
+        capture_output=True,
+        text=True,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=_scraper_process_timeout())
+    except subprocess.TimeoutExpired:
+        logger.error(
+            f"Scraper process exceeded {_scraper_process_timeout()}s; terminating process group"
+        )
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        try:
+            stdout, stderr = process.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            stdout, stderr = process.communicate()
+        return subprocess.CompletedProcess(
+            process.args, process.returncode or 124, stdout, stderr
+        )
+    return subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
+
+
 def run_scraper():
     """메인 스크래퍼 실행 (scraper.py) — subprocess 중복 실행 방지 포함"""
     import fcntl
@@ -40,12 +81,7 @@ def run_scraper():
     try:
         logger.info("--- [Job Start] Main Scraper (scraper.py) ---")
         try:
-            result = subprocess.run(
-                [sys.executable, "scraper.py"],
-                capture_output=True,
-                text=True,
-                check=False
-            )
+            result = _run_scraper_process()
             if result.returncode != 0:
                 logger.error(f"Scraper process exited with error code {result.returncode}")
                 if result.stderr:
