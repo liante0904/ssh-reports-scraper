@@ -56,11 +56,56 @@ def test_env_resolves_production(monkeypatch, tmp_path):
     monkeypatch.setenv("ENV", "production")
     config = fresh_config(monkeypatch, tmp_path)
     assert config.ENV == "production"
-
     monkeypatch.setenv("ENV", "prod")
     config = fresh_config(monkeypatch, tmp_path)
     assert config.ENV == "production"
 
+
+def test_get_secret_prefers_selected_environment_over_common(monkeypatch, tmp_path):
+    config = fresh_config(monkeypatch, tmp_path)
+    config._secrets = {
+        "common": {"API_TOKEN": "common"},
+        "dev": {"API_TOKEN": "dev"},
+        "production": {"API_TOKEN": "production"},
+    }
+
+    monkeypatch.setenv("ENV", "dev")
+    config._load_config()
+    config._secrets = {
+        "common": {"API_TOKEN": "common"},
+        "dev": {"API_TOKEN": "dev"},
+        "production": {"API_TOKEN": "production"},
+    }
+    assert config.get_secret("API_TOKEN") == "dev"
+
+    monkeypatch.setenv("ENV", "production")
+    config._load_config()
+    config._secrets = {
+        "common": {"API_TOKEN": "common"},
+        "dev": {"API_TOKEN": "dev"},
+        "production": {"API_TOKEN": "production"},
+    }
+    assert config.get_secret("API_TOKEN") == "production"
+
+
+def test_get_secret_process_environment_overrides_file(monkeypatch, tmp_path):
+    config = fresh_config(monkeypatch, tmp_path)
+    config._secrets = {"common": {"API_TOKEN": "common"}, "dev": {"API_TOKEN": "dev"}}
+    monkeypatch.setenv("ENV", "dev")
+    config._load_config()
+    monkeypatch.setenv("API_TOKEN", "process")
+
+    assert config.get_secret("API_TOKEN") == "process"
+
+
+def test_get_secret_missing_returns_default(monkeypatch, tmp_path):
+    config = fresh_config(monkeypatch, tmp_path)
+    config._secrets = {"common": {}, "dev": {}}
+    monkeypatch.setenv("ENV", "dev")
+    config._load_config()
+
+    assert config.get_secret("MISSING_SECRET") is None
+    assert config.get_secret("MISSING_SECRET", "fallback") == "fallback"
 
 def test_fallback_to_legacy_prod_section(monkeypatch, tmp_path):
     # secrets.json에 'prod'만 있고 'production'이 없는 상태 구현

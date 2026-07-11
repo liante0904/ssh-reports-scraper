@@ -65,9 +65,18 @@ class ConfigManager:
         return self._get_env_secrets().get("CHANNEL_ID") or self._secrets.get("common", {}).get("TELEGRAM_CHANNEL_ID_REPORT_ALARM")
 
     def get_secret(self, key, default=None):
-        """특정 환경 변수 또는 공통 변수를 가져옵니다."""
+        """Return a secret using explicit environment precedence.
+
+        Precedence is process environment, selected secrets section, then
+        common secrets.  The ``prod`` section remains supported through
+        :meth:`_get_env_secrets` for existing deployments.
+        """
         val = os.getenv(key)
-        if val: return val
+        if val:
+            return val
+        env_value = self._get_env_secrets().get(key)
+        if env_value:
+            return env_value
         return self._secrets.get("common", {}).get(key, default)
 
     def get_urls(self, key, default=None):
