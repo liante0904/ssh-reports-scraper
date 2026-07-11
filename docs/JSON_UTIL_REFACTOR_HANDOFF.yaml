@@ -1,6 +1,8 @@
 task: report_json_store_replacement
 goal: add a clean local-report-json helper beside legacy utils/json_util.py
 status: implemented_as_new_module
+document_status: historical_handoff_completed_do_not_use_as_active_plan
+current_entrypoint: utils/report_json_store.py
 why:
   - legacy local-json telegram helper mixes formatting, file IO, filtering, mutation, CLI
   - format_message loop/return shape is hard to reason about
