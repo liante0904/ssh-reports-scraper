@@ -246,6 +246,7 @@ async def call_async_scraper(func):
     except asyncio.TimeoutError:
         return name, None, f"Async Scraper Timeout ({name}): {SCRAPER_ASYNC_TIMEOUT_SECONDS}s"
     except Exception as e:
+        logger.exception(f"Async scraper failure ({name})")
         return name, None, f"Async Scraper Error ({name}): {e}"
 
 
