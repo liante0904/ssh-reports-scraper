@@ -18,10 +18,14 @@
 """
 
 import os
+from pathlib import Path
 import sys
 
 # ssh_library 및 scraper 루트 경로 추가
-sys.path.insert(0, os.path.expanduser("~/workspace/lib/ssh_library"))
+repo_root = Path(__file__).resolve().parents[1]
+default_library = repo_root.parents[3] / "lib" / "ssh_library"
+library_path = Path(os.environ.get("SSH_LIBRARY_PATH", default_library))
+sys.path.insert(0, str(library_path.parent if library_path.name == "ssh_library" else library_path))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from ssh_library.modules.scheduler import SchedulerManager, _now_kst
