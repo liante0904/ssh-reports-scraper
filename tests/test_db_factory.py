@@ -1,13 +1,16 @@
+import os
 import sys
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-LIB_DIR = ROOT.parents[3] / "lib"
+LIB_DIR = Path(os.environ.get("SSH_LIBRARY_PATH", ROOT.parents[3] / "lib" / "ssh_library"))
 sys.path.append(str(ROOT))
 if (LIB_DIR / "ssh_library").exists():
-    sys.path.append(str(LIB_DIR / "ssh_library"))
+    sys.path.append(str(LIB_DIR))
+elif (LIB_DIR / "__init__.py").exists():
+    sys.path.append(str(LIB_DIR.parent))
 
 
 def test_get_db_default_uses_sec_reports_manager(monkeypatch):
@@ -20,7 +23,7 @@ def test_get_db_default_uses_sec_reports_manager(monkeypatch):
 
 
 def test_get_db_ssh_library_backend(monkeypatch):
-    if not (LIB_DIR / "ssh_library").exists():
+    if not ((LIB_DIR / "ssh_library").exists() or (LIB_DIR / "__init__.py").exists()):
         pytest.skip("ssh-library checkout is not available")
 
     monkeypatch.setenv("DB_BACKEND", "ssh_library")
