@@ -1,4 +1,6 @@
 {
+  "document_status": "historical_spec_completed",
+  "note": "보존용 구현 사양이다. 현재 런타임 계약은 canonical report_date/save_at이며 새 작업의 기준으로 사용하지 않는다.",
   "task": "save_time → save_at 마이그레이션",
   "scope": "apps/backend/ssh-reports-hub-fastAPI",
   "rule": "데이터 완전 동일, 컬럼명만 save_time → save_at. 프론트엔드 last_save_time 키는 유지.",

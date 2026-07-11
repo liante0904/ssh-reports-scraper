@@ -62,10 +62,10 @@ manifest가 들어갔는지 확인한다.
 ssh oci 'CT=$(docker ps --format "{{.Names}}" | grep "ssh-reports-scraper-main-scraper" | head -1); docker exec "$CT" sh -lc "ls -la /app/config /app/config/firms.yaml"'
 ```
 
-`/app/config/firms.yaml`이 없으면 `scraper_registry.py`가 빈 registry를 반환하고,
-`scraper.py`의 regular/GA fallback 대상 목록도 비게 된다. 하나증권처럼 GA가 꺼진
-server-only firm은 이 상태에서 누락된다. 재발 방지는 `Dockerfile`의 `config/`
-COPY와 `scripts/verify_dockerfile.sh` 검증이다.
+`/app/config/firms.yaml`이 없으면 현재 `scraper_registry.py`가 시작 단계에서
+실패하므로 regular/GA fallback 대상도 실행되지 않는다. 하나증권처럼 GA가 꺼진
+server-only firm 누락으로 오인하지 말고 컨테이너 시작 traceback을 먼저 확인한다.
+재발 방지는 `Dockerfile`의 `config/` COPY와 `scripts/verify_dockerfile.sh` 검증이다.
 
 ## 운영 scraper exec
 
