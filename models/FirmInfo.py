@@ -26,6 +26,13 @@ class FirmInfo(metaclass=MetaFirmInfo):
     _metadata_source = None  # "postgres" | "static" — signals DB reliability
 
     @classmethod
+    def iter_active_firm_ids(cls) -> list[int]:
+        """Return loaded firm IDs without assuming contiguous database IDs."""
+        if not cls._is_loaded:
+            cls.load_data_from_db()
+        return sorted(cls._firm_data)
+
+    @classmethod
     def load_data_from_db(cls):
         if cls._is_loaded:
             return

@@ -50,6 +50,17 @@ class TestFirmInfoGaEnabled:
         fi.set_firm_id(4)
         assert fi.ga_enabled is False  # fallback always False
 
+    def test_iter_active_firm_ids_preserves_database_gaps(self):
+        from models.FirmInfo import FirmInfo
+        FirmInfo._firm_data = {
+            2: {"name": "NH"},
+            7: {"name": "Shinyoung"},
+            19: {"name": "DB"},
+        }
+        FirmInfo._is_loaded = True
+
+        assert FirmInfo.iter_active_firm_ids() == [2, 7, 19]
+
 
 class TestFirmUtilsGaEnabled:
     """firm_utils.ga_enabled() 함수 테스트."""
