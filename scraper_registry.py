@@ -319,23 +319,22 @@ def get_ls_module_func(func_name: str) -> Callable | None:
 # ── Internal helpers ────────────────────────────────────────────────────────
 
 def _func_name_from_module(firm: dict) -> str:
-    """Resolve the checkNewArticle function name for a firm.
+    """Return the manifest-declared scraper entrypoint.
 
-    Uses func_name from YAML first. Falls back to a heuristic derivation
-    from server_module name for backward compatibility if func_name is missing.
+    Entrypoint names are part of the runtime contract.  Deriving a name from
+    a module path can silently dispatch the wrong callable after a module
+    rename, so missing or malformed manifest data must fail with enough
+    identity to fix the right firm entry.
     """
-    # Use explicit func_name from YAML if available
     fn_name = firm.get("func_name")
-    if fn_name:
-        return fn_name
-    # Fallback heuristic: e.g. "modules.KBsec_4" → "KBsec_checkNewArticle"
-    module_name = firm.get("server_module", "")
-    parts = module_name.split(".")
-    if len(parts) >= 2:
-        base = parts[-1]
-        if "_" in base:
-            name_part = base.rsplit("_", 1)[0]
-        else:
-            name_part = base
-        return f"{name_part}_checkNewArticle"
-    return "unknown"
+    if isinstance(fn_name, str) and fn_name.strip():
+        return fn_name.strip()
+
+    display_name = firm.get("display_name", "<unknown firm>")
+    firm_id = firm.get("firm_id", "?")
+    module_path = firm.get("server_module", "<missing module>")
+    raise RuntimeError(
+        "scraper entrypoint contract missing: "
+        f"firm={display_name!r} firm_id={firm_id} module={module_path!r}; "
+        "declare a non-empty 'func_name' in config/firms.yaml"
+    )

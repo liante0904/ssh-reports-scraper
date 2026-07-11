@@ -157,6 +157,28 @@ class TestRegistryConsistency:
                 "func_name": "fake",
             }, "sync")
 
+    @pytest.mark.parametrize("missing", [None, "", "   "])
+    def test_missing_entrypoint_contract_fails_with_firm_context(self, missing):
+        with pytest.raises(RuntimeError, match="scraper entrypoint contract missing") as exc:
+            self.reg._func_name_from_module({
+                "display_name": "Example Securities",
+                "firm_id": 77,
+                "server_module": "modules.example_77",
+                "func_name": missing,
+            })
+        message = str(exc.value)
+        assert "Example Securities" in message
+        assert "firm_id=77" in message
+        assert "modules.example_77" in message
+
+    def test_entrypoint_contract_does_not_derive_from_module(self):
+        with pytest.raises(RuntimeError, match="declare a non-empty 'func_name'"):
+            self.reg._func_name_from_module({
+                "display_name": "Example Securities",
+                "firm_id": 77,
+                "server_module": "modules.example_77",
+            })
+
 
 class TestYamlStructure:
     """Validate config/firms.yaml structure and new field consistency."""
