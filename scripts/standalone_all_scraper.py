@@ -31,6 +31,7 @@ import asyncio
 import json
 import multiprocessing
 import os
+import queue
 import signal
 import sys
 import time
@@ -168,9 +169,12 @@ def run_sync_scraper(name: str, func, timeout: int) -> dict:
             logger.error(f"[{name}] 타임아웃 ({timeout}s)")
             return {"name": name, "status": "timeout", "elapsed_sec": round(elapsed, 1), "articles": []}
 
-        if result_queue.empty():
-            raise RuntimeError(f"worker exited without a result (exitcode={process.exitcode})")
-        outcome, payload = result_queue.get()
+        try:
+            outcome, payload = result_queue.get(timeout=1)
+        except queue.Empty as exc:
+            raise RuntimeError(
+                f"worker exited without a result (exitcode={process.exitcode})"
+            ) from exc
         if outcome == "error":
             error, stack = payload
             raise RuntimeError(f"{error}\n{stack}")
