@@ -140,13 +140,13 @@ def log_scraper_health(name, rows):
 async def enrich_data():
     logger.info("Starting data enrichment process...")
     db = get_db()
-    from models.firm_utils import all_firm_names, firm_name as _firm_name, telegram_update_required
+    from models.firm_utils import iter_active_firm_ids, firm_name as _firm_name, telegram_update_required
     import pytz
     from datetime import datetime
     kst_hour = datetime.now(pytz.timezone('Asia/Seoul')).hour
     is_idle_time = kst_hour >= 20 or kst_hour < 6
 
-    for firm_id in range(len(all_firm_names())):
+    for firm_id in iter_active_firm_ids():
         name = _firm_name(firm_id)
         if not (name and telegram_update_required(firm_id)):
             continue

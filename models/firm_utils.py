@@ -27,6 +27,11 @@ def all_firm_names() -> list[str]:
     return FirmInfo.firm_names
 
 
+def iter_active_firm_ids() -> list[int]:
+    """Return active firm IDs from loaded metadata, preserving gaps."""
+    return FirmInfo.iter_active_firm_ids()
+
+
 def telegram_update_required(firm_id: int) -> bool:
     """텔레그램 발송 필요 여부."""
     return FirmInfo(firm_id, 0).telegram_update_required
