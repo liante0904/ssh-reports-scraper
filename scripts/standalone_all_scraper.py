@@ -29,7 +29,9 @@ DB insert (ON CONFLICT dedup) + 후처리를 담당한다.
 import argparse
 import asyncio
 import json
+import multiprocessing
 import os
+import signal
 import sys
 import time
 import traceback
@@ -122,14 +124,69 @@ def import_function(module_path: str, func_name: str):
     return getattr(mod, func_name)
 
 
+def _sync_worker(func, result_queue) -> None:
+    """Run a sync scraper in an isolated process and report its result."""
+    os.setsid()
+    try:
+        result_queue.put(("ok", func()))
+    except BaseException as exc:
+        result_queue.put(("error", (str(exc), traceback.format_exc())))
+
+
+def _terminate_process_group(process: multiprocessing.Process) -> None:
+    """Terminate a timed-out worker and any descendants it spawned."""
+    if process.pid:
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        try:
+            process.join(timeout=0.5)
+            if process.is_alive():
+                os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    process.join(timeout=0.5)
+
+
 def run_sync_scraper(name: str, func, timeout: int) -> dict:
-    """동기 스크래퍼 실행 → 결과 dict"""
+    """Run a sync scraper with a hard timeout and typed result contract."""
     t0 = time.time()
+    result_queue = multiprocessing.Queue()
+    process = multiprocessing.Process(
+        target=_sync_worker,
+        args=(func, result_queue),
+        daemon=False,
+    )
     try:
         logger.info(f"[{name}] 시작...")
-        result = func()
+        process.start()
+        process.join(timeout=timeout)
+        if process.is_alive():
+            _terminate_process_group(process)
+            elapsed = time.time() - t0
+            logger.error(f"[{name}] 타임아웃 ({timeout}s)")
+            return {"name": name, "status": "timeout", "elapsed_sec": round(elapsed, 1), "articles": []}
+
+        if result_queue.empty():
+            raise RuntimeError(f"worker exited without a result (exitcode={process.exitcode})")
+        outcome, payload = result_queue.get()
+        if outcome == "error":
+            error, stack = payload
+            raise RuntimeError(f"{error}\n{stack}")
+        result = payload
+        if not isinstance(result, list):
+            elapsed = time.time() - t0
+            logger.error(f"[{name}] 잘못된 결과 타입: expected list, got {type(result).__name__}")
+            return {
+                "name": name,
+                "status": "invalid_result",
+                "error": f"expected list, got {type(result).__name__}",
+                "elapsed_sec": round(elapsed, 1),
+                "articles": [],
+            }
         elapsed = time.time() - t0
-        count = len(result) if isinstance(result, list) else 0
+        count = len(result)
         logger.success(f"[{name}] 완료: {count}건 ({elapsed:.1f}s)")
         return {
             "name": name,
@@ -149,6 +206,11 @@ def run_sync_scraper(name: str, func, timeout: int) -> dict:
             "elapsed_sec": round(elapsed, 1),
             "articles": [],
         }
+    finally:
+        if process.is_alive():
+            _terminate_process_group(process)
+        result_queue.close()
+        result_queue.join_thread()
 
 
 async def run_async_scraper(name: str, func, timeout: int) -> dict:
