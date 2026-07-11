@@ -1,0 +1,93 @@
+name: Integration Canary
+
+on:
+  workflow_dispatch:
+    inputs:
+      db_target:
+        description: 'Non-production PostgreSQL target (never use production)'
+        required: true
+        type: string
+      allow_db_import:
+        description: 'Allow the write test (must remain false for normal runs)'
+        required: true
+        default: false
+        type: boolean
+      import_confirmation:
+        description: 'Type CANARY_NON_PROD_IMPORT to enable the write test'
+        required: false
+        type: string
+  schedule:
+    - cron: '17 2 * * 1-5'
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    environment: integration-canary
+    env:
+      DB_TARGET: ${{ inputs.db_target || 'scheduled-canary' }}
+      DB_BACKEND: postgres
+      ENV: canary
+      ENABLE_EXTERNAL: ${{ secrets.CANARY_ENABLE_EXTERNAL }}
+      ENABLE_LIVE_SCRAPERS: ${{ secrets.CANARY_ENABLE_LIVE_SCRAPERS }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v5
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Reject production targets
+        run: |
+          case "${DB_TARGET,,}" in
+            *prod*|*production*|*main*)
+              echo 'Refusing to run canary against a production target.' >&2
+              exit 1
+              ;;
+          esac
+      - name: Run read-only PostgreSQL checks
+        env:
+          POSTGRES_HOST: ${{ secrets.CANARY_POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.CANARY_POSTGRES_PORT }}
+          POSTGRES_DB: ${{ secrets.CANARY_POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.CANARY_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.CANARY_POSTGRES_PASSWORD }}
+        run: uv run pytest -q tests/test_db_logic.py
+      - name: Run export canaries
+        env:
+          POSTGRES_HOST: ${{ secrets.CANARY_POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.CANARY_POSTGRES_PORT }}
+          POSTGRES_DB: ${{ secrets.CANARY_POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.CANARY_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.CANARY_POSTGRES_PASSWORD }}
+        run: |
+          uv run python tests/test_db_export.py
+          uv run python tests/test_db_export_postgres.py
+      - name: Run optional enricher and Gemini canaries
+        if: ${{ env.ENABLE_EXTERNAL == 'true' }}
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: uv run pytest -q tests/test_enricher_premium.py tests/test_gemini_summary.py
+      - name: Run optional live scraper canary
+        if: ${{ env.ENABLE_LIVE_SCRAPERS == 'true' }}
+        run: uv run pytest -q tests/test_scrapers_health.py
+      - name: Refuse database import by default
+        if: ${{ inputs.allow_db_import != true }}
+        run: echo 'DB import canary not requested; write test was not run.'
+      - name: Run explicitly approved non-production import canary
+        if: ${{ inputs.allow_db_import == true && inputs.import_confirmation == 'CANARY_NON_PROD_IMPORT' && inputs.db_target != '' }}
+        env:
+          POSTGRES_HOST: ${{ secrets.CANARY_POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.CANARY_POSTGRES_PORT }}
+          POSTGRES_DB: ${{ secrets.CANARY_POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.CANARY_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.CANARY_POSTGRES_PASSWORD }}
+        run: uv run python tests/test_db_import_postgres.py
+      - name: Fail closed on incomplete import approval
+        if: ${{ inputs.allow_db_import == true && inputs.import_confirmation != 'CANARY_NON_PROD_IMPORT' }}
+        run: |
+          echo 'Import requested without the required confirmation; refusing to run.' >&2
+          exit 1
