@@ -1,0 +1,65 @@
+{
+  "specification_name": "ssh_reports_canary_db_deferred_spec",
+  "version": "1.0.0",
+  "status": "deferred",
+  "purpose": "Define the target schema and variables for a safe, non-production integration-canary testing database.",
+  "non_goals": [
+    "Do not perform naming refactoring of existing variables or functions.",
+    "Do not execute live production migrations or writes.",
+    "Do not use production databases."
+  ],
+  "forbidden_targets": [
+    "ssh_reports_hub (production database)",
+    "ryu_db (unproven production host database)"
+  ],
+  "approval_gates": {
+    "create_database": {
+      "required": true,
+      "mutates_external": true,
+      "status": "approval_required",
+      "command": "CREATE DATABASE ssh_reports_canary OWNER admin;"
+    },
+    "schema_ddl_migration": {
+      "required": true,
+      "mutates_external": true,
+      "status": "approval_required",
+      "command": "Deploy DART/reports schema (tbl_sec_reports, v_sec_reports_full)"
+    },
+    "github_environment_secrets": {
+      "required": true,
+      "mutates_external": true,
+      "status": "approval_required",
+      "keys_required": [
+        "CANARY_POSTGRES_HOST",
+        "CANARY_POSTGRES_PORT",
+        "CANARY_POSTGRES_DB",
+        "CANARY_POSTGRES_USER",
+        "CANARY_POSTGRES_PASSWORD"
+      ]
+    }
+  },
+  "required_resources": {
+    "database_name": "ssh_reports_canary",
+    "required_secrets_without_values": {
+      "CANARY_POSTGRES_HOST": "Configure in GitHub integration-canary environment settings",
+      "CANARY_POSTGRES_PORT": "Configure in GitHub integration-canary environment settings",
+      "CANARY_POSTGRES_DB": "Set to ssh_reports_canary",
+      "CANARY_POSTGRES_USER": "Non-production database user with DDL and DML access",
+      "CANARY_POSTGRES_PASSWORD": "Database password for user"
+    },
+    "required_fixtures": [
+      "SecReportsManager basic schema definitions",
+      "Sample metadata rows for test_db_export checks"
+    ]
+  },
+  "validation_sequence": [
+    "1. Verify database availability (postgres_available() check)",
+    "2. Execute read-only tests (test_db_logic.py, test_db_export.py, test_db_export_postgres.py)",
+    "3. Run optional live scrapers if enabled (test_scrapers_health.py)",
+    "4. Execute import canaries only if allow_db_import is true and confirmation is CANARY_NON_PROD_IMPORT"
+  ],
+  "rollback_procedure": {
+    "action": "Drop database from OCI host to cleanup",
+    "command": "DROP DATABASE IF EXISTS ssh_reports_canary;"
+  }
+}
