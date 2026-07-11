@@ -34,7 +34,8 @@ def _run_scraper_process() -> subprocess.CompletedProcess:
     """Run scraper in an isolated process group and reap it on timeout."""
     process = subprocess.Popen(
         [sys.executable, "scraper.py"],
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
         start_new_session=True,
     )
