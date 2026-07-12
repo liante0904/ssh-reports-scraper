@@ -1,4 +1,7 @@
-"""Scraper output validation — 모든 core 모듈이 리턴 전에 호출."""
+"""In-process validation library to normalize and validate scraped dict lists.
+Caller/Boundary: Scraper core modules (scrapers/*_core.py) processing in-memory dicts.
+Counterpart: For standalone CLI validation of JSON artifact files, use scripts/validate_scrape_result.py.
+"""
 import sys
 
 from models.report_payload import ReportPayload, ReportPayloadError
