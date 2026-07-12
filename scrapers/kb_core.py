@@ -55,7 +55,8 @@ def scrape_kb(cfg: dict, from_date: str = None, to_date: str = None) -> list[dic
     for k in cfg["list_key"].split("."): jres = jres.get(k, [])
     items = jres if isinstance(jres, list) else []
     result = []
-    for item in items:
+    err_count = 0
+    for idx, item in enumerate(items):
         try:
             ik = cfg["item_keys"]; cat = item.get(ik["cat_id"], 0)
             board = cfg.get("category_map",{}).get(str(cat), 0)
@@ -70,6 +71,10 @@ def scrape_kb(cfg: dict, from_date: str = None, to_date: str = None) -> list[dic
                 writer=item.get(ik["writer"],""),telegram_url=dl,pdf_file_url=dl,
                 article_title=title,mkt_tp=mkt,report_unique_key=dl,
                 save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
-        except Exception: continue
+        except Exception as exc:
+            err_count += 1
+            if err_count <= 5:
+                print(f"[kb] parse failed item[{idx}] ({type(exc).__name__})", file=sys.stderr)
+            continue
     print(f"[kb] {len(result)} articles collected", file=sys.stderr)
     return result
