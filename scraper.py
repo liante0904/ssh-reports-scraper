@@ -68,7 +68,7 @@ def _filter_ga_enabled(mapping: dict) -> dict:
             return dict(mapping)
         return {order: func for order, func in mapping.items() if order in enabled}
     except Exception:
-        logger.warning("ga_enabled lookup failed, falling back to all GA candidates")
+        logger.exception("ga_enabled lookup failed, falling back to all GA candidates")
         return dict(mapping)
 
 def _is_full_scrape_hour():
