@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Validate a GA artifact against its firm manifest policy before transfer."""
+"""Standalone CLI tool to validate a scraped JSON artifact against config/firms.yaml policies.
+Caller/Boundary: GA workflows or verify scripts reading a local JSON artifact path.
+Counterpart: For in-process result mapping and validation, use scrapers/validate.py instead.
+"""
 
 import argparse
 import json
