@@ -349,7 +349,15 @@ async def DBfi_enrich_and_persist_details(articles, firm_info=None, db=None):
             resp = requests.post(url, data=data, **kwargs)
             resp.raise_for_status()
             return resp
-        except Exception:
+        except requests.HTTPError as exc:
+            status = exc.response.status_code if exc.response is not None else "?"
+            logger.warning(f"DBfi POST failed HTTP {status} ({type(exc).__name__})")
+            return None
+        except requests.RequestException as exc:
+            logger.warning(f"DBfi POST failed ({type(exc).__name__})")
+            return None
+        except Exception as exc:
+            logger.warning(f"DBfi POST failed ({type(exc).__name__})")
             return None
 
     def _fetch_key_url_sync(key_url):
