@@ -17,7 +17,9 @@ def scrape_toss(cfg: dict) -> list[dict]:
             try:
                 resp = requests.get(purl, headers=cfg["headers"], verify=False, timeout=30)
                 resp.raise_for_status(); jres = resp.json()
-            except Exception: break
+            except Exception as exc:
+                print(f"[toss] request failed page={page} {type(exc).__name__}: {exc}", file=sys.stderr)
+                break
             items = jres.get("result", {}).get("list", [])
             if not items: break
             if total_pages is None: total_pages = jres.get("result", {}).get("pagingParam", {}).get("totalPageCount", 1)
