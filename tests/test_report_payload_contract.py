@@ -26,6 +26,21 @@ def test_scraper_aliases_are_mapped_to_physical_db_fields():
     assert record[9] == "https://example.test/article"  # report_unique_key
 
 
+def test_ds_empty_telegram_url_is_preserved_for_internal_share_trigger():
+    payload = ReportPayload.from_scraper({
+        "firm_id": 11,
+        "firm_nm": "DS투자증권",
+        "report_date": "20260714",
+        "article_title": "Report",
+        "source_url": "https://www.ds-sec.co.kr/bbs/board.php?wr_id=1",
+        "telegram_url": "",
+        "pdf_file_url": "https://www.ds-sec.co.kr/bbs/download.php?wr_id=1",
+    })
+
+    assert payload.telegram_url == ""
+    assert payload.pdf_file_url.endswith("wr_id=1")
+
+
 def test_legacy_save_time_is_an_explicit_artifact_adapter():
     payload = ReportPayload.from_scraper({
         "report_unique_key": "legacy",

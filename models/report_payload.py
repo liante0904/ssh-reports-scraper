@@ -54,7 +54,14 @@ class ReportPayload:
             raise ReportPayloadError("missing firm_nm")
 
         save_at = _parse_save_at(item)
-        telegram_url = str(item.get("telegram_url") or source_url).strip()
+        # DS uses an empty telegram_url as an explicit DB-trigger signal: after
+        # report_id allocation it becomes the internal /share?id=<report_id>
+        # URL. Do not replace that signal with the public broker detail page.
+        raw_telegram_url = item.get("telegram_url")
+        if item.get("firm_id") == 11 and not str(raw_telegram_url or "").strip():
+            telegram_url = ""
+        else:
+            telegram_url = str(raw_telegram_url or source_url).strip()
         pdf_file_url = str(
             item.get("pdf_file_url") or item.get("pdf_url") or telegram_url
         ).strip()
