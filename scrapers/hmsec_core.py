@@ -30,6 +30,7 @@ def scrape_hmsec(cfg: dict) -> list[dict]:
                     result.append(dict(firm_id=9,board_id=board_order,firm_nm="현대차증권",
                         report_date=(item.get(ik["report_date"],"")).strip(),article_title=item[ik["title"]],
                         writer=(item.get(ik["writer"],"")).strip(),source_url=vu,pdf_file_url=dl,
+                        article_text=str(item.get("CONTENTS") or "").strip(),
                         telegram_url=vu,report_unique_key=vu,
                         save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
                 except Exception as exc:
