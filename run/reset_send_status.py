@@ -38,7 +38,7 @@ async def reset_and_send(firm_order, date_str, board_order=None, do_send=False):
         SELECT report_id, firm_id, board_id, firm_nm, report_date,
                article_title, telegram_sent,
                writer, save_at,
-               CASE WHEN firm_id = 19 THEN pdf_url ELSE telegram_url END AS telegram_url,
+               telegram_url,
                report_unique_key
         FROM v_sec_reports_read
         WHERE firm_id = %s

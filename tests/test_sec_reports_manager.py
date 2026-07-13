@@ -205,7 +205,8 @@ def test_select_reports_ready_for_telegram_requires_dbfi_streamdocs_pdf(monkeypa
     assert "telegram_url LIKE 'https://dbfi.example.test/pv/gate%%'" in sql
     assert "pdf_url LIKE 'https://dbfi.example.test/streamdocs/v4/documents%%'" in sql
     assert "firm_nm NOT IN" not in sql
-    assert "WHEN firm_id = 19 THEN pdf_url" in sql
+    assert "telegram_url" in sql
+    assert "telegram_url LIKE 'https://dbfi.example.test/pv/gate%%'" in sql
 
 
 def test_keyword_fetch_requires_dbfi_streamdocs_pdf(monkeypatch):
@@ -230,7 +231,8 @@ def test_keyword_fetch_requires_dbfi_streamdocs_pdf(monkeypatch):
     assert "r.firm_id = 19" in sql
     assert "r.telegram_url LIKE 'https://dbfi.example.test/pv/gate%%'" in sql
     assert "r.pdf_url LIKE 'https://dbfi.example.test/streamdocs/v4/documents%%'" in sql
-    assert "WHEN r.firm_id = 19 THEN r.pdf_url" in sql
+    assert "r.telegram_url" in sql
+    assert "r.telegram_url LIKE 'https://dbfi.example.test/pv/gate%%'" in sql
 
 
 def test_dbfi_ready_condition_blocks_dbfi_when_prefix_missing(monkeypatch):

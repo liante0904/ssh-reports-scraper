@@ -251,10 +251,7 @@ class SecReportsManager(LibrarySecReportsManager):
             firm_nm,report_date,
             article_title,pdf_url,writer,save_at,scraped_at,
             report_unique_key,
-            CASE
-                WHEN firm_id = 19 THEN pdf_url
-                ELSE telegram_url
-            END AS telegram_url
+            telegram_url
         FROM   {self.REPORTS_READ_VIEW}
         WHERE  save_at::date >= (%s::date - 2)
           AND  save_at::date <= %s
@@ -287,10 +284,7 @@ class SecReportsManager(LibrarySecReportsManager):
         """Fetch unsent keyword reports only after DBfi PDF URL is finalized."""
         sql = f"""
             SELECT r.report_id, r.firm_nm, r.article_title,
-                   CASE
-                       WHEN r.firm_id = 19 THEN r.pdf_url
-                       ELSE r.telegram_url
-                   END AS telegram_url,
+                   r.telegram_url,
                    r.save_at
             FROM {self.table_name} r
             LEFT JOIN tbl_report_send_history h

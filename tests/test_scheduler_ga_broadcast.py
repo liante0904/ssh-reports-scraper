@@ -188,5 +188,5 @@ def test_broadcast_ga_reports_filters_unresolved_dbfi(monkeypatch):
     assert len(sender.sent_messages) == 1
     assert "확정 DBFI" in sender.sent_messages[0]
     assert "미확정 DBFI" not in sender.sent_messages[0]
-    assert "https://dbfi.example.test/streamdocs/v4/documents/doc-id" in sender.sent_messages[0]
+    assert "https://dbfi.example.test/pv/gate?q=def" in sender.sent_messages[0]
     assert db.daily_update_calls[0][0][0]["report_id"] == 2
