@@ -359,15 +359,9 @@ async def process_article(session: ClientSession, article: dict, headers: dict, 
                         except Exception:
                             pass
 
-                # 2순위: DB 기반 writer ID 추론
-                if not resolved_url or not (resolved_url.startswith(LS_MSG_PREFIX) or
-                                            resolved_url.startswith(LS_NLS_PREFIX)):
-                    db_url = await reconstruct_msg_url_from_db(article, headers)
-                    if db_url:
-                        resolved_url = db_url
-                        logger.info(f"[LS][DB추론] msg URL 복구 성공: {db_url}")
-
-                # 3순위: upload/ fallback URL
+                # 목록 단계에서 report_date 기준 CDN 추정을 먼저 수행한다.
+                # 여기까지 왔다는 것은 그 추정이 실패한 경우이므로, 상세 페이지에 실제로
+                # 표시된 첨부파일명으로만 fallback URL을 만든다.
                 if not resolved_url:
                     resolved_url = await create_fallback_url(article, soup)
 
@@ -410,8 +404,38 @@ async def LS_detail(articles, firm_info=None, db=None):
             import random
             await asyncio.sleep(random.uniform(LS_DETAIL_DELAY_MIN, LS_DETAIL_DELAY_MAX))
 
+    # 목록의 report_date와 writer 이력으로 같은 날짜의 CDN URL만 먼저 찾는다.
+    # 날짜를 넓혀 존재하는 첫 PDF를 고르면 다른 게시물 PDF가 연결될 수 있으므로,
+    # 이 단계에서는 절대 날짜 이동 탐색을 허용하지 않는다. 못 찾은 건만 상세 페이지를
+    # 한 번 조회해 실제 첨부파일명을 읽는다.
+    detail_targets = []
+    for article in articles:
+        if str(article.get("telegram_url", "")).lower().endswith(".pdf"):
+            continue
+        inferred_url = await reconstruct_msg_url_from_db(
+            article, headers, exact_report_date=True
+        )
+        if not inferred_url:
+            detail_targets.append(article)
+            continue
+
+        article["source_url"] = inferred_url
+        article["telegram_url"] = inferred_url
+        article["pdf_file_url"] = inferred_url
+        logger.info(
+            "[LS][목록추론] report_date={} PDF 복구: {}",
+            _article_report_date(article), inferred_url,
+        )
+        if db and article.get("report_id"):
+            await db.update_telegram_url(
+                record_id=article["report_id"],
+                telegram_url=inferred_url,
+                article_title=article.get("article_title"),
+                pdf_file_url=inferred_url,
+            )
+
     async with aiohttp.ClientSession() as session:
-        tasks = [sem_process_article(session, article) for article in articles]
+        tasks = [sem_process_article(session, article) for article in detail_targets]
         await asyncio.gather(*tasks)
 
     return articles
@@ -544,7 +568,7 @@ async def create_fallback_url(article, soup=None):
     
     return ""
 
-async def reconstruct_msg_url_from_db(article, headers):
+async def reconstruct_msg_url_from_db(article, headers, exact_report_date=False):
     """DB에 있는 성공한 msg URL 데이터를 기반으로 writer ID와 seq를 추론해서 msg URL 재구성.
 
     동일 작성자의 기존 성공 URL에서 writer_id(emp_id)와 seq 패턴을 추출하여
@@ -656,8 +680,12 @@ async def reconstruct_msg_url_from_db(article, headers):
             return None
 
         candidates = []
-        # 날짜: 당일 → 미래 → 과거 순서로 탐색 (보고서는 게시일 이후 업로드가 일반적)
-        day_offsets = [0] + list(range(1, LS_SEARCH_DAYS + 1)) + list(range(-1, -LS_SEARCH_DAYS - 1, -1))
+        # 목록 신규 수집에서는 목록의 report_date와 PDF 파일 날짜가 일치해야 한다.
+        # 그 외 보수/백필 경로만 기존의 날짜 이동 탐색을 사용한다.
+        day_offsets = [0] if exact_report_date else (
+            [0] + list(range(1, LS_SEARCH_DAYS + 1))
+            + list(range(-1, -LS_SEARCH_DAYS - 1, -1))
+        )
         for day_offset in day_offsets:
             test_date = (base_date + timedelta(days=day_offset)).strftime("%Y%m%d")
             # seq: 예상값 기준 ±50, 최소 1
