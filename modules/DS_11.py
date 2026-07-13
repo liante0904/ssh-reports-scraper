@@ -12,7 +12,6 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from models.FirmInfo import FirmInfo
 from models.ConfigManager import config
-from scrapers.article_text import fetch_ds_summary
 
 
 def DS_checkNewArticle(full_scan=False):
@@ -64,7 +63,6 @@ def DS_checkNewArticle(full_scan=False):
 
                     title = title_element.get_text(strip=True)
                     source_url = title_element["href"]
-                    detail_url = requests.compat.urljoin(BASE_URL, source_url)
 
                     # wr_id 및 bo_table 추출을 위한 정규식
                     wr_id_match = re.search(r"wr_id=(\d+)", source_url)
@@ -104,11 +102,6 @@ def DS_checkNewArticle(full_scan=False):
                         "save_at": save_time,
                         "report_unique_key": pdf_url if pdf_url != "없음" else source_url
                     })
-                    # Broker-provided HTML summary is evidence, not PDF text.
-                    # A failed detail request must never fail the list scrape.
-                    article_text = fetch_ds_summary(detail_url)
-                    if article_text:
-                        json_data_list[-1]["article_text"] = article_text
 
                 # 한 페이지만 가져올 경우 루프 종료
                 if not full_scan:

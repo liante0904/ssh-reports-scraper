@@ -195,6 +195,22 @@ class SecReportsManager(LibrarySecReportsManager):
                 )
         return {"status": "success"}
 
+    def save_article_text_if_empty(self, report_unique_key: str, article_text: str) -> int:
+        """Persist a one-shot site summary without replacing existing evidence."""
+        text = str(article_text or "").strip()
+        if not report_unique_key or not text:
+            return 0
+        result = self._execute(
+            f"""
+            UPDATE {self.table_name}
+            SET article_text = %s
+            WHERE report_unique_key = %s
+              AND COALESCE(btrim(article_text), '') = ''
+            """,
+            (text, report_unique_key),
+        )
+        return int(result.get("rowcount", 0)) if isinstance(result, dict) else 0
+
     async def update_telegram_url(
         self,
         record_id,

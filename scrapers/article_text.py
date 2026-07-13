@@ -11,6 +11,7 @@ import re
 from html import unescape
 
 import requests
+from urllib.parse import urljoin
 
 
 def extract_ds_summary(html: str, *, max_chars: int = 10_000) -> str:
@@ -40,3 +41,23 @@ def fetch_ds_summary(url: str, *, timeout: int = 10) -> str:
         return extract_ds_summary(response.text)
     except requests.RequestException:
         return ""
+
+
+def fetch_new_site_summaries(reports: list[dict], new_keys: set[str]) -> dict[str, str]:
+    """Fetch at most one detail page for each newly inserted supported report.
+
+    List scraping must never call this for historical/existing rows. Failed
+    detail pages are intentionally returned as absent rather than retried here;
+    retries belong to an explicit operator job, not the every-run scraper.
+    """
+    extracted: dict[str, str] = {}
+    for report in reports:
+        key = str(report.get("report_unique_key") or "")
+        if key not in new_keys or report.get("article_text"):
+            continue
+        if report.get("firm_id") == 11:  # DS: list source_url is a relative detail link.
+            detail_url = urljoin("https://www.ds-sec.co.kr/", str(report.get("source_url") or ""))
+            text = fetch_ds_summary(detail_url)
+            if text:
+                extracted[key] = text
+    return extracted

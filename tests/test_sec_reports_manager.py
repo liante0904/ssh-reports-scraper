@@ -166,6 +166,19 @@ def test_mark_reports_sent_marks_is_sent_and_legacy_main_channel_flag():
     assert calls[0][1] == (1,)  # default: report_id only, not match_by_url
 
 
+def test_save_article_text_only_fills_an_empty_field():
+    from models.SecReportsManager import SecReportsManager
+
+    calls = []
+    manager = object.__new__(SecReportsManager)
+    manager.table_name = "tbl_sec_reports"
+    manager._execute = lambda sql, params: calls.append((sql, params)) or {"rowcount": 1}
+
+    assert manager.save_article_text_if_empty("report-key", "사이트 상세 요약") == 1
+    assert "COALESCE(btrim(article_text), '') = ''" in calls[0][0]
+    assert calls[0][1] == ("사이트 상세 요약", "report-key")
+
+
 def test_update_telegram_url_accepts_pdf_file_url_alias():
     from models.SecReportsManager import SecReportsManager
 
