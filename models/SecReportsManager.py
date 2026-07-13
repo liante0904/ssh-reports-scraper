@@ -116,7 +116,7 @@ class SecReportsManager(LibrarySecReportsManager):
             INSERT INTO {table_name} (
                 firm_id, board_id, firm_nm, report_date,
                 article_title, telegram_url, pdf_url,
-                writer, mkt_tp, report_unique_key, telegram_sent, save_at
+                writer, mkt_tp, report_unique_key, telegram_sent, save_at, article_text
             ) VALUES %s
             ON CONFLICT (report_unique_key) DO UPDATE SET
                 firm_id             = EXCLUDED.firm_id,
@@ -128,6 +128,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 mkt_tp              = EXCLUDED.mkt_tp,
                 telegram_url        = COALESCE(NULLIF(EXCLUDED.telegram_url, ''), {table_name}.telegram_url),
                 pdf_url             = COALESCE(NULLIF(EXCLUDED.pdf_url, ''), {table_name}.pdf_url),
+                article_text        = COALESCE(NULLIF(EXCLUDED.article_text, ''), {table_name}.article_text),
                 telegram_sent       = COALESCE({table_name}.telegram_sent, false),
                 save_at             = {table_name}.save_at
             RETURNING report_unique_key, (xmax = 0) AS inserted
