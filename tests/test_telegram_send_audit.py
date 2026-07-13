@@ -196,7 +196,7 @@ class TestTelegramMessageChunks:
 
         assert "https://example.test/report%281%29.pdf" in chunks[0]["message"]
 
-    def test_chunks_use_dbfi_pdf_url_for_links(self):
+    def test_chunks_use_dbfi_telegram_url_for_links(self):
         from utils.telegram_message_builder import build_telegram_message_chunks
 
         rows = [
@@ -212,10 +212,10 @@ class TestTelegramMessageChunks:
 
         chunks = build_telegram_message_chunks(rows)
 
-        assert "streamdocs/v4/documents/new" in chunks[0]["message"]
-        assert "pv/gate" not in chunks[0]["message"]
+        assert "pv/gate?q=old" in chunks[0]["message"]
+        assert "streamdocs/v4/documents/new" not in chunks[0]["message"]
 
-    def test_chunks_use_dbfi_aliased_telegram_url_when_pdf_url_not_selected(self):
+    def test_chunks_use_dbfi_telegram_url_only_no_pdf_fallback(self):
         from utils.telegram_message_builder import build_telegram_message_chunks
 
         rows = [
@@ -224,14 +224,33 @@ class TestTelegramMessageChunks:
                 "firm_id": 19,
                 "firm_nm": "DB증권",
                 "article_title": "DBFI",
-                "telegram_url": "https://dbfi.example.test/streamdocs/v4/documents/new",
+                "telegram_url": "https://dbfi.example.test/pv/gate?q=valid",
             }
         ]
 
         chunks = build_telegram_message_chunks(rows)
 
-        assert "streamdocs/v4/documents/new" in chunks[0]["message"]
+        assert "pv/gate?q=valid" in chunks[0]["message"]
         assert "링크없음" not in chunks[0]["message"]
+
+    def test_chunks_dbfi_empty_telegram_url_shows_no_link(self):
+        from utils.telegram_message_builder import build_telegram_message_chunks
+
+        rows = [
+            {
+                "report_id": 19,
+                "firm_id": 19,
+                "firm_nm": "DB증권",
+                "article_title": "DBFI",
+                "telegram_url": "",
+                "pdf_file_url": "https://dbfi.example.test/streamdocs/v4/documents/ignored",
+            }
+        ]
+
+        chunks = build_telegram_message_chunks(rows)
+
+        assert "링크없음" in chunks[0]["message"]
+        assert "streamdocs" not in chunks[0]["message"]
 
 
 def test_daily_send_report_marks_only_successful_chunks(monkeypatch):
