@@ -26,6 +26,7 @@ class ReportPayload:
     mkt_tp: str
     report_unique_key: str
     save_at: datetime
+    article_text: str
 
     @classmethod
     def from_scraper(
@@ -71,6 +72,7 @@ class ReportPayload:
             mkt_tp=str(item.get("mkt_tp") or "KR"),
             report_unique_key=unique_key,
             save_at=save_at,
+            article_text=str(item.get("article_text") or "").strip(),
         )
 
     def to_scraper_dict(self, original: Mapping[str, Any]) -> dict[str, Any]:
@@ -99,6 +101,7 @@ class ReportPayload:
             self.report_unique_key,
             False,
             self.save_at,
+            self.article_text,
         )
 
 

@@ -81,6 +81,7 @@ def scrape_shinyoung(cfg: dict) -> list[dict]:
                 "report_date": re.sub(r"[-./]", "", item[item_keys["report_date"]]),
                 "writer": item.get(item_keys["writer"], ""),
                 "article_title": title, "telegram_url": dl, 
+                "article_text": str(item.get("SUMMARY") or "").strip(),
                 "report_unique_key": dl,
                 "save_at": datetime.now(timezone(timedelta(hours=9))).isoformat(),
             })

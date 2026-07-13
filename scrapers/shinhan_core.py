@@ -59,9 +59,15 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
                 dl = canonical_shinhan_url(item.get("attachment_url") or "")
                 if not dl.startswith("http"): continue
                 board = BOARD_MAP.get(bbs_name, 99)
+                # The list API already exposes the text shown by the mobile
+                # detail view. Persist it as broker-provided evidence instead
+                # of paying for a second request per report.
+                article_text = str(item.get("summary") or "").strip()
                 result.append({"firm_id":1,"board_id":board,
                     "firm_nm":"신한증권","report_date":report_date,"telegram_url":dl,
                     "article_title":item.get("title","").strip(),"writer":item.get("nickname","").strip(),
+                    "source_url":str(item.get("message_url") or "").strip(),
+                    "article_text":article_text,
                     "report_unique_key":dl,
                     "save_at":datetime.now(timezone(timedelta(hours=9))).isoformat()})
             next_key = jres.get("header",{}).get("repeatKeyN","")

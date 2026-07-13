@@ -78,6 +78,7 @@ def test_insert_includes_legacy_and_canonical_keys(monkeypatch):
     assert "report_unique_key" in connection.cursor_instance.sql
     assert connection.cursor_instance.records[0][9] == "https://example.test/report.pdf"
     assert connection.cursor_instance.records[0][11] is not None  # save_at
+    assert connection.cursor_instance.records[0][12] == ""  # article_text
     assert connection.cursor_instance.records[0][10] is False
     assert "main_ch_send_yn     = CASE" not in connection.cursor_instance.sql
     assert "telegram_sent       = COALESCE" in connection.cursor_instance.sql
@@ -116,6 +117,36 @@ def test_insert_preserves_legacy_artifact_save_time(monkeypatch):
     )
 
 
+def test_insert_persists_site_article_text_without_overwriting_with_empty(monkeypatch):
+    from models.SecReportsManager import SecReportsManager
+
+    connection = FakeConnection()
+    manager = object.__new__(SecReportsManager)
+    manager.table_name = "tbl_sec_reports"
+    manager.get_connection = lambda: connection
+
+    def fake_execute_values(cursor, sql, records, page_size):
+        cursor.sql = sql
+        cursor.records = records
+
+    monkeypatch.setattr(
+        "models.SecReportsManager.psycopg2.extras.execute_values",
+        fake_execute_values,
+    )
+    manager.insert_json_data_list([{
+        "firm_id": 3,
+        "board_id": 0,
+        "firm_nm": "하나증권",
+        "article_title": "HTML summary",
+        "article_text": "증권사 사이트가 제공한 핵심 요약",
+        "report_unique_key": "hana-summary-key",
+    }])
+
+    assert connection.cursor_instance.records[0][12] == "증권사 사이트가 제공한 핵심 요약"
+    assert "article_text" in connection.cursor_instance.sql
+    assert "COALESCE(NULLIF(EXCLUDED.article_text, '')" in connection.cursor_instance.sql
+
+
 def test_mark_reports_sent_marks_is_sent_and_legacy_main_channel_flag():
     from models.SecReportsManager import SecReportsManager
 
@@ -133,6 +164,19 @@ def test_mark_reports_sent_marks_is_sent_and_legacy_main_channel_flag():
     assert "SET telegram_sent = true" in calls[0][0]
     assert "main_ch_send_yn" not in calls[0][0]  # legacy column must NOT appear in UPDATE
     assert calls[0][1] == (1,)  # default: report_id only, not match_by_url
+
+
+def test_save_article_text_only_fills_an_empty_field():
+    from models.SecReportsManager import SecReportsManager
+
+    calls = []
+    manager = object.__new__(SecReportsManager)
+    manager.table_name = "tbl_sec_reports"
+    manager._execute = lambda sql, params: calls.append((sql, params)) or {"rowcount": 1}
+
+    assert manager.save_article_text_if_empty("report-key", "사이트 상세 요약") == 1
+    assert "COALESCE(btrim(article_text), '') = ''" in calls[0][0]
+    assert calls[0][1] == ("사이트 상세 요약", "report-key")
 
 
 def test_update_telegram_url_accepts_pdf_file_url_alias():

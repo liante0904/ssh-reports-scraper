@@ -312,8 +312,18 @@ def dedupe_reports_by_unique_key(scraped_reports):
 
 
 async def insert_scraped_reports(db, reports, label="DB"):
-    inserted, updated = db.insert_json_data_list(list(reports))
+    report_list = list(reports)
+    inserted, updated = db.insert_json_data_list(report_list)
     logger.success(f"[{label}] DB Sync: {inserted} new, {updated} updated.")
+    new_keys = set(getattr(db, "_last_inserted_keys", []) or [])
+    if new_keys:
+        from scrapers.article_text import fetch_new_site_summaries
+
+        summaries = await asyncio.to_thread(fetch_new_site_summaries, report_list, new_keys)
+        for key, article_text in summaries.items():
+            db.save_article_text_if_empty(key, article_text)
+        if summaries:
+            logger.info(f"[{label}] one-shot detail summaries saved={len(summaries)}")
     await asyncio.sleep(1)
     return inserted, updated
 

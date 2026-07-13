@@ -116,7 +116,7 @@ class SecReportsManager(LibrarySecReportsManager):
             INSERT INTO {table_name} (
                 firm_id, board_id, firm_nm, report_date,
                 article_title, telegram_url, pdf_url,
-                writer, mkt_tp, report_unique_key, telegram_sent, save_at
+                writer, mkt_tp, report_unique_key, telegram_sent, save_at, article_text
             ) VALUES %s
             ON CONFLICT (report_unique_key) DO UPDATE SET
                 firm_id             = EXCLUDED.firm_id,
@@ -128,6 +128,7 @@ class SecReportsManager(LibrarySecReportsManager):
                 mkt_tp              = EXCLUDED.mkt_tp,
                 telegram_url        = COALESCE(NULLIF(EXCLUDED.telegram_url, ''), {table_name}.telegram_url),
                 pdf_url             = COALESCE(NULLIF(EXCLUDED.pdf_url, ''), {table_name}.pdf_url),
+                article_text        = COALESCE(NULLIF(EXCLUDED.article_text, ''), {table_name}.article_text),
                 telegram_sent       = COALESCE({table_name}.telegram_sent, false),
                 save_at             = {table_name}.save_at
             RETURNING report_unique_key, (xmax = 0) AS inserted
@@ -193,6 +194,22 @@ class SecReportsManager(LibrarySecReportsManager):
                     (row["report_id"],),
                 )
         return {"status": "success"}
+
+    def save_article_text_if_empty(self, report_unique_key: str, article_text: str) -> int:
+        """Persist a one-shot site summary without replacing existing evidence."""
+        text = str(article_text or "").strip()
+        if not report_unique_key or not text:
+            return 0
+        result = self._execute(
+            f"""
+            UPDATE {self.table_name}
+            SET article_text = %s
+            WHERE report_unique_key = %s
+              AND COALESCE(btrim(article_text), '') = ''
+            """,
+            (text, report_unique_key),
+        )
+        return int(result.get("rowcount", 0)) if isinstance(result, dict) else 0
 
     async def update_telegram_url(
         self,
