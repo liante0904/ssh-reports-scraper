@@ -404,16 +404,15 @@ async def LS_detail(articles, firm_info=None, db=None):
             import random
             await asyncio.sleep(random.uniform(LS_DETAIL_DELAY_MIN, LS_DETAIL_DELAY_MAX))
 
-    # 목록의 report_date와 writer 이력으로 같은 날짜의 CDN URL만 먼저 찾는다.
-    # 날짜를 넓혀 존재하는 첫 PDF를 고르면 다른 게시물 PDF가 연결될 수 있으므로,
-    # 이 단계에서는 절대 날짜 이동 탐색을 허용하지 않는다. 못 찾은 건만 상세 페이지를
-    # 한 번 조회해 실제 첨부파일명을 읽는다.
+    # 목록의 report_date와 writer 이력으로 인접 3일 이내 CDN URL만 먼저 찾는다.
+    # 기존 백필용 광범위 탐색(±LS_SEARCH_DAYS)과 분리해 다른 게시물 PDF 오연결을
+    # 막고, 이 범위에서 못 찾은 건만 상세 페이지를 한 번 조회해 첨부파일명을 읽는다.
     detail_targets = []
     for article in articles:
         if str(article.get("telegram_url", "")).lower().endswith(".pdf"):
             continue
         inferred_url = await reconstruct_msg_url_from_db(
-            article, headers, exact_report_date=True
+            article, headers, date_window_days=3
         )
         if not inferred_url:
             detail_targets.append(article)
@@ -568,7 +567,7 @@ async def create_fallback_url(article, soup=None):
     
     return ""
 
-async def reconstruct_msg_url_from_db(article, headers, exact_report_date=False):
+async def reconstruct_msg_url_from_db(article, headers, date_window_days=None):
     """DB에 있는 성공한 msg URL 데이터를 기반으로 writer ID와 seq를 추론해서 msg URL 재구성.
 
     동일 작성자의 기존 성공 URL에서 writer_id(emp_id)와 seq 패턴을 추출하여
@@ -680,12 +679,12 @@ async def reconstruct_msg_url_from_db(article, headers, exact_report_date=False)
             return None
 
         candidates = []
-        # 목록 신규 수집에서는 목록의 report_date와 PDF 파일 날짜가 일치해야 한다.
-        # 그 외 보수/백필 경로만 기존의 날짜 이동 탐색을 사용한다.
-        day_offsets = [0] if exact_report_date else (
-            [0] + list(range(1, LS_SEARCH_DAYS + 1))
-            + list(range(-1, -LS_SEARCH_DAYS - 1, -1))
-        )
+        # 목록 신규 수집은 report_date 인접일만 허용한다. 당일, 이후/이전 순서로
+        # 가까운 후보부터 확인한다. date_window_days=None은 기존 백필의 넓은 범위다.
+        window = LS_SEARCH_DAYS if date_window_days is None else date_window_days
+        day_offsets = [0]
+        for offset in range(1, window + 1):
+            day_offsets.extend((offset, -offset))
         for day_offset in day_offsets:
             test_date = (base_date + timedelta(days=day_offset)).strftime("%Y%m%d")
             # seq: 예상값 기준 ±50, 최소 1

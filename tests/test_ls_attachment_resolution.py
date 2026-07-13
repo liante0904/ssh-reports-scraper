@@ -42,8 +42,8 @@ async def test_ls_detail_tries_same_date_inference_before_detail_page(monkeypatc
     inferred_calls = []
     detail_calls = []
 
-    async def fake_reconstruct(article, _headers, exact_report_date=False):
-        inferred_calls.append((article["article_title"], exact_report_date))
+    async def fake_reconstruct(article, _headers, date_window_days=None):
+        inferred_calls.append((article["article_title"], date_window_days))
         if article["article_title"] == "목록에서 복구됨":
             return "https://msg.ls-sec.co.kr/eum/K_20260713_1_2.pdf"
         return None
@@ -70,8 +70,8 @@ async def test_ls_detail_tries_same_date_inference_before_detail_page(monkeypatc
     await LS_0.LS_detail([resolved, unresolved])
 
     assert inferred_calls == [
-        ("목록에서 복구됨", True),
-        ("상세 페이지 필요", True),
+        ("목록에서 복구됨", 3),
+        ("상세 페이지 필요", 3),
     ]
     assert resolved["telegram_url"].endswith("K_20260713_1_2.pdf")
     assert detail_calls == ["상세 페이지 필요"]
