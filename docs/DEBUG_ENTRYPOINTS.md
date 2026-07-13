@@ -161,8 +161,38 @@ Relevant tests:
 uv run pytest tests/test_sec_reports_manager.py tests/test_db_factory.py tests/test_report_json_store.py -q
 ```
 
+### Investment-data coverage or LLM readiness
+
+Start with one compact live snapshot, not broad code search or a table dump:
+
+```bash
+bash scripts/ops_report_data_snapshot.sh --days 7
+```
+
+It is read-only and returns freshness, URL integrity, enrichment coverage,
+archive state, and stale firms as one JSON object. Add `--schema` only when a
+physical-column question remains. A populated scraper row does not prove that
+investment fields or LLM-ready source text exist.
+
 Do not reintroduce SQLite runtime paths. SQLite history lives on
 `archive/sqlite-legacy-20260705`.
+
+### Annual firm-day coverage and backfill candidates
+
+Export annual coverage before treating an absent report date as a scraper
+failure. `report_count` is based on the source publication date while
+`save_count` is based on the actual database write date; the distinction shows
+late imports and backfills.
+
+```bash
+bash scripts/ops_report_daily_stats.sh --year 2026 --summary
+bash scripts/ops_report_daily_stats.sh --year 2026 --daily > /tmp/sec-report-daily-2026.csv
+bash scripts/ops_report_daily_stats.sh --year 2026 --gaps
+```
+
+All modes are read-only. A long trailing `save_count` gap is an outage lead;
+confirm the workflow/runtime evidence and source board before writing a
+backfill.
 
 ### PostgreSQL Connection Exhaustion or Watchdog FATAL Storm
 

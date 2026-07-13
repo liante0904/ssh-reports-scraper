@@ -3,20 +3,25 @@ import sys
 import re, requests
 from datetime import datetime, timezone, timedelta
 from bs4 import BeautifulSoup
+from scrapers.legacy_url_config import normalize_legacy_url_config
 
 def scrape_samsung(cfg: dict) -> list[dict]:
-    if isinstance(cfg, list): cfg = {"urls": cfg}
-    elif isinstance(cfg, str): cfg = {"url": cfg}
+    cfg = normalize_legacy_url_config(cfg, firm_key="Samsung")
     requests.packages.urllib3.disable_warnings()
     result = []
+    parse_errors = 0
     for board_order, url in enumerate(cfg.get("urls",[cfg.get("url","")])):
         if not url: continue
         try:
             resp = requests.get(url, headers=cfg["headers"], verify=False, timeout=30)
             resp.raise_for_status()
-        except Exception: continue
+        except Exception as exc:
+            print(f"[samsung] request failed board={board_order} {type(exc).__name__}: {exc}", file=sys.stderr)
+            continue
         soup = BeautifulSoup(resp.text, "html.parser")
-        for item in soup.select(cfg["item_sel"]):
+        items = soup.select(cfg["item_sel"])
+        print(f"[samsung] board={board_order} selector_matches={len(items)}", file=sys.stderr)
+        for item in items:
             try:
                 t_el = item.select_one(cfg["title_sel"])
                 if not t_el: continue
@@ -34,6 +39,11 @@ def scrape_samsung(cfg: dict) -> list[dict]:
                     firm_nm=cfg["firm_nm"],report_date=report_date,telegram_url=dl,
                     article_title=title,writer=author,report_unique_key=dl,
                     save_at=datetime.now(timezone(timedelta(hours=9))).isoformat()))
-            except Exception: continue
+            except Exception as exc:
+                parse_errors += 1
+                if parse_errors == 1:
+                    print(f"[samsung] parse failed board={board_order} {type(exc).__name__}: {exc}", file=sys.stderr)
+    if parse_errors:
+        print(f"[samsung] skipped malformed rows={parse_errors}", file=sys.stderr)
     print(f"[samsung] {len(result)} articles collected", file=sys.stderr)
     return result
