@@ -23,16 +23,26 @@ chat_id = os.getenv('TELEGRAM_CHANNEL_ID_REPORT_ALARM')
 async def reset_and_send(firm_order, date_str, board_order=None, do_send=False):
     db = get_db()
     
-    # 1. 상태 초기화
-    await db.reset_send_status(firm_order, date_str, board_order)
-    
+    # 1. 상태 초기화 (KST 기준 날짜 변환)
+    reset_sql = """
+        UPDATE tbl_sec_reports
+        SET telegram_sent = false
+        WHERE firm_id = %s
+          AND DATE(save_at AT TIME ZONE 'Asia/Seoul') = %s
+    """
+    reset_params = [firm_order, date_str]
+    if board_order is not None:
+        reset_sql += " AND board_id = %s"
+        reset_params.append(board_order)
+    await db.execute_query(reset_sql, reset_params)
+
     firm_name = _firm_name(firm_order)
     logger.success(f"[{date_str}] {firm_name} 발송 상태 초기화 완료.")
 
     # 2. 즉시 발송 처리
     if do_send:
         logger.info(f"[{firm_name}] 즉시 발송을 시작합니다...")
-        
+
         # 해당 업체/날짜의 데이터를 다시 읽어옴
         select_query = """
         SELECT report_id, firm_id, board_id, firm_nm, report_date,
@@ -40,9 +50,9 @@ async def reset_and_send(firm_order, date_str, board_order=None, do_send=False):
                writer, save_at,
                telegram_url,
                report_unique_key
-        FROM v_sec_reports_read
+        FROM v_sec_reports_canonical
         WHERE firm_id = %s
-          AND DATE(save_at) = %s
+          AND DATE(save_at AT TIME ZONE 'Asia/Seoul') = %s
           AND telegram_sent IS NOT true
         """
         if board_order is not None:
