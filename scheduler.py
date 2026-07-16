@@ -126,6 +126,18 @@ def _discover_ga_files():
     return json_files, archive_dir, failed_dir
 
 
+class GAImportRetryableError(ValueError):
+    """A GA result file is still being transferred and should be retried."""
+
+
+def _ga_import_partial_file_grace_seconds() -> int:
+    """Return the window in which an incomplete SCP result is retried."""
+    try:
+        return max(0, int(os.getenv("GA_IMPORT_PARTIAL_FILE_GRACE_SECONDS", "120")))
+    except ValueError:
+        return 120
+
+
 def _process_ga_file(fpath, db) -> tuple[int, list[str]]:
     """GA JSON 파일 1개를 읽어 DB에 insert.
 
@@ -136,8 +148,21 @@ def _process_ga_file(fpath, db) -> tuple[int, list[str]]:
         Exception: 그 외 DB/IO 오류 (호출자가 archive/failed 결정).
     """
     import json
+    import time
 
-    data = json.loads(fpath.read_text(encoding="utf-8"))
+    raw_data = fpath.read_text(encoding="utf-8")
+    if not raw_data.strip():
+        raise GAImportRetryableError("result file is empty; SCP transfer may still be in progress")
+
+    try:
+        data = json.loads(raw_data)
+    except json.JSONDecodeError as exc:
+        file_age = time.time() - fpath.stat().st_mtime
+        if file_age < _ga_import_partial_file_grace_seconds():
+            raise GAImportRetryableError(
+                f"result file is incomplete ({exc}); will retry after transfer settles"
+            ) from exc
+        raise ValueError(f"Invalid JSON: {exc}") from exc
     if not isinstance(data, list):
         raise ValueError(f"Expected JSON array, got {type(data).__name__}")
 
@@ -186,6 +211,11 @@ def run_ga_import():
                     except Exception as e:
                         logger.warning(f"[GA-Import] broadcast failed (non-fatal): {e}")
             shutil.move(str(fpath), str(archive_dir / fpath.name))
+        except GAImportRetryableError as e:
+            # SCP creates the destination before its transfer is complete.  Do not
+            # move a transiently empty/partial file to failed; the next poll will
+            # import the completed result.
+            logger.warning(f"[GA-Import] {fpath.name} deferred: {e}")
         except Exception as e:
             logger.error(f"[GA-Import] {fpath.name} failed: {e}")
             shutil.move(str(fpath), str(failed_dir / fpath.name))

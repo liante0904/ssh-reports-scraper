@@ -23,6 +23,36 @@ class MockDB:
         return {"status": "success"}
 
 
+def test_process_ga_file_retries_empty_result_without_writing_to_db(tmp_path):
+    """An SCP-created empty destination is retried instead of treated as failed."""
+    from scheduler import GAImportRetryableError, _process_ga_file
+
+    result = tmp_path / "sks_result.json"
+    result.write_text("", encoding="utf-8")
+
+    class NoWriteDB:
+        def insert_json_data_list(self, _rows):
+            raise AssertionError("empty result must not reach the database")
+
+    with pytest.raises(GAImportRetryableError, match="empty"):
+        _process_ga_file(result, NoWriteDB())
+
+
+def test_process_ga_file_retries_recent_partial_json(tmp_path):
+    """A recently modified partial SCP result is left for the next poll."""
+    from scheduler import GAImportRetryableError, _process_ga_file
+
+    result = tmp_path / "toss_result.json"
+    result.write_text('[{"report_unique_key": "incomplete"}', encoding="utf-8")
+
+    class NoWriteDB:
+        def insert_json_data_list(self, _rows):
+            raise AssertionError("partial result must not reach the database")
+
+    with pytest.raises(GAImportRetryableError, match="incomplete"):
+        _process_ga_file(result, NoWriteDB())
+
+
 # sendMarkDownText 모킹을 위한 헬퍼 클래스
 class MockTelegramSender:
     def __init__(self, fail_on_chunk_index=None):
