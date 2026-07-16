@@ -32,7 +32,10 @@ def scrape_yuanta(cfg: dict) -> list[dict]:
             try:
                 resp = requests.get(url, headers=cfg["headers"], timeout=30, verify=False)
                 if resp.status_code != 200: break
-            except Exception: break
+            except Exception as exc:
+                print(f"[yuanta] request failed board={code} page={page} ({type(exc).__name__})",
+                      file=sys.stderr)
+                break
             soup = BeautifulSoup(resp.text, "html.parser")
             items = soup.select(cfg["row_sel"])
             if not items: break
