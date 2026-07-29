@@ -22,12 +22,12 @@ def _gen_secure_key():
     return base64.b64encode(f"sJS{int(time.time() * 1000)}".encode()).decode()
 
 
-def _jitter(lo=0.1, hi=0.4):
+def _jitter(lo=0.02, hi=0.08):
     time.sleep(random.uniform(lo, hi))
 
 
 def _page_gap():
-    time.sleep(random.uniform(0.4, 1.2))
+    time.sleep(random.uniform(0.15, 0.5))
 
 
 def _req_headers(base_url, bid):
@@ -76,7 +76,7 @@ def scrape_imfn(cfg) -> list[dict]:
 
     for board_order, bid in enumerate(bids):
         page = 1
-        while page <= 5:
+        while page <= 3:
             headers = _req_headers(base_url, bid)
             data = {"tr_cd": "db/board/TWBBACL/board_list", "bid": bid,
                     "cur_page": str(page), "num_page": "100", "secureKey": secure_key}
@@ -92,7 +92,7 @@ def scrape_imfn(cfg) -> list[dict]:
 
             for item in items:
                 try:
-                    _jitter(0.08, 0.25)
+                    _jitter(0.02, 0.06)
                     attach_params = {"bid": item["bid"], "aid": item["aid"],
                                      "tr_cd": "db/research/twbbacl_attach", "secureKey": secure_key}
                     attach_resp = sess.post(f"{base_url}/_json/source.jsp",
@@ -110,7 +110,7 @@ def scrape_imfn(cfg) -> list[dict]:
                         "save_at": datetime.now(timezone(timedelta(hours=9))).isoformat(),
                     })
                 except Exception:
-                    _jitter(0.05, 0.12)
+                    _jitter(0.01, 0.04)
                     continue
             _page_gap()
             page += 1
