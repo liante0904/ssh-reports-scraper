@@ -1,9 +1,7 @@
 name: Imfn Scraper → SCP
 on:
-  # IM증권은 현재 사이트 측 응답/수집 불가로 0건 실패가 반복되어 GA 정기 호출을 중단한다.
-  # 수동 재검증이 필요할 때만 workflow_dispatch로 실행한다.
-  # schedule:
-  #   - cron: '0 * * * 1-5'
+  schedule:
+    - cron: '0 * * * 1-5'
   workflow_dispatch:
 jobs:
   scrape-and-scp:
