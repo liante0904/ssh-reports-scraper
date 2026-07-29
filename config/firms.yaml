@@ -581,12 +581,12 @@ firms:
     server_list: none
     ga_full_scrape_list: async
     ga_fallback_excluded: true
-    ga_fallback_exclusion_reason: "현재 사이트 측 응답/수집 불가. 수동 재검증은 workflow_dispatch로 수행."
+    ga_fallback_exclusion_reason: "2026-07-29 fix: 가짜 JSESSIONID 제거 → 서버 발급 쿠키 사용. 응답 UTF-8 디코딩. reg_dt 필드명 수정."
     func_name: "iMfnsec_checkNewArticle"
     enricher: null
     enrichment_skip: false
     special_funcs: null
-    notes: "GA async 전용 (서버 full-scrape fallback 제외). 인증만료 상태 (secure key 갱신 필요). _runner.py 정규 패턴."
+    notes: "GA async 전용 (서버 full-scrape fallback 제외). 2026-07-29 fix: 쿠키/인코딩/필드명. 인증은 base64(sJS+timestamp) 클라이언트 생성 — MTS 인증 불필요."
 
   # =========================================================================
   # GA disabled (GA IP blocked, server-only)
