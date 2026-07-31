@@ -12,7 +12,11 @@ def _adjust_date(report_date, time_str):
     if period == "오후" and hour != 12: hour += 12
     elif period == "오전" and hour == 12: hour = 0
     reg_date += timedelta(hours=hour, minutes=int(minute))
-    if reg_date.hour >= 10: reg_date += timedelta(days=1)
+    # 2026-07-31 fix: 다음 영업일 cutoff를 10시 → 17시로 수정.
+    # 장 마감(15:30) 이후 등록된 리포트는 익영업일 날짜를 부여.
+    # 기존 hour>=10 은 오전 리포트까지 익일로 밀어내는 버그.
+    # 17시 이후 → +1일 → 주말이면 월요일로 스킵.
+    if reg_date.hour >= 17: reg_date += timedelta(days=1)
     while reg_date.weekday() >= 5: reg_date += timedelta(days=1)
     return reg_date.strftime("%Y%m%d")
 
