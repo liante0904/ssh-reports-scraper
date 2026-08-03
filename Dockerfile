@@ -7,7 +7,10 @@ ENV PYTHONUNBUFFERED=1
 RUN apt-get update && apt-get install -y \
     wget \
     ca-certificates \
+    poppler-utils \
     rclone \
+    tesseract-ocr \
+    tesseract-ocr-kor \
     chromium \
     chromium-driver \
     && rm -rf /var/lib/apt/lists/*

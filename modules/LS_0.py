@@ -21,6 +21,7 @@ from models.WebScraper import SyncWebScraper
 from models.FirmInfo import FirmInfo
 from models.db_factory import get_db
 from models.ConfigManager import config
+from utils.ls_pdf_verifier import verify_ls_pdf_candidate
 
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -280,7 +281,12 @@ async def fetch(session: ClientSession, url: str, headers: dict) -> str:
                 logger.error(f"LS WARP 상세 요청 최종 실패 (시도 {attempt}/{LS_WARP_RETRIES}): {url} ({e})")
                 return None
 
-async def process_article(session: ClientSession, article: dict, headers: dict, db=None):
+async def process_article(
+    session: ClientSession,
+    article: dict,
+    headers: dict,
+    db=None,
+):
     TARGET_URL = _article_unique_key(article)
 
     if ".pdf" in TARGET_URL:
@@ -315,11 +321,11 @@ async def process_article(session: ClientSession, article: dict, headers: dict, 
 
             if th_text == "제목":
                 article["article_title"] = td_text
-            elif th_text == "필명":
-                # 상세 페이지에서 writer 확보 → reconstruct_msg_url_from_db()에서 emp_id 추론 가능
+            elif th_text in {"작성자", "필명"}:
+                # The live board uses 작성자 while older rows use 필명.
                 if td_text:
                     article["writer"] = td_text
-                    logger.debug(f"[LS][필명추출] writer={td_text}")
+                    logger.debug(f"[LS][작성자추출] writer={td_text}")
             elif th_text == "첨부파일":
                 # ── URL 해결 전략 (3단계) ──
                 # 1순위: 업로드 파일명 직접 파싱 → CDN URL (가장 빠름)
@@ -381,6 +387,27 @@ async def process_article(session: ClientSession, article: dict, headers: dict, 
                     )
                     logger.debug(f"[건별업데이트] report_id={article['report_id']}: {article.get('article_title')}")
 
+    # A same-writer history URL is not attachment evidence.  Only use it when
+    # this detail page has no attachment, and make the candidate prove its
+    # identity from the first PDF page before assigning it.
+    if not article.get("telegram_url"):
+        inferred_url = await reconstruct_msg_url_from_db(
+            article,
+            headers,
+            date_window_days=0,
+        )
+        if inferred_url:
+            article["source_url"] = inferred_url
+            article["telegram_url"] = inferred_url
+            article["pdf_file_url"] = inferred_url
+            if db and article.get("report_id"):
+                await db.update_telegram_url(
+                    record_id=article["report_id"],
+                    telegram_url=inferred_url,
+                    article_title=article.get("article_title"),
+                    pdf_file_url=inferred_url,
+                )
+
 async def LS_detail(articles, firm_info=None, db=None):
     if isinstance(articles, dict):
         articles = [articles]
@@ -400,38 +427,21 @@ async def LS_detail(articles, firm_info=None, db=None):
 
     async def sem_process_article(session, article):
         async with semaphore:
-            await process_article(session, article, headers, db=db)
+            await process_article(
+                session,
+                article,
+                headers,
+                db=db,
+            )
             import random
             await asyncio.sleep(random.uniform(LS_DETAIL_DELAY_MIN, LS_DETAIL_DELAY_MAX))
 
-    # 목록의 report_date와 writer 이력으로 인접 3일 이내 CDN URL만 먼저 찾는다.
-    # 기존 백필용 광범위 탐색(±LS_SEARCH_DAYS)과 분리해 다른 게시물 PDF 오연결을
-    # 막고, 이 범위에서 못 찾은 건만 상세 페이지를 한 번 조회해 첨부파일명을 읽는다.
-    detail_targets = []
-    for article in articles:
-        if str(article.get("telegram_url", "")).lower().endswith(".pdf"):
-            continue
-        inferred_url = await reconstruct_msg_url_from_db(
-            article, headers, date_window_days=3
-        )
-        if not inferred_url:
-            detail_targets.append(article)
-            continue
-
-        article["source_url"] = inferred_url
-        article["telegram_url"] = inferred_url
-        article["pdf_file_url"] = inferred_url
-        logger.info(
-            "[LS][목록추론] report_date={} PDF 복구: {}",
-            _article_report_date(article), inferred_url,
-        )
-        if db and article.get("report_id"):
-            await db.update_telegram_url(
-                record_id=article["report_id"],
-                telegram_url=inferred_url,
-                article_title=article.get("article_title"),
-                pdf_file_url=inferred_url,
-            )
+    # Detail attachments are the source of truth.  Do not let a same-writer
+    # CDN probe resolve a row before its own board page is inspected.
+    detail_targets = [
+        article for article in articles
+        if not str(article.get("telegram_url", "")).lower().endswith(".pdf")
+    ]
 
     async with aiohttp.ClientSession() as session:
         tasks = [sem_process_article(session, article) for article in detail_targets]
@@ -567,7 +577,11 @@ async def create_fallback_url(article, soup=None):
     
     return ""
 
-async def reconstruct_msg_url_from_db(article, headers, date_window_days=None):
+async def reconstruct_msg_url_from_db(
+    article,
+    headers,
+    date_window_days=None,
+):
     """DB에 있는 성공한 msg URL 데이터를 기반으로 writer ID와 seq를 추론해서 msg URL 재구성.
 
     동일 작성자의 기존 성공 URL에서 writer_id(emp_id)와 seq 패턴을 추출하여
@@ -687,9 +701,14 @@ async def reconstruct_msg_url_from_db(article, headers, date_window_days=None):
             day_offsets.extend((offset, -offset))
         for day_offset in day_offsets:
             test_date = (base_date + timedelta(days=day_offset)).strftime("%Y%m%d")
-            # seq: 예상값 기준 ±50, 최소 1
-            for seq_offset in range(-50, 51):
-                test_seq = max(1, est_seq + seq_offset)
+            # LS_detail is intentionally sequential.  After each successful
+            # row is persisted, the next row opens a fresh DB manager and uses
+            # the latest committed max_seq: 935 -> 936 -> 937.
+            seq_start = max(1, max_seq + 1)
+            seq_values = [seq_start]
+            for seq_offset in range(1, 51):
+                seq_values.extend((seq_start + seq_offset, max(1, est_seq - seq_offset)))
+            for test_seq in dict.fromkeys(seq_values):
                 test_url = f"{LS_MSG_EUM_PREFIX}/K_{test_date}_{writer_id}_{test_seq}.pdf"
                 candidates.append(test_url)
 
@@ -708,7 +727,16 @@ async def reconstruct_msg_url_from_db(article, headers, date_window_days=None):
                         lambda: requests.get(url, headers=headers, proxies=PROXIES,
                                             verify=False, timeout=10)
                     )
-                    if resp.status_code == 200:
+                    if resp.status_code != 200:
+                        return None
+                    verification = await asyncio.to_thread(
+                        verify_ls_pdf_candidate,
+                        url,
+                        article.get("article_title", ""),
+                        headers,
+                        PROXIES,
+                    )
+                    if verification.matched:
                         return url
                 except Exception:
                     pass
