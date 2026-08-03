@@ -3,17 +3,40 @@ import sys
 import re, requests
 from datetime import datetime, timezone, timedelta
 from bs4 import BeautifulSoup
+import holidays
 
 def _adjust_date(report_date, time_str):
+    """Apply Hana's KST reporting-date cutover on the source publication date.
+
+    A report posted on a Korean non-business day belongs to the next business
+    day regardless of time.  On a business day only, 18:00 inclusive rolls to
+    the next business day.
+    """
     reg_date = datetime.strptime(report_date, "%Y%m%d")
+    kr_holidays = holidays.KR(years=range(reg_date.year - 1, reg_date.year + 3))
+
+    def is_business_day(value):
+        return value.weekday() < 5 and value.date() not in kr_holidays
+
+    def next_business_day(value):
+        value += timedelta(days=1)
+        while not is_business_day(value):
+            value += timedelta(days=1)
+        return value
+
     m = re.match(r"(오전|오후)?\s*(\d{1,2}):(\d{2})", time_str.strip())
-    if not m: return report_date
+    if not is_business_day(reg_date):
+        return next_business_day(reg_date).strftime("%Y%m%d")
+    if not m:
+        return report_date
     period, hour, minute = m.groups(); hour = int(hour)
-    if period == "오후" and hour != 12: hour += 12
+    # The source has emitted both 12-hour (오후 6:00) and 24-hour
+    # (오후 18:00) forms; do not add twelve hours to the latter.
+    if period == "오후" and hour < 12: hour += 12
     elif period == "오전" and hour == 12: hour = 0
     reg_date += timedelta(hours=hour, minutes=int(minute))
-    if reg_date.hour >= 10: reg_date += timedelta(days=1)
-    while reg_date.weekday() >= 5: reg_date += timedelta(days=1)
+    if (reg_date.hour, reg_date.minute) >= (18, 0):
+        reg_date = next_business_day(reg_date)
     return reg_date.strftime("%Y%m%d")
 
 def scrape_hana(cfg: dict) -> list[dict]:

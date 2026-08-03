@@ -237,10 +237,12 @@ class SecReportsManager(LibrarySecReportsManager):
         """
         if date_str is None:
             query_date = datetime.now().strftime("%Y-%m-%d")
-            query_report_date_end = (datetime.now() + timedelta(days=2)).date()
+            # 2026-07-31 fix: +4일로 확장. Friday 17시+ 리포트 → Monday(+3일)까지 커버.
+            # 기존 +2일은 금요일 장 마감 후 익영업일(월요일) 리포트가 윈도우 밖으로 밀려남.
+            query_report_date_end = (datetime.now() + timedelta(days=4)).date()
         else:
             query_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
-            query_report_date_end = (datetime.strptime(date_str, "%Y%m%d") + timedelta(days=2)).date()
+            query_report_date_end = (datetime.strptime(date_str, "%Y%m%d") + timedelta(days=4)).date()
 
         three_days_ago = (datetime.now() - timedelta(days=3)).date()
 
