@@ -49,6 +49,7 @@ def scrape_meritz(cfg: dict) -> list[dict]:
     cfg.setdefault("firm_id", 20)
     cfg.setdefault("firm_nm", "메리츠증권")
     cfg.setdefault("detail_sel", "a[href$='.pdf']")  # 2026.06: .fileArea 사라짐, a에 직접 PDF href
+    min_report_date = re.sub(r"[^0-9]", "", str(cfg.get("min_report_date", "")))
     requests.packages.urllib3.disable_warnings()
     hdr = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     result = []
@@ -74,6 +75,10 @@ def scrape_meritz(cfg: dict) -> list[dict]:
                     source_url = urljoin(cfg["base_url"], link["href"])
                     dc = "작성일" if "작성일" in hmap else "작성일시"
                     rd = re.sub(r"[-./]","",row.select_one(f'td:nth-child({hmap[dc]+1})').get_text(strip=True))
+                    # Backfills only need the requested window.  Skip stale rows before
+                    # the costly per-report detail/PDF request.
+                    if min_report_date and rd < min_report_date:
+                        continue
                     wc = "작성자" if "작성자" in hmap else "작성자명"
                     writer = row.select_one(f'td:nth-child({hmap[wc]+1})').get_text(strip=True)
                     # detail fetch for PDF (2026.06: a[href$='.pdf'] 직접)
