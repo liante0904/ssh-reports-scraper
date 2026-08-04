@@ -49,6 +49,7 @@ class TestScraperFunctionLists:
             "Koreainvestment_selenium_checkNewArticle",
             "Daeshin_checkNewArticle",
             "HANA_checkNewArticle",
+            "MERITZ_checkNewArticle",
         }
         assert names == expected
 
@@ -107,6 +108,7 @@ class TestRegistryConsistency:
             "Koreainvestment_selenium_checkNewArticle",
             "Daeshin_checkNewArticle",
             "HANA_checkNewArticle",
+            "MERITZ_checkNewArticle",
         }
 
     def test_all_29_functions_importable(self):
