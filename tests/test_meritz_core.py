@@ -60,6 +60,24 @@ def test_scrape_meritz_sets_pdf_url_from_detail_pdf_link_with_query(monkeypatch)
     assert rows[0]["report_unique_key"] == rows[0]["pdf_file_url"]
 
 
+def test_scrape_meritz_skips_stale_rows_before_detail_request(monkeypatch):
+    calls = []
+
+    def fake_get(url, *args, **kwargs):
+        calls.append(url)
+        return _ListResponse()
+
+    monkeypatch.setattr("scrapers.meritz_core.requests.get", fake_get)
+
+    rows = scrape_meritz({
+        "url": "https://home.imeritz.com/dalyrpt/InfoMain.do?pageNum=1",
+        "min_report_date": "2026-07-10",
+    })
+
+    assert rows == []
+    assert calls == ["https://home.imeritz.com/dalyrpt/InfoMain.do?pageNum=1"]
+
+
 def test_resolve_meritz_pdf_url_from_iframe_srcdoc():
     from scrapers.meritz_core import _resolve_meritz_pdf_url
 
