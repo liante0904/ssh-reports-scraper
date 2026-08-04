@@ -333,7 +333,10 @@ firms:
     result_file: meritz_result.json
     config_shape: full_config
     empty_policy: require_non_empty
-    server_list: none
+    # GA workflow is dispatch-only because GitHub-hosted IPs are blocked.
+    # Keep this in the regular server set: firm_id=20 has ga_enabled_yn='N',
+    # so the full-scrape GA fallback deliberately filters it out.
+    server_list: async
     ga_full_scrape_list: async
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
@@ -341,7 +344,7 @@ firms:
     enricher: null
     enrichment_skip: false
     special_funcs: null
-    notes: "GA async + server full-scrape fallback. GA IP 차단으로 schedule 제거(2026-06-23), workflow_dispatch 수동 실행만 유지. _runner.py 정규 패턴."
+    notes: "GA IP 차단으로 schedule 제거(2026-06-23), workflow_dispatch 수동 실행만 유지. server_list=async로 운영 서버가 정기 수집한다; ga_enabled_yn='N'이면 full-scrape GA fallback에서 제외된다. _runner.py 정규 패턴."
 
   hanwha:
     display_name: 한화투자증권
