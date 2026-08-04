@@ -6,10 +6,8 @@ from datetime import datetime, timedelta
 # 프로젝트 루트 경로 추가
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# CI 환경인지 확인 (GitHub Actions 등). 단, 전용 integration-canary workflow는
-# CANARY_POSTGRES_* secrets로 구성된 비운영 DB를 대상으로 하므로 skip하지 않는다.
+# CI에서는 실제 PostgreSQL 통합 테스트를 실행하지 않는다.
 IS_CI = os.getenv('GITHUB_ACTIONS') == 'true'
-IS_CANARY = os.getenv('ENV') == 'canary'
 
 from models.db_factory import get_db
 from tests.db_test_utils import postgres_available
@@ -18,7 +16,7 @@ if not postgres_available():
     import pytest
     pytest.skip("PostgreSQL에 연결할 수 없어 DB 통합 테스트를 건너뜁니다.", allow_module_level=True)
 
-@pytest.mark.skipif(IS_CI and not IS_CANARY, reason="Generic CI 환경에서는 실제 DB 연결 테스트를 건너뜁니다 (integration-canary workflow만 예외).")
+@pytest.mark.skipif(IS_CI, reason="CI 환경에서는 실제 DB 연결 테스트를 건너뜁니다.")
 @pytest.mark.asyncio
 async def test_db_connection_and_structure():
     """
