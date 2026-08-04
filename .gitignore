@@ -166,6 +166,7 @@ token.*
 *.db
 *.*Zone.Identifier
 error_response.txt
+imfn_log.txt
 .env.bak
 .codex
 .codex/
