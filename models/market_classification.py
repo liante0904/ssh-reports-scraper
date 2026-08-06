@@ -11,12 +11,21 @@ import re
 from typing import Any
 
 
-# Hana's configured URL list is positional.  These source-board positions are
-# the broker's dedicated overseas boards: global strategy, global industry,
-# and global company research.  Keep this small and explicit rather than
-# treating a generic Korean keyword as overseas coverage.
+# These are dedicated overseas source boards confirmed from the production
+# board catalog.  Positional Hana board IDs come from the broker URL list;
+# other IDs are the canonical broker board IDs persisted with each row.  Keep
+# this explicit rather than classifying broad strategy/industry boards from a
+# Korean keyword in their titles.
 SOURCE_GLOBAL_BOARDS: dict[int, frozenset[int]] = {
-    3: frozenset({14, 15, 16}),
+    0: frozenset({9}),             # LS: 해외리서치
+    1: frozenset({3, 5}),          # 신한: 해외주식, 해외 채권
+    3: frozenset({14, 15, 16}),    # 하나: 글로벌 투자/산업/기업분석
+    4: frozenset({7, 11}),         # KB: Global Insights, Asia Headline
+    5: frozenset({2}),             # 삼성: 해외 분석
+    9: frozenset({2}),             # 현대차: 해외주식
+    10: frozenset({3}),            # 키움: 미국/선진국
+    18: frozenset({2}),            # IM: 기업분석(해외)
+    25: frozenset({4, 5}),         # IBK: 해외기업분석, 글로벌ETF
 }
 
 # A domestic ticker is decisive even when a source board is normally global.
@@ -39,17 +48,12 @@ def classify_market_type(
 ) -> str:
     """Return the canonical market type for a scraper payload.
 
-    Evidence priority is: domestic ticker > foreign ticker > dedicated source
-    board > scraper declaration/default.  A declaration such as ``US`` or
+    Evidence priority is: dedicated source board > domestic ticker > foreign
+    ticker > scraper declaration/default.  A declaration such as ``US`` or
     ``JP`` is retained; inferred overseas rows use ``GLOBAL``.
     """
     declared = str(declared_market_type or "KR").strip().upper() or "KR"
     title = str(article_title or "")
-
-    if _DOMESTIC_TICKER_RE.search(title):
-        return "KR"
-    if _FOREIGN_TICKER_RE.search(title):
-        return declared if declared != "KR" else "GLOBAL"
 
     try:
         is_dedicated_global_board = int(board_id) in SOURCE_GLOBAL_BOARDS.get(
@@ -59,5 +63,10 @@ def classify_market_type(
         is_dedicated_global_board = False
     if is_dedicated_global_board:
         return "GLOBAL"
+
+    if _DOMESTIC_TICKER_RE.search(title):
+        return "KR"
+    if _FOREIGN_TICKER_RE.search(title):
+        return declared if declared != "KR" else "GLOBAL"
 
     return declared
