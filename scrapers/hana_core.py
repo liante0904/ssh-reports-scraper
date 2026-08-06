@@ -5,6 +5,8 @@ from datetime import datetime, timezone, timedelta
 from bs4 import BeautifulSoup
 import holidays
 
+from models.market_classification import classify_market_type
+
 def _adjust_date(report_date, time_str):
     """Apply Hana's KST reporting-date cutover on the source publication date.
 
@@ -99,7 +101,17 @@ def scrape_hana(cfg: dict) -> list[dict]:
                     writer = writers[i].get_text(strip=True) if i < len(writers) else ""
                     ts = times[i].get_text(strip=True) if i < len(times) else ""
                     article_text = contns[i].get_text(strip=True) if i < len(contns) else ""
-                    mkt = "GLOBAL" if board_order in cfg.get("global_boards",[]) else "KR"
+                    # Preserve an explicit deployment override, while the
+                    # shared classifier supplies the canonical dedicated
+                    # overseas-board mapping when production config is only a
+                    # positional URL list.
+                    declared_mkt = "GLOBAL" if board_order in cfg.get("global_boards", []) else "KR"
+                    mkt = classify_market_type(
+                        firm_id=cfg["firm_id"],
+                        board_id=board_order,
+                        article_title=title,
+                        declared_market_type=declared_mkt,
+                    )
                     result.append(dict(firm_id=cfg["firm_id"],board_id=board_order,
                         firm_nm=cfg["firm_nm"],report_date=_adjust_date(rd,ts),
                         telegram_url=dl,pdf_file_url=dl,article_title=title,writer=writer,
