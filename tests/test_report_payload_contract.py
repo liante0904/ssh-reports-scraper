@@ -50,6 +50,33 @@ def test_legacy_save_time_is_an_explicit_artifact_adapter():
 
 
 @pytest.mark.parametrize(
+    "firm_id,board_id,title,declared,expected",
+    [
+        (3, 16, "AMD(AMD.US): FY 2Q26 Review", "KR", "GLOBAL"),
+        (3, 15, "글로벌 산업 전망", "KR", "GLOBAL"),
+        (3, 16, "삼성전자(005930.KS): 실적 점검", "GLOBAL", "KR"),
+        (10, 3, "NVIDIA(NVDA.US): earnings", "KR", "GLOBAL"),
+        (10, 3, "삼성전자(005930.KS): earnings", "US", "KR"),
+        (1, 0, "국내 산업 전망", "KR", "KR"),
+    ],
+)
+def test_market_type_is_classified_at_the_shared_payload_boundary(
+    firm_id, board_id, title, declared, expected
+):
+    payload = ReportPayload.from_scraper({
+        "firm_id": firm_id,
+        "board_id": board_id,
+        "firm_nm": "test",
+        "report_date": "20260806",
+        "article_title": title,
+        "report_unique_key": f"key-{firm_id}-{board_id}-{title}",
+        "mkt_tp": declared,
+    })
+
+    assert payload.mkt_tp == expected
+
+
+@pytest.mark.parametrize(
     "item,message",
     [
         ({"report_date": "20260710", "firm_nm": "Firm"}, "missing report_unique_key"),

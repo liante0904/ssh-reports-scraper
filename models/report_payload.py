@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 import re
 from typing import Any, Mapping
 
+from models.market_classification import classify_market_type
+
 
 class ReportPayloadError(ValueError):
     """Raised when scraper output cannot satisfy the shared report contract."""
@@ -76,7 +78,12 @@ class ReportPayload:
             telegram_url=telegram_url,
             pdf_file_url=pdf_file_url,
             writer=str(item.get("writer") or ""),
-            mkt_tp=str(item.get("mkt_tp") or "KR"),
+            mkt_tp=classify_market_type(
+                firm_id=item.get("firm_id"),
+                board_id=item.get("board_id"),
+                article_title=item.get("article_title"),
+                declared_market_type=item.get("mkt_tp"),
+            ),
             report_unique_key=unique_key,
             save_at=save_at,
             article_text=str(item.get("article_text") or "").strip(),
