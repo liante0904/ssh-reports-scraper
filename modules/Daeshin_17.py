@@ -137,8 +137,15 @@ async def Daeshin_checkNewArticle():
                 tasks.append(fetch_page_data(session, page, viewstate, viewstate_gen, event_validation, sem))
             
             await asyncio.gather(*tasks)
+        except asyncio.TimeoutError:
+            # The source occasionally stalls from the production IP.  This is
+            # an empty-result, retry-on-next-schedule condition, not a scraper
+            # crash that should trigger a watchdog error alert.
+            logger.warning("Daeshin scraping timed out; retrying on the next schedule.")
         except Exception as e:
-            logger.error(f"Error during Daeshin scraping process: {e}")
+            logger.error(
+                f"Error during Daeshin scraping process: {type(e).__name__}: {e!r}"
+            )
             
         return json_data_list
 
