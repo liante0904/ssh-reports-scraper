@@ -28,6 +28,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 skip_boards = set()
 USE_WARP_ONLY = False  # 직접 접속 실패 시 전역적으로 WARP만 사용하도록 설정
+# A failed SOCKS/WARP tunnel affects every LS board in the same run.  Do not
+# spend the scheduler's entire job budget retrying identical requests.
+WARP_UNAVAILABLE = False
 
 # 프록시 설정 (환경 변수가 없으면 로컬 기본값 사용)
 SOCKS_PROXY = os.getenv("SOCKS_PROXY_URL", "socks5h://localhost:9091")
@@ -61,7 +64,7 @@ def _article_unique_key(article: dict) -> str:
     return str(article.get("report_unique_key") or article.get("source_url") or "")
 
 def get_soup_with_warp(url, headers):
-    global USE_WARP_ONLY
+    global USE_WARP_ONLY, WARP_UNAVAILABLE
     for attempt in range(1, LS_WARP_RETRIES + 1):
         try:
             response = requests.get(url, headers=headers, proxies=PROXIES, verify=False, timeout=50)
@@ -72,6 +75,7 @@ def get_soup_with_warp(url, headers):
                 time.sleep(attempt * 5)
             else:
                 logger.error(f"LS WARP 최종 실패 (시도 {attempt}/{LS_WARP_RETRIES}): {url} ({e})")
+                WARP_UNAVAILABLE = True
                 return None
 
 def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2):
@@ -79,7 +83,8 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
 
     max_pages: 스크래핑할 페이지 수 (기본 2페이지까지 긁음)
     """
-    global USE_WARP_ONLY
+    global USE_WARP_ONLY, WARP_UNAVAILABLE
+    WARP_UNAVAILABLE = False
     firm_id = 0
     json_data_list = []
     requests.packages.urllib3.disable_warnings()
@@ -161,6 +166,11 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
                     soupList = soup.select('#contents > table > tbody > tr')
                 else:
                     skip_boards.add(board_id)
+                    if WARP_UNAVAILABLE:
+                        logger.warning(
+                            "LS WARP tunnel is unavailable; skipping remaining LS boards for this run."
+                        )
+                        break
 
             logger.info(f"{firm_info.get_firm_name()}의 {firm_info.get_board_name()} 게시판 p.{p}... (Found {len(soupList)} articles)")
 
