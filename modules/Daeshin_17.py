@@ -13,6 +13,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from models.FirmInfo import FirmInfo
 from models.ConfigManager import config
 
+
+async def _fetch_pages_sequentially(fetch_page, pages):
+    """Keep ASP.NET postbacks ordered within one source session."""
+    for page in pages:
+        await fetch_page(page)
+
+
 async def Daeshin_checkNewArticle():
     firm_id      = 17
     board_id = 0
@@ -132,11 +139,15 @@ async def Daeshin_checkNewArticle():
     async with aiohttp.ClientSession(timeout=timeout) as session:
         try:
             viewstate, viewstate_gen, event_validation = await fetch_hidden_values(session, url)
-            tasks = []
-            for page in range(1, 5):
-                tasks.append(fetch_page_data(session, page, viewstate, viewstate_gen, event_validation, sem))
-            
-            await asyncio.gather(*tasks)
+            # The source is ASP.NET stateful: concurrent postbacks sharing one
+            # session/viewstate intermittently time out on the production IP.
+            # Detail fetches remain bounded by ``sem`` inside each page.
+            await _fetch_pages_sequentially(
+                lambda page: fetch_page_data(
+                    session, page, viewstate, viewstate_gen, event_validation, sem
+                ),
+                range(1, 5),
+            )
         except asyncio.TimeoutError:
             # The source occasionally stalls from the production IP.  This is
             # an empty-result, retry-on-next-schedule condition, not a scraper
