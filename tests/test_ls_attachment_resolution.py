@@ -43,6 +43,80 @@ async def test_ls_detail_falls_back_only_after_attachment_is_absent(monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_ls_png_attachment_is_never_saved_as_pdf(monkeypatch):
+    async def fake_fetch(*_args, **_kwargs):
+        return """
+        <table><tr><th>제목</th><td>PNG 기사 제목</td></tr>
+        <tr><th>작성자</th><td>홍길동</td></tr>
+        <tr><th>첨부파일</th><td><a>12345_7_20260820.PNG</a></td></tr></table>
+        """
+
+    async def fake_reconstruct(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(LS_0, "fetch", fake_fetch)
+    monkeypatch.setattr(LS_0, "reconstruct_msg_url_from_db", fake_reconstruct)
+    monkeypatch.setattr(
+        LS_0,
+        "verify_ls_pdf_candidate",
+        lambda *_args, **_kwargs: PdfVerificationResult(False, "response is not a PDF"),
+    )
+
+    article = {
+        "report_unique_key": "https://www.ls-sec.co.kr/EtwFrontBoard/View.jsp?board_no=36&board_seq=2",
+        "report_date": "20260820",
+        "article_title": "PNG 기사 제목",
+    }
+
+    await LS_0.process_article(None, article, headers={})
+
+    assert article["telegram_url"] == ""
+    assert article["pdf_file_url"] == ""
+    assert article["article_asset_urls"] == ["12345_7_20260820.PNG"]
+
+
+@pytest.mark.asyncio
+async def test_ls_png_filename_can_resolve_only_to_verified_msg_pdf(monkeypatch):
+    async def fake_fetch(*_args, **_kwargs):
+        return """
+        <table><tr><th>제목</th><td>검증된 기사</td></tr>
+        <tr><th>첨부파일</th><td><a>12345_7_20260820.PNG</a></td></tr></table>
+        """
+
+    monkeypatch.setattr(LS_0, "fetch", fake_fetch)
+    monkeypatch.setattr(
+        LS_0,
+        "verify_ls_pdf_candidate",
+        lambda *_args, **_kwargs: PdfVerificationResult(True, "first-page text matched"),
+    )
+
+    article = {
+        "report_unique_key": "https://www.ls-sec.co.kr/EtwFrontBoard/View.jsp?board_no=36&board_seq=3",
+        "report_date": "20260820",
+        "article_title": "검증된 기사",
+    }
+
+    await LS_0.process_article(None, article, headers={})
+
+    assert article["telegram_url"] == "https://msg.ls-sec.co.kr/eum/K_20260820_12345_7.pdf"
+    assert article["pdf_file_url"] == article["telegram_url"]
+
+
+def test_ls_upload_filename_supports_alphanumeric_writer_key():
+    assert LS_0.upload_filename_to_cdn_url("jhsung_2113_20260818.png") == (
+        "https://msg.ls-sec.co.kr/eum/K_20260818_jhsung_2113.pdf"
+    )
+
+
+def test_ls_pdf_candidates_expand_prefix_and_date_window():
+    candidates = LS_0._ls_pdf_candidate_urls("com_3857_20260820.PNG")
+
+    assert candidates[0].endswith("K_20260820_com_3857.pdf")
+    assert "https://msg.ls-sec.co.kr/eum/K_20260821_com_3857.pdf" in candidates
+    assert "https://msg.ls-sec.co.kr/eum/K_20260819_com_3857.pdf" in candidates
+
+
+@pytest.mark.asyncio
 async def test_ls_detail_processes_rows_sequentially(monkeypatch):
     detail_calls = []
 
