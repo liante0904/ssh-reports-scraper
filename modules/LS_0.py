@@ -69,26 +69,42 @@ def _is_non_pdf_url(url: str) -> bool:
     return re.search(r"\.(?:png|jpe?g)(?:[?#]|$)", value) is not None
 
 
-def _ls_pdf_candidate_urls(upload_name: str) -> list[str]:
-    """첨부 이미지명에서 실제 CDN PDF 후보를 날짜 범위까지 생성한다."""
+def _ls_pdf_candidate_urls(
+    upload_name: str,
+    search_days: int | None = None,
+    preferred_date: str | None = None,
+) -> list[str]:
+    """작성자 seq와 리포트 날짜를 우선해 실제 CDN PDF 후보를 생성한다."""
     basename = os.path.basename(str(upload_name or ""))
     match = re.match(r"^(.+)_([0-9]+)_([0-9]{8})\.", basename)
     if not match:
         return []
 
     prefix, sequence, date_text = match.groups()
-    try:
-        base_date = datetime.strptime(date_text, "%Y%m%d")
-    except ValueError:
+    date_values = [preferred_date or "", date_text]
+    base_dates = []
+    for value in date_values:
+        normalized = str(value).replace("-", "")[:8]
+        try:
+            parsed = datetime.strptime(normalized, "%Y%m%d")
+        except ValueError:
+            continue
+        if parsed not in base_dates:
+            base_dates.append(parsed)
+    if not base_dates:
         return []
 
+    window = LS_SEARCH_DAYS if search_days is None else max(0, int(search_days))
     offsets = [0]
-    for offset in range(1, LS_SEARCH_DAYS + 1):
+    for offset in range(1, window + 1):
         offsets.extend((offset, -offset))
-    return [
-        f"{LS_MSG_EUM_PREFIX}/K_{(base_date + timedelta(days=offset)).strftime('%Y%m%d')}_{prefix}_{sequence}.pdf"
-        for offset in offsets
-    ]
+    candidates = []
+    for base_date in base_dates:
+        candidates.extend(
+            f"{LS_MSG_EUM_PREFIX}/K_{(base_date + timedelta(days=offset)).strftime('%Y%m%d')}_{prefix}_{sequence}.pdf"
+            for offset in offsets
+        )
+    return list(dict.fromkeys(candidates))
 
 def get_soup_with_warp(url, headers):
     global USE_WARP_ONLY, WARP_UNAVAILABLE

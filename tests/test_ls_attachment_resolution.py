@@ -116,6 +116,22 @@ def test_ls_pdf_candidates_expand_prefix_and_date_window():
     assert "https://msg.ls-sec.co.kr/eum/K_20260819_com_3857.pdf" in candidates
 
 
+def test_ls_pdf_candidates_accept_custom_date_window():
+    candidates = LS_0._ls_pdf_candidate_urls("30970_1443_20260824.PNG", search_days=30)
+
+    assert "https://msg.ls-sec.co.kr/eum/K_20260725_30970_1443.pdf" in candidates
+
+
+def test_ls_pdf_candidates_prioritize_report_date_over_upload_date():
+    candidates = LS_0._ls_pdf_candidate_urls(
+        "30970_1443_20260824.PNG",
+        search_days=0,
+        preferred_date="20260825",
+    )
+
+    assert candidates[0] == "https://msg.ls-sec.co.kr/eum/K_20260825_30970_1443.pdf"
+
+
 @pytest.mark.asyncio
 async def test_ls_detail_processes_rows_sequentially(monkeypatch):
     detail_calls = []
