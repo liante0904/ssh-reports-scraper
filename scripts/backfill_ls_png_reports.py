@@ -39,7 +39,7 @@ def load_targets(db, limit: int, date_from: str | None):
                report_unique_key, telegram_url, pdf_url
         FROM tbl_sec_reports
         WHERE {' AND '.join(clauses)}
-        ORDER BY report_id ASC
+        ORDER BY report_date DESC NULLS LAST, report_id DESC
         {limit_sql}
         """,
         tuple(params),
