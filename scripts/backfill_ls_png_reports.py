@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from models.db_factory import get_db
 from modules.LS_0 import PROXIES, _ls_pdf_candidate_urls
-from utils.ls_pdf_verifier import verify_ls_pdf_candidate
+import requests
 
 
 def load_targets(db, limit: int, date_from: str | None):
@@ -39,14 +39,14 @@ def load_targets(db, limit: int, date_from: str | None):
                report_unique_key, telegram_url, pdf_url
         FROM tbl_sec_reports
         WHERE {' AND '.join(clauses)}
-        ORDER BY report_date DESC NULLS LAST, report_id DESC
+        ORDER BY report_date ASC NULLS LAST, report_id ASC
         {limit_sql}
         """,
         tuple(params),
     )
 
 
-async def run(limit: int, date_from: str | None, execute: bool):
+async def run(limit: int, date_from: str | None, execute: bool, search_days: int | None):
     db = get_db()
     rows = load_targets(db, limit, date_from)
     print(f"targets={len(rows)} execute={execute}")
@@ -65,21 +65,33 @@ async def run(limit: int, date_from: str | None, execute: bool):
 
     async def verify_candidate(candidate: str, row: dict):
         async with candidate_semaphore:
-            result = await asyncio.to_thread(
-                verify_ls_pdf_candidate,
-                candidate,
-                row.get("article_title", ""),
-                headers,
-                PROXIES,
-            )
-            return candidate, result
+            def fetch_signature():
+                try:
+                    response = requests.get(
+                        candidate,
+                        headers=headers,
+                        proxies=PROXIES,
+                        verify=False,
+                        timeout=20,
+                        stream=True,
+                    )
+                    first_bytes = next(response.iter_content(5), b"")
+                    return response.status_code == 200 and first_bytes.startswith(b"%PDF-")
+                except requests.RequestException:
+                    return False
+
+            return candidate, await asyncio.to_thread(fetch_signature)
 
     for row in rows:
         legacy_url = row.get("legacy_image_url") or ""
         filename = unquote(os.path.basename(urlparse(legacy_url).path))
-        candidates = _ls_pdf_candidate_urls(filename)
+        candidates = _ls_pdf_candidate_urls(
+            filename,
+            search_days,
+            preferred_date=str(row.get("report_date") or ""),
+        )
         results = await asyncio.gather(*(verify_candidate(candidate, row) for candidate in candidates))
-        match = next(((candidate, result) for candidate, result in results if result.matched), None)
+        match = next(((candidate, result) for candidate, result in results if result), None)
         if match:
             candidate, _ = match
             row["telegram_url"] = candidate
@@ -109,9 +121,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--limit", type=int, default=100, help="rows to inspect; 0 means all")
     parser.add_argument("--date-from", help="inclusive report_date, YYYY-MM-DD or YYYYMMDD")
+    parser.add_argument("--search-days", type=int, help="candidate date window on each side of the upload date; default 10")
     parser.add_argument("--execute", action="store_true", help="write verified PDF URLs to production DB")
     args = parser.parse_args()
-    asyncio.run(run(args.limit, args.date_from, args.execute))
+    asyncio.run(run(args.limit, args.date_from, args.execute, args.search_days))
 
 
 if __name__ == "__main__":
