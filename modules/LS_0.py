@@ -63,6 +63,33 @@ def _article_report_date(article: dict) -> str:
 def _article_unique_key(article: dict) -> str:
     return str(article.get("report_unique_key") or article.get("source_url") or "")
 
+
+def _is_non_pdf_url(url: str) -> bool:
+    value = str(url or "").lower()
+    return re.search(r"\.(?:png|jpe?g)(?:[?#]|$)", value) is not None
+
+
+def _ls_pdf_candidate_urls(upload_name: str) -> list[str]:
+    """첨부 이미지명에서 실제 CDN PDF 후보를 날짜 범위까지 생성한다."""
+    basename = os.path.basename(str(upload_name or ""))
+    match = re.match(r"^(.+)_([0-9]+)_([0-9]{8})\.", basename)
+    if not match:
+        return []
+
+    prefix, sequence, date_text = match.groups()
+    try:
+        base_date = datetime.strptime(date_text, "%Y%m%d")
+    except ValueError:
+        return []
+
+    offsets = [0]
+    for offset in range(1, LS_SEARCH_DAYS + 1):
+        offsets.extend((offset, -offset))
+    return [
+        f"{LS_MSG_EUM_PREFIX}/K_{(base_date + timedelta(days=offset)).strftime('%Y%m%d')}_{prefix}_{sequence}.pdf"
+        for offset in offsets
+    ]
+
 def get_soup_with_warp(url, headers):
     global USE_WARP_ONLY, WARP_UNAVAILABLE
     for attempt in range(1, LS_WARP_RETRIES + 1):
@@ -298,6 +325,17 @@ async def process_article(
     db=None,
 ):
     TARGET_URL = _article_unique_key(article)
+    article.setdefault("telegram_url", "")
+    article.setdefault("pdf_file_url", "")
+
+    # Legacy rows may contain the article's PNG upload in the PDF fields.  It
+    # is evidence from the detail page, not a PDF, so force a fresh PDF
+    # resolution while retaining it as an in-memory article asset.
+    legacy_url = article.get("telegram_url") or article.get("pdf_file_url")
+    if _is_non_pdf_url(legacy_url):
+        article.setdefault("article_asset_urls", []).append(legacy_url)
+        article["telegram_url"] = ""
+        article["pdf_file_url"] = ""
 
     if ".pdf" in TARGET_URL:
         article["source_url"] = TARGET_URL
@@ -346,7 +384,7 @@ async def process_article(
                 # 소스 A: 첨부파일 td a 텍스트
                 for a_tag in tr.select("td a"):
                     txt = a_tag.get_text(strip=True)
-                    if re.search(r'\d+_\d+_\d{8}\.\w+$', txt):
+                    if re.search(r'[^\s_]+_\d+_\d{8}\.\w+$', txt):
                         upload_name = txt
                         break
                 # 소스 B: 본문 img alt → src basename
@@ -362,30 +400,37 @@ async def process_article(
 
                 if upload_name:
                     article["ATTACH_FILE_NAME"] = upload_name
-                    direct_url = upload_filename_to_cdn_url(upload_name)
-                    if direct_url:
+                    candidate_urls = _ls_pdf_candidate_urls(upload_name)
+                    for direct_url in candidate_urls:
                         try:
-                            resp = await asyncio.to_thread(
-                                lambda: requests.head(direct_url, headers=headers, proxies=PROXIES,
-                                                      verify=False, timeout=10)
+                            verification = await asyncio.to_thread(
+                                verify_ls_pdf_candidate,
+                                direct_url,
+                                article.get("article_title", ""),
+                                headers,
+                                PROXIES,
                             )
-                            if resp.status_code == 200:
+                            if verification.matched:
                                 resolved_url = direct_url
-                                logger.info(f"[LS][직접파싱] CDN URL: {direct_url}")
+                                logger.info(f"[LS][직접파싱] 검증된 PDF URL: {direct_url}")
+                                break
+                            else:
+                                logger.warning(
+                                    f"[LS][직접파싱] PDF 검증 실패, PDF 필드에 저장하지 않음: {verification.reason}"
+                                )
                         except Exception:
                             pass
 
-                # 목록 단계에서 report_date 기준 CDN 추정을 먼저 수행한다.
-                # 여기까지 왔다는 것은 그 추정이 실패한 경우이므로, 상세 페이지에 실제로
-                # 표시된 첨부파일명으로만 fallback URL을 만든다.
-                if not resolved_url:
-                    resolved_url = await create_fallback_url(article, soup)
+                # PNG/JPG upload is an article asset, never a PDF URL.
+                if not resolved_url and upload_name:
+                    article.setdefault("article_asset_urls", []).append(upload_name)
 
-                # 최종 URL 할당
+                # Only a verifier-approved msg URL may populate PDF fields.
                 quoted = urllib.parse.quote(resolved_url, safe=":/") if resolved_url else ""
-                article["source_url"] = quoted
-                article["telegram_url"] = quoted
-                article["pdf_file_url"] = quoted
+                if quoted:
+                    article["source_url"] = quoted
+                    article["telegram_url"] = quoted
+                    article["pdf_file_url"] = quoted
 
                 # 건별 업데이트: URL이 확정되면 즉시 DB 반영 (report_id가 있는 경우)
                 if db and quoted and article.get('report_id'):
@@ -518,7 +563,7 @@ def upload_filename_to_cdn_url(upload_url_or_name: str) -> str | None:
     run/fix_ls_db.py 등에서도 재사용 가능.
     """
     basename = os.path.basename(upload_url_or_name)
-    m = re.match(r'^(\d+)_(\d+)_(\d{8})\.', basename)
+    m = re.match(r'^([^_\s]+)_(\d+)_(\d{8})\.', basename)
     if m:
         emp_id, seq, date_str = m.group(1), m.group(2), m.group(3)
         return f"{LS_MSG_EUM_PREFIX}/K_{date_str}_{emp_id}_{seq}.pdf"
