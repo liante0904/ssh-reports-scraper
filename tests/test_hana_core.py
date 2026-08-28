@@ -4,6 +4,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from scrapers.hana_core import _adjust_date
+from scrapers.shinhan_core import LOOKBACK_DAYS
 
 
 def test_hana_business_day_before_cutover_keeps_source_date():
@@ -25,3 +26,7 @@ def test_hana_weekend_ignores_time_and_uses_next_business_day():
 def test_hana_holiday_ignores_missing_time_and_uses_next_business_day():
     # 2026-08-17 is the observed Liberation Day holiday in Korea.
     assert _adjust_date("20260817", "") == "20260818"
+
+
+def test_shinhan_default_lookback_remains_bounded():
+    assert LOOKBACK_DAYS == 45
