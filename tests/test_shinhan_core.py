@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime
 from pathlib import Path
 
 
@@ -34,7 +35,7 @@ def test_shinhan_mobile_item_keeps_detail_url_and_summary(monkeypatch):
             return {
                 "header": {"resultCode": "00000", "repeatKeyN": ""},
                 "body": {"list01": {"outputList": [{
-                    "date": "2026.07.13",
+                    "date": datetime.now().strftime("%Y.%m.%d"),
                     "attachment_url": "https://bbs2.shinhansec.com/board/message/file.pdf.do?attachmentId=1",
                     "message_url": "https://m.shinhansec.com/mweb/invt/shrh/detail?id=1",
                     "summary": "실적 추정 상향과 밸류에이션 재평가가 기대됩니다.",
