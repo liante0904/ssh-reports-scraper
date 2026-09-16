@@ -10,7 +10,6 @@ services:
       additional_contexts:
         ssh_library: ../../../../lib/ssh_library
     restart: unless-stopped
-    network_mode: "host"
     env_file:
       - .env
     volumes:
@@ -22,8 +21,14 @@ services:
       - TZ=Asia/Seoul
       - LOG_BASE_DIR=/log
       - LOG_FILE=/log/logfile.log
-      - SOCKS_PROXY_URL=socks5h://localhost:9091
+      - POSTGRES_HOST=main-postgres
+      - SOCKS_PROXY_URL=socks5h://host.docker.internal:9091
       - SCRAPER_STALE_OVERRIDES=${SCRAPER_STALE_OVERRIDES:-TOSSinvest_checkNewArticle=30}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - db-main-net
+      - egress-net
     stdin_open: true
     tty: true
     logging:
@@ -43,7 +48,6 @@ services:
       additional_contexts:
         ssh_library: ../../../../lib/ssh_library
     restart: unless-stopped
-    network_mode: "host"
     env_file:
       - .env
     volumes:
@@ -55,8 +59,14 @@ services:
       - TZ=Asia/Seoul
       - LOG_BASE_DIR=/log
       - LOG_FILE=/log/logfile.log
-      - SOCKS_PROXY_URL=socks5h://localhost:9091
+      - POSTGRES_HOST=main-postgres
+      - SOCKS_PROXY_URL=socks5h://host.docker.internal:9091
       - SCRAPER_STALE_OVERRIDES=${SCRAPER_STALE_OVERRIDES:-TOSSinvest_checkNewArticle=30}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - db-main-net
+      - egress-net
     stdin_open: true
     tty: true
     logging:
@@ -76,7 +86,6 @@ services:
       additional_contexts:
         ssh_library: ../../../../lib/ssh_library
     restart: always
-    network_mode: "host"
     env_file: .env
     volumes:
       - ~/logs:/log
@@ -85,7 +94,10 @@ services:
       - APP_ENV=${APP_ENV:-production}
       - LOG_BASE_DIR=/log
       - TZ=Asia/Seoul
-      - POSTGRES_HOST=10.0.0.111
+      - POSTGRES_HOST=main-postgres
+    networks:
+      - db-main-net
+      - egress-net
     command: [".venv/bin/python", "scheduler_keyword_alert.py"]
     logging:
       driver: "json-file"
@@ -104,7 +116,6 @@ services:
       additional_contexts:
         ssh_library: ../../../../lib/ssh_library
     restart: always
-    network_mode: "host"
     env_file: .env
     volumes:
       - ~/logs:/log
@@ -113,10 +124,19 @@ services:
       - APP_ENV=${APP_ENV:-production}
       - LOG_BASE_DIR=/log
       - TZ=Asia/Seoul
-      - POSTGRES_HOST=10.0.0.111
+      - POSTGRES_HOST=main-postgres
+    networks:
+      - db-main-net
+      - egress-net
     command: [".venv/bin/python", "scheduler_keyword_alert.py"]
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+
+networks:
+  db-main-net:
+    external: true
+  egress-net:
+    external: true
