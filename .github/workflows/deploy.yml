@@ -99,7 +99,8 @@ jobs:
             ssh_library=./vendor/ssh_library
           build-args: |
             INSTALL_SSH_LIBRARY=${{ env.SSH_LIBRARY_ENABLED == 'true' && '1' || '0' }}
-          platforms: linux/amd64, linux/arm64
+          # Production OCI runtime is ARM64; avoid building an unused amd64 image.
+          platforms: linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
