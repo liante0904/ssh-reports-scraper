@@ -65,4 +65,4 @@ def test_invalid_timeout_uses_safe_default(monkeypatch):
     import scheduler
 
     monkeypatch.setenv("SCRAPER_PROCESS_TIMEOUT_SECONDS", "not-a-number")
-    assert scheduler._scraper_process_timeout() == 900
+    assert scheduler._scraper_process_timeout() == 1800
