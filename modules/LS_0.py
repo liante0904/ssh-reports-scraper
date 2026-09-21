@@ -254,6 +254,13 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
                     logger.error(f"Error parsing LS article row: {e}")
                     continue
 
+        # A WARP outage must stop the page loop as well. Continuing with the
+        # next page repeats the same long proxy retry budget and can consume
+        # the scheduler's entire process window.
+        if WARP_UNAVAILABLE:
+            logger.warning("LS WARP outage; stopping remaining LS pages for this run.")
+            break
+
         if not page_has_articles:
             break  # 빈 페이지면 다음 페이지 없음
 

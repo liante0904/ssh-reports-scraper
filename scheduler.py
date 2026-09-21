@@ -25,9 +25,13 @@ from scraper_config import invalidate_api_cache
 def _scraper_process_timeout() -> int:
     """Return the hard limit for one scraper job."""
     try:
-        return max(30, int(os.getenv("SCRAPER_PROCESS_TIMEOUT_SECONDS", "900")))
+        # Keep the outer job limit above the LS list/detail limits.  The
+        # previous 900s default was identical to LS_LIST_TIMEOUT_SECONDS, so
+        # a slow LS listing could kill the whole scraper before its own
+        # timeout handler returned and the remaining firms were processed.
+        return max(30, int(os.getenv("SCRAPER_PROCESS_TIMEOUT_SECONDS", "1800")))
     except ValueError:
-        return 900
+        return 1800
 
 
 def _run_scraper_process() -> subprocess.CompletedProcess:
