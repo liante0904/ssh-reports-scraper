@@ -4,6 +4,13 @@ import os
 import requests
 from loguru import logger
 from models.ConfigManager import config
+from telegram.request import HTTPXRequest
+
+
+TELEGRAM_CONNECT_TIMEOUT = float(os.getenv("TELEGRAM_CONNECT_TIMEOUT", "10"))
+TELEGRAM_READ_TIMEOUT = float(os.getenv("TELEGRAM_READ_TIMEOUT", "30"))
+TELEGRAM_WRITE_TIMEOUT = float(os.getenv("TELEGRAM_WRITE_TIMEOUT", "30"))
+TELEGRAM_POOL_TIMEOUT = float(os.getenv("TELEGRAM_POOL_TIMEOUT", "10"))
 
 # 가공없이 텍스트를 발송합니다.
 async def sendMarkDownText(token, chat_id, sendMessageText, parse_mode="Markdown"):
@@ -18,7 +25,16 @@ async def sendMarkDownText(token, chat_id, sendMessageText, parse_mode="Markdown
             "Get a valid token from https://t.me/Botfather"
         )
     await asyncio.sleep(1)
-    bot = telegram.Bot(token = token)
+    # Telegram API occasionally takes longer than the library default while
+    # accepting a message. Keep the timeout bounded but configurable so a
+    # transient read timeout can be handled by the caller's retry policy.
+    request = HTTPXRequest(
+        connect_timeout=TELEGRAM_CONNECT_TIMEOUT,
+        read_timeout=TELEGRAM_READ_TIMEOUT,
+        write_timeout=TELEGRAM_WRITE_TIMEOUT,
+        pool_timeout=TELEGRAM_POOL_TIMEOUT,
+    )
+    bot = telegram.Bot(token=token, request=request)
     await bot.sendMessage(chat_id = chat_id, text = sendMessageText, disable_web_page_preview = True, parse_mode = parse_mode)
 
 async def send_system_alert(message):

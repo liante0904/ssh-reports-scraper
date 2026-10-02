@@ -282,7 +282,8 @@ def _send_chunk_with_retry(token: str, chat_id: str, chunk: dict, db, chunk_rows
     import asyncio
     from utils.telegram_util import sendMarkDownText
 
-    max_retries = 3
+    max_retries = int(os.getenv("TELEGRAM_SEND_MAX_RETRIES", "5"))
+    retry_base_seconds = float(os.getenv("TELEGRAM_SEND_RETRY_BASE_SECONDS", "2"))
     for attempt in range(max_retries):
         try:
             asyncio.run(sendMarkDownText(
@@ -294,7 +295,7 @@ def _send_chunk_with_retry(token: str, chat_id: str, chunk: dict, db, chunk_rows
         except Exception as tx_err:
             is_transient = _is_transient_error(tx_err)
             if is_transient and attempt < max_retries - 1:
-                wait = 2 ** attempt  # 1s, 2s, 4s
+                wait = retry_base_seconds * (2 ** attempt)
                 logger.warning(
                     f"[GA-Broadcast] Transient error (attempt {attempt + 1}/{max_retries}), "
                     f"retrying in {wait}s: {tx_err}"
@@ -311,7 +312,8 @@ def _is_transient_error(err: Exception) -> bool:
     err_type = type(err).__name__
     # httpx 네트워크 계층 오류
     if err_type in ("ConnectError", "ConnectTimeout", "ReadTimeout",
-                    "WriteTimeout", "PoolTimeout", "RemoteProtocolError"):
+                    "WriteTimeout", "PoolTimeout", "RemoteProtocolError",
+                    "TimedOut", "NetworkError"):
         return True
     # 표준 라이브러리 네트워크 오류
     if err_type in ("TimeoutError", "ConnectionError", "ConnectionResetError",

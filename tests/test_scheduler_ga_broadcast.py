@@ -220,3 +220,12 @@ def test_broadcast_ga_reports_filters_unresolved_dbfi(monkeypatch):
     assert "미확정 DBFI" not in sender.sent_messages[0]
     assert "https://dbfi.example.test/pv/gate?q=def" in sender.sent_messages[0]
     assert db.daily_update_calls[0][0][0]["report_id"] == 2
+
+
+def test_telegram_timeout_is_classified_as_transient():
+    """python-telegram-bot timeout wrappers must enter the retry path."""
+    from scheduler import _is_transient_error
+    from telegram.error import NetworkError, TimedOut
+
+    assert _is_transient_error(TimedOut("read timeout")) is True
+    assert _is_transient_error(NetworkError("temporary network failure")) is True
