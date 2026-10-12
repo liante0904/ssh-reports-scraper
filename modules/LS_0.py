@@ -106,6 +106,27 @@ def _ls_pdf_candidate_urls(
         )
     return list(dict.fromkeys(candidates))
 
+
+def _ls_attachment_url(href: str, detail_url: str) -> str | None:
+    """Resolve a detail-page attachment link without guessing its file identity."""
+    value = str(href or "").strip()
+    if not value or value.startswith(("#", "javascript:", "mailto:")):
+        return None
+    resolved = urllib.parse.urljoin(detail_url, value)
+    parsed = urllib.parse.urlparse(resolved)
+    if parsed.scheme not in {"http", "https"}:
+        return None
+    host = (parsed.hostname or "").lower()
+    if not (
+        host == "ls-sec.co.kr"
+        or host.endswith(".ls-sec.co.kr")
+        or host == "nls-sec.co.kr"
+        or host.endswith(".nls-sec.co.kr")
+    ):
+        return None
+    return resolved
+
+
 def get_soup_with_warp(url, headers):
     global USE_WARP_ONLY, WARP_UNAVAILABLE
     for attempt in range(1, LS_WARP_RETRIES + 1):
@@ -154,6 +175,7 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
         logger.warning("LS WARP warm-up 실패 (스크래핑 계속 진행)")
 
     # ── 페이지 순회 (기본 1~2페이지) ──
+    seen_content = {}
     for p in range(page, page + max_pages):
         if p == 1:
             TARGET_URL_TUPLE = tuple(base_urls)
@@ -235,6 +257,24 @@ def LS_checkNewArticle(page=1, is_imported=False, skip_boards=None, max_pages=2)
                     
                     title_text = a_tag.get_text().strip()
                     LIST_ARTICLE_TITLE = title_text[title_text.find("]")+1:].strip()
+
+                    # LS exposes some reports on more than one board with a
+                    # different board_seq. Keep the first listing for an exact
+                    # date/title/writer match so mirrored rows are not imported
+                    # as separate reports.
+                    content_key = (
+                        re.sub(r"[-./]", "", str_date).strip(),
+                        re.sub(r"\s+", " ", LIST_ARTICLE_TITLE).strip().casefold(),
+                        re.sub(r"\s+", " ", writer).strip().casefold(),
+                    )
+                    if (
+                        all(content_key)
+                        and content_key in seen_content
+                        and seen_content[content_key] != board_id
+                    ):
+                        continue
+                    if all(content_key):
+                        seen_content.setdefault(content_key, board_id)
 
                     json_data_list.append({
                         "firm_id": firm_id,
@@ -398,18 +438,24 @@ async def process_article(
                     article["writer"] = td_text
                     logger.debug(f"[LS][작성자추출] writer={td_text}")
             elif th_text == "첨부파일":
-                # ── URL 해결 전략 (3단계) ──
-                # 1순위: 업로드 파일명 직접 파싱 → CDN URL (가장 빠름)
+                # ── URL 해결 전략 ──
+                # 상세페이지 첨부 링크와 직접 업로드 URL을 먼저 검증하고,
+                # 이후 파일명에서 추론한 CDN URL을 검증한다.
                 #   upload filename: {emp_id}_{seq}_{date}.ext → K_{date}_{emp_id}_{seq}.pdf
                 resolved_url = None
+                attachment_urls = []
 
                 upload_name = ""
                 # 소스 A: 첨부파일 td a 텍스트
                 for a_tag in tr.select("td a"):
                     txt = a_tag.get_text(strip=True)
-                    if re.search(r'[^\s_]+_\d+_\d{8}\.\w+$', txt):
+                    attachment_url = _ls_attachment_url(
+                        a_tag.get("href", ""), TARGET_URL
+                    )
+                    if attachment_url:
+                        attachment_urls.append(attachment_url)
+                    if re.search(r'[^/\\\s]+_\d+_\d{8}\.\w+$', txt):
                         upload_name = txt
-                        break
                 # 소스 B: 본문 img alt → src basename
                 if not upload_name:
                     img = soup.select_one(
@@ -421,28 +467,47 @@ async def process_article(
                         if not upload_name:
                             upload_name = os.path.basename(img.get("src", ""))
 
+                candidate_urls = list(attachment_urls)
                 if upload_name:
                     article["ATTACH_FILE_NAME"] = upload_name
-                    candidate_urls = _ls_pdf_candidate_urls(upload_name)
-                    for direct_url in candidate_urls:
-                        try:
-                            verification = await asyncio.to_thread(
-                                verify_ls_pdf_candidate,
-                                direct_url,
-                                article.get("article_title", ""),
-                                headers,
-                                PROXIES,
+                    if upload_name.lower().endswith(".pdf"):
+                        report_month = _article_report_date(article)[:6]
+                        if report_month:
+                            candidate_urls.append(
+                                f"{LS_UPLOAD_PREFIX}/B{report_month}/"
+                                f"{urllib.parse.quote(upload_name)}"
                             )
-                            if verification.matched:
-                                resolved_url = direct_url
-                                logger.info(f"[LS][직접파싱] 검증된 PDF URL: {direct_url}")
-                                break
-                            else:
-                                logger.warning(
-                                    f"[LS][직접파싱] PDF 검증 실패, PDF 필드에 저장하지 않음: {verification.reason}"
-                                )
-                        except Exception:
-                            pass
+                    candidate_urls.extend(_ls_pdf_candidate_urls(upload_name))
+
+                candidate_urls = list(dict.fromkeys(candidate_urls))
+                failure_reasons = {}
+                for direct_url in candidate_urls:
+                    try:
+                        verification = await asyncio.to_thread(
+                            verify_ls_pdf_candidate,
+                            direct_url,
+                            article.get("article_title", ""),
+                            headers,
+                            PROXIES,
+                        )
+                        if verification.matched:
+                            resolved_url = direct_url
+                            logger.info(f"[LS][직접파싱] 검증된 PDF URL: {direct_url}")
+                            break
+                        reason = verification.reason or "unknown"
+                        failure_reasons[reason] = failure_reasons.get(reason, 0) + 1
+                    except Exception as exc:
+                        reason = f"verification error: {type(exc).__name__}"
+                        failure_reasons[reason] = failure_reasons.get(reason, 0) + 1
+
+                if candidate_urls and not resolved_url:
+                    reason_summary = ", ".join(
+                        f"{reason}={count}"
+                        for reason, count in sorted(failure_reasons.items())
+                    ) or "no verification result"
+                    logger.warning(
+                        f"[LS][PDF] 첨부 후보 검증 실패: {len(candidate_urls)}개 후보, {reason_summary}"
+                    )
 
                 # PNG/JPG upload is an article asset, never a PDF URL.
                 if not resolved_url and upload_name:
