@@ -116,7 +116,17 @@ async def _verify(url: str, article: dict, headers: dict) -> tuple[bool, str]:
     return result.matched, result.reason
 
 
-async def run(date_from: str, limit: int, search_days: int, execute: bool) -> None:
+async def run(
+    date_from: str,
+    limit: int,
+    search_days: int,
+    trusted_after: str,
+    verify_all_existing: bool,
+    execute: bool,
+) -> None:
+    # Production direct egress repeatedly times out for LS; use the known
+    # working WARP route from the start instead of spending 60s per URL.
+    LS_0.USE_WARP_ONLY = True
     db = get_db()
     rows = _load_targets(db, date_from, limit)
     print(f"targets={len(rows)} date_from={date_from} execute={execute}")
@@ -126,7 +136,13 @@ async def run(date_from: str, limit: int, search_days: int, execute: bool) -> No
         "Referer": LS_0.LS_HOME_URL,
     }
     verified_cache: dict[tuple[str, str], tuple[bool, str]] = {}
-    counters = {"already_valid": 0, "resolved": 0, "unresolved": 0}
+    counters = {
+        "already_valid": 0,
+        "trusted_existing": 0,
+        "resolved": 0,
+        "cleared_invalid": 0,
+        "unresolved": 0,
+    }
 
     async def check(url: str, article: dict) -> tuple[bool, str]:
         cache_key = (url, str(article.get("article_title") or ""))
@@ -147,12 +163,25 @@ async def run(date_from: str, limit: int, search_days: int, execute: bool) -> No
         ))
         current_url = stored_urls[0] if stored_urls else ""
 
+        if (
+            current_url
+            and not verify_all_existing
+            and article["report_date"] >= trusted_after
+            and len(stored_urls) == 1
+        ):
+            # These URLs were written by LS_detail after strict first-page
+            # title verification was deployed. Older rows are rechecked below.
+            counters["trusted_existing"] += 1
+            continue
+
         valid_existing = ""
+        invalid_reasons: dict[str, str] = {}
         for stored_url in stored_urls:
             matched, reason = await check(stored_url, article)
             if matched:
                 valid_existing = stored_url
                 break
+            invalid_reasons[stored_url] = reason
             print(f"INVALID_CURRENT report_id={article['report_id']} reason={reason}")
 
         if valid_existing:
@@ -227,6 +256,25 @@ async def run(date_from: str, limit: int, search_days: int, execute: bool) -> No
             reason_summary = ", ".join(
                 f"{key}={value}" for key, value in sorted(reasons.items())
             ) or "no candidates"
+            title_mismatch = bool(invalid_reasons) and all(
+                reason in {
+                    "first-page text title mismatch",
+                    "first-page OCR title mismatch",
+                }
+                for reason in invalid_reasons.values()
+            )
+            if title_mismatch:
+                counters["cleared_invalid"] += 1
+                if execute:
+                    await db.update_telegram_url(
+                        record_id=article["report_id"],
+                        telegram_url="",
+                        article_title=None,
+                        pdf_file_url="",
+                    )
+                    print(f"CLEARED_INVALID report_id={article['report_id']}")
+                else:
+                    print(f"WOULD_CLEAR_INVALID report_id={article['report_id']}")
             print(
                 f"UNRESOLVED report_id={article['report_id']} "
                 f"candidates={len(candidates)} reasons={reason_summary}"
@@ -235,9 +283,11 @@ async def run(date_from: str, limit: int, search_days: int, execute: bool) -> No
     print(
         "summary="
         f"already_valid:{counters['already_valid']} "
+        f"trusted_existing:{counters['trusted_existing']} "
         f"resolved:{counters['resolved']} "
+        f"cleared_invalid:{counters['cleared_invalid']} "
         f"unresolved:{counters['unresolved']} "
-        f"updated:{counters['resolved'] if execute else 0}"
+        f"updated:{counters['resolved'] + counters['cleared_invalid'] if execute else 0}"
     )
 
 
@@ -252,6 +302,16 @@ def main() -> None:
     parser.add_argument("--date-from", help="inclusive report_date, YYYY-MM-DD or YYYYMMDD")
     parser.add_argument("--limit", type=int, default=0, help="maximum rows; 0 means all")
     parser.add_argument("--search-days", type=int, default=10, help="candidate date window on each side")
+    parser.add_argument(
+        "--trusted-after",
+        default="20260825",
+        help="skip rechecking URLs saved after this strict-verifier rollout date",
+    )
+    parser.add_argument(
+        "--verify-all-existing",
+        action="store_true",
+        help="recheck every stored URL, including URLs saved by the strict verifier",
+    )
     parser.add_argument("--execute", action="store_true", help="write only verified URLs to production DB")
     args = parser.parse_args()
     if args.days < 1 or args.limit < 0 or args.search_days < 0:
@@ -259,9 +319,19 @@ def main() -> None:
     date_from = re.sub(r"\D", "", args.date_from) if args.date_from else (
         date.today() - timedelta(days=args.days)
     ).strftime("%Y%m%d")
-    if len(date_from) != 8:
-        parser.error("date-from must be YYYY-MM-DD or YYYYMMDD")
-    asyncio.run(run(date_from, args.limit, args.search_days, args.execute))
+    trusted_after = re.sub(r"\D", "", args.trusted_after)
+    if len(date_from) != 8 or len(trusted_after) != 8:
+        parser.error("date-from and trusted-after must be YYYY-MM-DD or YYYYMMDD")
+    asyncio.run(
+        run(
+            date_from,
+            args.limit,
+            args.search_days,
+            trusted_after,
+            args.verify_all_existing,
+            args.execute,
+        )
+    )
 
 
 if __name__ == "__main__":
