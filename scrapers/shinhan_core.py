@@ -37,7 +37,13 @@ def scrape_shinhan(cfg: dict) -> list[dict]:
     headers = {"User-Agent":"Mozilla/5.0","Content-Type":"application/json",
                "Referer":"https://m.shinhansec.com/mweb/invt/shrh/ishrh1001"}
     result = []
-    cutoff = (datetime.now(timezone(timedelta(hours=9))) - timedelta(days=45)).strftime("%Y%m%d")
+    # Normal scheduler runs stay bounded.  A deliberate historical backfill
+    # can request a longer window without editing module-level state.
+    try:
+        lookback_days = max(1, int(cfg.get("lookback_days", LOOKBACK_DAYS)))
+    except (TypeError, ValueError):
+        lookback_days = LOOKBACK_DAYS
+    cutoff = (datetime.now(timezone(timedelta(hours=9))) - timedelta(days=lookback_days)).strftime("%Y%m%d")
 
     # STR boards (POST to mobile API)
     for bbs_name in cfg.get("str_boards","giperiodicaldaily|gistockchart|plananalysis|gicompanyanalyst|giindustry|gieconomy|fxmarket|commodity|gibond|foreignbond").split("|"):
