@@ -136,6 +136,7 @@ async def run(
         "Referer": LS_0.LS_HOME_URL,
     }
     verified_cache: dict[tuple[str, str], tuple[bool, str]] = {}
+    verify_slots = asyncio.Semaphore(4)
     counters = {
         "already_valid": 0,
         "trusted_existing": 0,
@@ -148,7 +149,8 @@ async def run(
         cache_key = (url, str(article.get("article_title") or ""))
         if cache_key not in verified_cache:
             try:
-                verified_cache[cache_key] = await _verify(url, article, headers)
+                async with verify_slots:
+                    verified_cache[cache_key] = await _verify(url, article, headers)
             except Exception as exc:
                 verified_cache[cache_key] = (False, f"verification error: {type(exc).__name__}")
         return verified_cache[cache_key]
@@ -224,8 +226,10 @@ async def run(
         candidates = list(dict.fromkeys(url for url in candidates if url != current_url))
         resolved_url = ""
         reasons: dict[str, int] = {}
-        for candidate in candidates:
-            matched, reason = await check(candidate, article)
+        candidate_results = await asyncio.gather(
+            *(check(candidate, article) for candidate in candidates)
+        )
+        for candidate, (matched, reason) in zip(candidates, candidate_results):
             if matched:
                 resolved_url = candidate
                 break
