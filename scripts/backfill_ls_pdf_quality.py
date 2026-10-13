@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Verify and repair LS PDF URLs for a bounded report-date window.
 
-Dry-run is the default. With ``--execute``, only URLs whose response is a PDF
-and whose first page matches the stored article title are written to the DB.
+Dry-run is the default. With ``--execute``, only title-verified PDFs or PDFs
+whose identity is proven by an exact detail-linked attachment and cover metadata
+are written to the DB.
 """
 
 from __future__ import annotations
@@ -105,13 +106,43 @@ def _detail_candidates(article: dict, html: str, search_days: int) -> list[str]:
     return list(dict.fromkeys(candidates))
 
 
-async def _verify(url: str, article: dict, headers: dict) -> tuple[bool, str]:
+def _detail_image_filenames(html: str) -> list[str]:
+    soup = BeautifulSoup(html, "html.parser")
+    filenames = []
+    for img in soup.select(
+        "#contents > div.tbViewCon > div > html > body > p > img, "
+        "#contents > div.tbViewCon > div > p > img"
+    ):
+        name = unquote(img.get("alt") or os.path.basename(urlparse(img.get("src", "")).path))
+        if re.fullmatch(r".+_\d+_\d{8}\.(?:png|jpe?g|pdf)", name, re.IGNORECASE):
+            filenames.append(name)
+    return list(dict.fromkeys(filenames))
+
+
+def _source_filename_for_candidate(url: str, filenames: list[str], article: dict) -> str:
+    for filename in filenames:
+        if url in LS_0._ls_pdf_candidate_urls(
+            filename, search_days=0, preferred_date=article["report_date"]
+        ):
+            return filename
+    return ""
+
+
+async def _verify(
+    url: str,
+    article: dict,
+    headers: dict,
+    source_attachment_name: str = "",
+) -> tuple[bool, str]:
     result = await asyncio.to_thread(
         verify_ls_pdf_candidate,
         url,
         str(article.get("article_title") or ""),
         headers,
         LS_0.PROXIES,
+        source_attachment_name=source_attachment_name,
+        expected_writer=str(article.get("writer") or ""),
+        expected_date=article.get("report_date", ""),
     )
     return result.matched, result.reason
 
@@ -135,7 +166,7 @@ async def run(
         "Accept": "application/pdf,*/*",
         "Referer": LS_0.LS_HOME_URL,
     }
-    verified_cache: dict[tuple[str, str], tuple[bool, str]] = {}
+    verified_cache: dict[tuple[str, str, str], tuple[bool, str]] = {}
     verify_slots = asyncio.Semaphore(4)
     counters = {
         "already_valid": 0,
@@ -145,12 +176,22 @@ async def run(
         "unresolved": 0,
     }
 
-    async def check(url: str, article: dict) -> tuple[bool, str]:
-        cache_key = (url, str(article.get("article_title") or ""))
+    async def check(
+        url: str,
+        article: dict,
+        source_attachment_name: str = "",
+    ) -> tuple[bool, str]:
+        cache_key = (
+            url,
+            str(article.get("article_title") or ""),
+            source_attachment_name,
+        )
         if cache_key not in verified_cache:
             try:
                 async with verify_slots:
-                    verified_cache[cache_key] = await _verify(url, article, headers)
+                    verified_cache[cache_key] = await _verify(
+                        url, article, headers, source_attachment_name
+                    )
             except Exception as exc:
                 verified_cache[cache_key] = (False, f"verification error: {type(exc).__name__}")
         return verified_cache[cache_key]
@@ -204,6 +245,7 @@ async def run(
             continue
 
         candidates: list[str] = []
+        source_image_filenames: list[str] = []
         filename = _filename_from_url(current_url) if current_url else ""
         if re.search(r"_\d+_\d{8}\.\w+$", filename):
             candidates.extend(
@@ -219,15 +261,57 @@ async def run(
             try:
                 html = await LS_0.fetch(None, detail_key, headers)
                 if html:
+                    source_image_filenames = _detail_image_filenames(html)
                     candidates.extend(_detail_candidates(article, html, search_days))
             except Exception as exc:
                 print(f"DETAIL_ERROR report_id={article['report_id']} error={type(exc).__name__}")
+
+        # A PDF may have a cover title that differs from the board title. If
+        # its exact source-linked image stem and cover metadata prove identity,
+        # retain the existing URL rather than clearing it as a false mismatch.
+        detail_linked_existing = ""
+        for stored_url in stored_urls:
+            source_name = _source_filename_for_candidate(
+                stored_url, source_image_filenames, article
+            )
+            if source_name:
+                matched, reason = await check(stored_url, article, source_name)
+                if matched:
+                    detail_linked_existing = stored_url
+                    break
+                print(
+                    f"SOURCE_LINKED_CURRENT_INVALID report_id={article['report_id']} "
+                    f"reason={reason}"
+                )
+        if detail_linked_existing:
+            counters["already_valid"] += 1
+            if any(url != detail_linked_existing for url in stored_urls):
+                counters["resolved"] += 1
+                if execute:
+                    await db.update_telegram_url(
+                        record_id=article["report_id"],
+                        telegram_url=detail_linked_existing,
+                        article_title=article.get("article_title"),
+                        pdf_file_url=detail_linked_existing,
+                    )
+                else:
+                    print(f"WOULD_ALIGN_FIELDS report_id={article['report_id']}")
+            continue
 
         candidates = list(dict.fromkeys(url for url in candidates if url != current_url))
         resolved_url = ""
         reasons: dict[str, int] = {}
         candidate_results = await asyncio.gather(
-            *(check(candidate, article) for candidate in candidates)
+            *(
+                check(
+                    candidate,
+                    article,
+                    _source_filename_for_candidate(
+                        candidate, source_image_filenames, article
+                    ),
+                )
+                for candidate in candidates
+            )
         )
         for candidate, (matched, reason) in zip(candidates, candidate_results):
             if matched:

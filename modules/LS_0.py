@@ -489,6 +489,9 @@ async def process_article(
                             article.get("article_title", ""),
                             headers,
                             PROXIES,
+                            source_attachment_name=upload_name,
+                            expected_writer=article.get("writer", ""),
+                            expected_date=_article_report_date(article),
                         )
                         if verification.matched:
                             resolved_url = direct_url
