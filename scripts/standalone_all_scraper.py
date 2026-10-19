@@ -71,7 +71,7 @@ IMPORT_MAP: dict[str, tuple[str, str, bool]] = {
     "Kiwoom_10":          ("modules.Kiwoom_10",          "Kiwoom_checkNewArticle",            True),
     "DS_11":              ("modules.DS_11",              "DS_checkNewArticle",                False),
     # eugenefn_12: 보류
-    "Koreainvestment_13": ("modules.Koreainvestment_13", "Koreainvestment_selenium_checkNewArticle", True),
+    "Koreainvestment_13": ("modules.Koreainvestment_13", "Koreainvestment_playwright_checkNewArticle", True),
     "DAOL_14":            ("modules.DAOL_14",            "DAOL_checkNewArticle",              True),
     "TOSSinvest_15":      ("modules.TOSSinvest_15",      "TOSSinvest_checkNewArticle",        False),
     "Leading_16":         ("modules.Leading_16",         "Leading_checkNewArticle",           True),

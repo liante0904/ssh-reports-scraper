@@ -46,7 +46,7 @@ class TestScraperFunctionLists:
         names = {f.__name__ for f in funcs}
         expected = {
             "ShinHanInvest_checkNewArticle",
-            "Koreainvestment_selenium_checkNewArticle",
+            "Koreainvestment_playwright_checkNewArticle",
             "Daeshin_checkNewArticle",
             "HANA_checkNewArticle",
             "MERITZ_checkNewArticle",
@@ -105,7 +105,7 @@ class TestRegistryConsistency:
         names = {f.__name__ for f in funcs}
         assert names == {
             "ShinHanInvest_checkNewArticle",
-            "Koreainvestment_selenium_checkNewArticle",
+            "Koreainvestment_playwright_checkNewArticle",
             "Daeshin_checkNewArticle",
             "HANA_checkNewArticle",
             "MERITZ_checkNewArticle",

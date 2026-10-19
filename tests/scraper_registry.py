@@ -12,7 +12,7 @@ SCRAPER_IMPORTS = [
     ("키움증권", "modules.Kiwoom_10", "Kiwoom_checkNewArticle", True, False),   # GA standalone
     ("DS투자증권", "modules.DS_11", "DS_checkNewArticle", False, True),
     ("유진투자증권", "modules.eugenefn_12", "eugene_checkNewArticle", False, False),
-    ("한국투자증권", "modules.Koreainvestment_13", "Koreainvestment_selenium_checkNewArticle", False, False),
+    ("한국투자증권", "modules.Koreainvestment_13", "Koreainvestment_playwright_checkNewArticle", False, False),
     ("다올투자증권", "modules.DAOL_14", "DAOL_checkNewArticle", True, True),
     ("토스증권", "modules.TOSSinvest_15", "TOSSinvest_checkNewArticle", False, False), # GA standalone
     ("리딩투자증권", "modules.Leading_16", "Leading_checkNewArticle", True, False),       # GA standalone
