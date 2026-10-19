@@ -25,13 +25,13 @@ WORKDIR /app
 # 6. 의존성 설치 (캐시 활용)
 # 소유권을 appuser로 지정하여 파일 복사
 COPY --chown=appuser:appgroup pyproject.toml uv.lock ./ 
-RUN uv sync --frozen --no-cache
 
 # 6-1. 선택적 private ssh-library 설치
 # GitHub Actions/Compose에서 ssh_library named context를 넘기고
 # INSTALL_SSH_LIBRARY=1일 때만 현재 프로젝트 venv에 설치한다.
 ARG INSTALL_SSH_LIBRARY=0
 RUN --mount=from=ssh_library,target=/tmp/ssh-library \
+    uv sync --frozen --no-cache && \
     if [ "$INSTALL_SSH_LIBRARY" = "1" ]; then \
       uv pip install --python .venv/bin/python /tmp/ssh-library; \
     else \
@@ -53,7 +53,7 @@ COPY --chown=appuser:appgroup *.py ./
 # COPY .env ./ # .env는 docker-compose의 env_file을 통해 주입됩니다.
 
 # 8. 실행 권한 부여 및 디렉토리 준비
-RUN mkdir -p /log && chown -R appuser:appgroup /log /app
+RUN mkdir -p /log && chown appuser:appgroup /log /app
 
 # 9. Switch to the non-root user
 USER appuser
