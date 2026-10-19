@@ -11,12 +11,12 @@ from loguru import logger
 from utils.logger_util import setup_logger
 setup_logger("koreainvestment_backfill")
 
-from modules.Koreainvestment_13 import Koreainvestment_selenium_checkNewArticle
+from modules.Koreainvestment_13 import Koreainvestment_playwright_checkNewArticle
 from models.db_factory import get_db
 
 async def main():
     logger.info("=== 한국투자증권 백필 시작 (KOREAMAX_PAGES=50) ===")
-    articles = await Koreainvestment_selenium_checkNewArticle()
+    articles = await Koreainvestment_playwright_checkNewArticle()
     logger.info(f"수집 완료: {len(articles)}건")
 
     if not articles:

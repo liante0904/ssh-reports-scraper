@@ -11,8 +11,6 @@ RUN apt-get update && apt-get install -y \
     rclone \
     tesseract-ocr \
     tesseract-ocr-kor \
-    chromium \
-    chromium-driver \
     && rm -rf /var/lib/apt/lists/*
 
 # 3. uv 설치

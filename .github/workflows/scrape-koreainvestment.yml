@@ -10,10 +10,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Chrome
-        uses: browser-actions/setup-chrome@v1
       - run: pip install uv
       - run: uv sync --frozen --no-cache
+      - name: Install Playwright Chromium for fallback runs
+        run: uv run playwright install chromium
       - name: Run KoreaInvestment scraper
         env:
           urls: ${{ secrets.KOREAINVESTMENT_URLS_JSON }}

@@ -22,7 +22,7 @@ SCRAPERS = [
     ("modules.Kiwoom_10", "Kiwoom_checkNewArticle"),
     ("modules.DS_11", "DS_checkNewArticle"),
     ("modules.eugenefn_12", "eugene_checkNewArticle"),
-    ("modules.Koreainvestment_13", "Koreainvestment_selenium_checkNewArticle"),
+    ("modules.Koreainvestment_13", "Koreainvestment_playwright_checkNewArticle"),
     ("modules.DAOL_14", "DAOL_checkNewArticle"),
     ("modules.TOSSinvest_15", "TOSSinvest_checkNewArticle"),
     ("modules.Leading_16", "Leading_checkNewArticle"),

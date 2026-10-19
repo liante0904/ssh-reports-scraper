@@ -24,11 +24,13 @@ services:
       - POSTGRES_HOST=main-postgres
       - SOCKS_PROXY_URL=socks5h://host.docker.internal:9091
       - SCRAPER_STALE_OVERRIDES=${SCRAPER_STALE_OVERRIDES:-TOSSinvest_checkNewArticle=30}
+      - PLAYWRIGHT_WS_ENDPOINT=ws://browser:3000/
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
       - db-main-net
       - egress-net
+      - shared-browser-net
     stdin_open: true
     tty: true
     logging:
@@ -62,11 +64,13 @@ services:
       - POSTGRES_HOST=main-postgres
       - SOCKS_PROXY_URL=socks5h://host.docker.internal:9091
       - SCRAPER_STALE_OVERRIDES=${SCRAPER_STALE_OVERRIDES:-TOSSinvest_checkNewArticle=30}
+      - PLAYWRIGHT_WS_ENDPOINT=ws://browser:3000/
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
       - db-main-net
       - egress-net
+      - shared-browser-net
     stdin_open: true
     tty: true
     logging:
@@ -139,4 +143,6 @@ networks:
   db-main-net:
     external: true
   egress-net:
+    external: true
+  shared-browser-net:
     external: true

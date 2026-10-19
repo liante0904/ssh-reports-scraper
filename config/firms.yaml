@@ -136,11 +136,11 @@ firms:
     ga_full_scrape_list: none
     ga_fallback_excluded: false
     ga_fallback_exclusion_reason: ~
-    func_name: "Koreainvestment_selenium_checkNewArticle"
+    func_name: "Koreainvestment_playwright_checkNewArticle"
     enricher: null
     enrichment_skip: false
     special_funcs: null
-    notes: "Selenium 의존(browser-actions/setup-chrome@v1). ChromeDriver ARM64/amd64 분기. _runner.py 미사용 — modules/Koreainvestment_13.py의 selenium 함수 직접 호출. core 정규 패턴(scrapers/koreainvestment_core.py) 미이관."
+    notes: "공용 Playwright 브라우저(PLAYWRIGHT_WS_ENDPOINT) 사용. Selenium 구현은 modules/Koreainvestment_13.py에 롤백/비교용으로 보존. _runner.py 미사용 — 특수 async 함수 직접 호출."
 
   sks:
     display_name: SK증권

@@ -9,11 +9,7 @@ from datetime import datetime
 import time
 from loguru import logger
 
-# selenium
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+from playwright.async_api import async_playwright
 
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -22,6 +18,13 @@ from models.ConfigManager import config
 
 
 async def Koreainvestment_selenium_checkNewArticle():
+    # Kept as a rollback/diagnostic implementation; Selenium is no longer part
+    # of the production runtime dependencies or Docker image.
+    from selenium import webdriver
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.chrome.service import Service
+    from webdriver_manager.chrome import ChromeDriverManager
+
     firm_id      = 13
     json_data_list = []
 
@@ -143,6 +146,84 @@ async def Koreainvestment_selenium_checkNewArticle():
     logger.info(f"Total articles collected: {len(json_data_list)}")
     return json_data_list
 
+
+async def Koreainvestment_playwright_checkNewArticle():
+    """Playwright implementation kept alongside Selenium for side-by-side validation."""
+    firm_id = 13
+    json_data_list = []
+
+    requests.packages.urllib3.disable_warnings()
+    target_url = config.get_urls("Koreainvestment_13")[0]
+    max_pages = int(os.getenv("KOREAMAX_PAGES", "10"))
+
+    categories = [
+        {"name": "전체", "board_order": 0, "script": None, "mkt_tp": "KR"},
+        {"name": "미국 현지 리서치", "board_order": 10,
+         "script": "onTab1Selected('stifel', 1);", "mkt_tp": "GLOBAL"},
+    ]
+
+    logger.debug("KoreaInvestment Scraper: Launching Playwright browser...")
+    async with async_playwright() as playwright:
+        endpoint = os.getenv("PLAYWRIGHT_WS_ENDPOINT")
+        browser = (
+            await playwright.chromium.connect(endpoint)
+            if endpoint
+            else await playwright.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
+        )
+        try:
+            page = await browser.new_page()
+            for category in categories:
+                board_id = category["board_order"]
+                firm_info = FirmInfo(firm_id, board_id)
+                logger.debug(f"KoreaInvestment Scraper: Processing [{category['name']}]")
+
+                await page.goto(target_url, wait_until="load")
+                if category["script"]:
+                    await page.evaluate(category["script"])
+                    await page.wait_for_timeout(2000)
+
+                for page_number in range(1, max_pages + 1):
+                    if page_number > 1:
+                        await page.evaluate(f"goPage({page_number});")
+                        await page.wait_for_timeout(2000)
+
+                    title_elements = await page.locator('//*[@id="searchResult"]/div/ul/li/a[1]/div[2]/span[1]').all()
+                    link_elements = await page.locator('//*[@id="searchResult"]/div/ul/li/a[2]').all()
+                    info_elements = await page.locator('//*[@id="searchResult"]/div/ul/li/a[1]/span').all()
+
+                    if not title_elements:
+                        logger.info(f"KoreaInvestment Scraper: No more articles on page {page_number}")
+                        break
+
+                    logger.info(f"KoreaInvestment Scraper: Collected {len(title_elements)} items on page {page_number}")
+                    for title, link, article_info in zip(title_elements, link_elements, info_elements):
+                        article_info_str = (await article_info.inner_text()).split(" ")
+                        if len(article_info_str) < 2:
+                            continue
+
+                        article_url_raw = await link.get_attribute("onclick")
+                        article_url = Koreainvestment_GET_LIST_ARTICLE_URL(article_url_raw)
+                        json_data_list.append({
+                            "firm_id": firm_id,
+                            "board_id": board_id,
+                            "firm_nm": firm_info.get_firm_name(),
+                            "report_date": re.sub(r"[-./]", "", article_info_str[1]),
+                            "telegram_url": article_url,
+                            "pdf_file_url": article_url,
+                            "article_title": await title.inner_text(),
+                            "writer": article_info_str[0],
+                            "report_unique_key": article_url,
+                            "save_at": datetime.now().isoformat(),
+                            "mkt_tp": category["mkt_tp"],
+                        })
+        except Exception as e:
+            logger.error(f"Error during KoreaInvestment Playwright scraping: {e}")
+        finally:
+            await browser.close()
+
+    logger.info(f"Total articles collected with Playwright: {len(json_data_list)}")
+    return json_data_list
+
 def Koreainvestment_GET_LIST_ARTICLE_URL(string):
     if not string: return ""
     string = string.replace("javascript:prePdfFileView2(", "").replace("javascript:prePdfFileView3(", "").replace("&amp;", "&").replace(")", "").replace("(", "").replace("'", "")
@@ -225,5 +306,5 @@ def Koreainvestment_MAKE_LIST_ARTICLE_URL(filepath, filename, option, datasubmit
         return f"{host_name}?filepath={urllib.parse.quote(filepath)}&filename={filename}&option={option}"
 
 if __name__ == "__main__":
-    results = asyncio.run(Koreainvestment_selenium_checkNewArticle())
+    results = asyncio.run(Koreainvestment_playwright_checkNewArticle())
     logger.info(f"Total articles fetched: {len(results)}")
