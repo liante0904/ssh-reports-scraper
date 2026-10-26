@@ -39,6 +39,14 @@ RUN --mount=from=ssh_library,target=/tmp/ssh-library \
     fi && \
     chown -R appuser:appgroup /app/.venv
 
+# Shared Playwright WS는 네트워크 장애 시 가용성에 영향을 주므로
+# 로컬 Chromium을 대체 경로로 사용할 수 있게 이미지에 함께 설치한다.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN apt-get update && \
+    .venv/bin/python -m playwright install --with-deps chromium && \
+    chown -R appuser:appgroup "$PLAYWRIGHT_BROWSERS_PATH" && \
+    rm -rf /var/lib/apt/lists/*
+
 # 7. 필요한 소스 코드 복사
 COPY --chown=appuser:appgroup run/ ./run/
 COPY --chown=appuser:appgroup models/ ./models/
