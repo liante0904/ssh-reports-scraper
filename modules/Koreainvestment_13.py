@@ -165,11 +165,20 @@ async def Koreainvestment_playwright_checkNewArticle():
     logger.debug("KoreaInvestment Scraper: Launching Playwright browser...")
     async with async_playwright() as playwright:
         endpoint = os.getenv("PLAYWRIGHT_WS_ENDPOINT")
-        browser = (
-            await playwright.chromium.connect(endpoint)
-            if endpoint
-            else await playwright.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
-        )
+        launch_args = ["--no-sandbox", "--disable-dev-shm-usage"]
+        if endpoint:
+            try:
+                browser = await playwright.chromium.connect(endpoint)
+            except Exception as exc:
+                logger.warning(
+                    "KoreaInvestment: shared Playwright browser unavailable at %s; "
+                    "falling back to local Chromium: %s",
+                    endpoint,
+                    exc,
+                )
+                browser = await playwright.chromium.launch(headless=True, args=launch_args)
+        else:
+            browser = await playwright.chromium.launch(headless=True, args=launch_args)
         try:
             page = await browser.new_page()
             for category in categories:
