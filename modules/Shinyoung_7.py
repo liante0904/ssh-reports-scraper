@@ -5,6 +5,7 @@ import requests
 import json
 import re
 from datetime import datetime
+from urllib.parse import urljoin
 
 import os
 import sys
@@ -44,20 +45,34 @@ def Shinyoung_checkNewArticle():
     
     # HTML parse
     jres = scraper.PostJson(params=payload)
+    if not isinstance(jres, dict):
+        logger.warning("Shinyoung list API returned unexpected payload: {}", type(jres).__name__)
+        return []
 
-    # logger.debug(jres['rows'])
-    soupList = jres['rows']
+    soupList = jres.get('rows')
+    if not isinstance(soupList, list):
+        logger.warning("Shinyoung list API returned unexpected rows: {}", type(soupList).__name__)
+        return []
     
     # JSON To List
-    for list in soupList:
-        # logger.debug('list***************** \n',list)
+    for row in soupList:
+        if not isinstance(row, dict):
+            logger.warning("Skipping malformed Shinyoung report row: {}", type(row).__name__)
+            continue
+
+        report_date = row.get('APPDATE')
+        article_title = row.get('TITLE')
+        file_path = row.get('FILEPATH')
+        if not report_date or not article_title or not isinstance(file_path, str) or not file_path.strip():
+            logger.warning("Skipping Shinyoung report row with missing date, title, or file path")
+            continue
+
         mkt_tp              = "KR"    
-        report_date         = re.sub(r"[-./]", "", list['APPDATE'])
-        writer              = list['EMPNM']
-        # logger.debug('NT_NO=',list['NT_NO'], 'CMS_CD=',cmsCd[board_id])
-        LIST_ARTICLE_URL = Shinyoung_detail(SEQ=list['SEQ'], BBSNO=list['BBSNO'])
-        LIST_ARTICLE_TITLE = list['TITLE']
-        if "해외주식" in LIST_ARTICLE_TITLE :
+        report_date         = re.sub(r"[-./]", "", str(report_date))
+        writer              = row.get('EMPNM') or ""
+        LIST_ARTICLE_URL = urljoin('https://www.shinyoung.com/files/', file_path.lstrip('/'))
+        LIST_ARTICLE_TITLE = str(article_title)
+        if "해외주식" in LIST_ARTICLE_TITLE:
             mkt_tp = "GLOBAL"
         download_url = LIST_ARTICLE_URL
         json_data_list.append({
