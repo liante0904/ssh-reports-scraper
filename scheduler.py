@@ -336,7 +336,9 @@ def run_fnguide_matcher():
         jwt_secret_key = os.getenv("JWT_SECRET_KEY")
         
         if not jwt_secret_key:
-            logger.warning("FnGuide Matcher skipped: JWT_SECRET_KEY environment variable is not set.")
+            # The scheduler omits this job when the secret is absent. Keep this
+            # guard for manual calls, but don't emit a warning every time it runs.
+            logger.info("FnGuide Matcher skipped: JWT_SECRET_KEY is not configured.")
             logger.info("--- [Job End] FnGuide Report Matcher ---")
             return
             
@@ -395,12 +397,15 @@ scheduler.add_job(
     id="ga_import_job"
 )
 
-# [스케줄 5] FnGuide 매칭 배치: 30분마다 가동 (메인 스크래퍼 구동 10분 뒤)
-scheduler.add_job(
-    run_fnguide_matcher,
-    CronTrigger(minute='10,40', hour='0,5-23', jitter=120),
-    id="fnguide_matcher_job"
-)
+# [스케줄 5] FnGuide 매칭 배치: 설정된 경우에만 30분마다 가동
+if os.getenv("JWT_SECRET_KEY"):
+    scheduler.add_job(
+        run_fnguide_matcher,
+        CronTrigger(minute='10,40', hour='0,5-23', jitter=120),
+        id="fnguide_matcher_job"
+    )
+else:
+    logger.warning("FnGuide Matcher not scheduled: JWT_SECRET_KEY is not configured.")
 
 if __name__ == "__main__":
     import signal
