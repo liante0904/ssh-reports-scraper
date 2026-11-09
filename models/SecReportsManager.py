@@ -311,6 +311,7 @@ class SecReportsManager(LibrarySecReportsManager):
             WHERE (r.article_title ILIKE %s OR r.writer ILIKE %s)
               AND r.save_at::date = %s
               AND h.id IS NULL
+              AND NULLIF(BTRIM(r.telegram_url), '') IS NOT NULL
               AND {self.dbfi_ready_condition("r")}
             ORDER BY r.save_at ASC, r.firm_nm ASC
         """
@@ -327,6 +328,7 @@ class SecReportsManager(LibrarySecReportsManager):
             WHERE (r.article_title ILIKE %s OR r.writer ILIKE %s)
               AND r.save_at::date = %s
               AND h.id IS NULL
+              AND NULLIF(BTRIM(r.telegram_url), '') IS NOT NULL
               AND {self.dbfi_ready_condition("r")}
         """
         keyword_param = f"%{keyword}%"
