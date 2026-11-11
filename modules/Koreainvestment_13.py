@@ -6,7 +6,6 @@ import urllib.parse as urlparse
 import urllib.request
 import asyncio
 from datetime import datetime
-import time
 from loguru import logger
 
 from playwright.async_api import async_playwright
@@ -17,138 +16,8 @@ from models.FirmInfo import FirmInfo
 from models.ConfigManager import config
 
 
-async def Koreainvestment_selenium_checkNewArticle():
-    # Kept as a rollback/diagnostic implementation; Selenium is no longer part
-    # of the production runtime dependencies or Docker image.
-    from selenium import webdriver
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.chrome.service import Service
-    from webdriver_manager.chrome import ChromeDriverManager
-
-    firm_id      = 13
-    json_data_list = []
-
-    requests.packages.urllib3.disable_warnings()
-
-    TARGET_URL_0 = config.get_urls("Koreainvestment_13")[0]
-    
-    # 백필 등 고페이지 수집용 — KOREAMAX_PAGES 환경변수 (기본 10)
-    _max_pages = int(os.getenv("KOREAMAX_PAGES", "10"))
-
-    CATEGORIES = [
-        {"name": "전체", "board_order": 0, "script": None, "mkt_tp": "KR"},
-        {"name": "미국 현지 리서치", "board_order": 10, "script": "onTab1Selected('stifel', 1);", "mkt_tp": "GLOBAL"}
-    ]
-
-    chrome_options = webdriver.ChromeOptions()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--remote-allow-origins=*")
-    chrome_options.add_argument("--disable-software-rasterizer")
-
-    import platform as _plat
-    _is_arm = _plat.machine() in ("aarch64", "arm64")
-
-    # 시스템에 설치된 chromedriver 우선 확인 (ARM64 호환성 해결)
-    system_chromedriver = "/usr/bin/chromedriver"
-    system_chrome = "/usr/bin/chromium-browser"
-    snap_chromedriver = "/snap/bin/chromium.chromedriver"
-
-    if os.path.exists(system_chromedriver):
-        logger.debug(f"KoreaInvestment Scraper: Using system chromedriver at {system_chromedriver}")
-        service = Service(executable_path=system_chromedriver)
-    elif os.path.exists(snap_chromedriver):
-        logger.debug(f"KoreaInvestment Scraper: Using snap chromedriver at {snap_chromedriver}")
-        service = Service(executable_path=snap_chromedriver)
-    elif _is_arm:
-        # ARM64에서는 webdriver_manager 대신 시스템 패키지 필수
-        logger.warning("KoreaInvestment: ARM64 detected, trying default Service()")
-        service = Service()
-    else:
-        # x86_64 환경 (GitHub Actions 등) — webdriver_manager 사용
-        try:
-            logger.debug("KoreaInvestment Scraper: System chromedriver not found, trying ChromeDriverManager...")
-            service = Service(ChromeDriverManager().install())
-        except Exception as e:
-            logger.error(f"Failed to install ChromeDriver: {e}")
-            service = Service()
-
-    binary_paths = [
-        "/usr/bin/chromium-browser", "/usr/bin/chromium", "/usr/bin/google-chrome",
-        "/snap/bin/chromium",
-    ]
-    for bp in binary_paths:
-        if os.path.exists(bp):
-            chrome_options.binary_location = bp
-            break
-
-    logger.debug("KoreaInvestment Scraper: Launching headless browser...")
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-
-    try:
-        for cat in CATEGORIES:
-            board_id = cat["board_order"]
-            firm_info = FirmInfo(firm_id, board_id)
-            logger.debug(f"KoreaInvestment Scraper: Processing [{cat['name']}]")
-
-            driver.get(TARGET_URL_0)
-            driver.implicitly_wait(5)
-
-            if cat["script"]:
-                driver.execute_script(cat["script"])
-                time.sleep(2)
-
-            for page in range(1, _max_pages + 1):
-                if page > 1:
-                    driver.execute_script(f"goPage({page});")
-                    time.sleep(2)
-
-                title_elements = driver.find_elements(By.XPATH, '//*[@id="searchResult"]/div/ul/li/a[1]/div[2]/span[1]')
-                link_elements = driver.find_elements(By.XPATH, '//*[@id="searchResult"]/div/ul/li/a[2]')
-                info_elements = driver.find_elements(By.XPATH, '//*[@id="searchResult"]/div/ul/li/a[1]/span')
-                
-                if not title_elements:
-                    logger.info(f"KoreaInvestment Scraper: No more articles on page {page}")
-                    break
-                
-                logger.info(f"KoreaInvestment Scraper: Collected {len(title_elements)} items on page {page}")
-
-                for title, link, article_info in zip(title_elements, link_elements, info_elements):
-                    LIST_ARTICLE_TITLE = title.text
-                    LIST_ARTICLE_URL_RAW = link.get_attribute("onclick")
-                    article_info_str = article_info.text.split(' ')
-                    
-                    if len(article_info_str) < 2: continue
-
-                    LIST_ARTICLE_URL = Koreainvestment_GET_LIST_ARTICLE_URL(LIST_ARTICLE_URL_RAW)
-                    
-                    json_data_list.append({
-                        "firm_id":firm_id,
-                        "board_id":board_id,
-                        "firm_nm":firm_info.get_firm_name(),
-                        "report_date":re.sub(r"[-./]", "", article_info_str[1]),
-                        
-                        "telegram_url": LIST_ARTICLE_URL,
-                        "pdf_file_url": LIST_ARTICLE_URL,
-                        "article_title":LIST_ARTICLE_TITLE,
-                        "writer": article_info_str[0],
-                        "report_unique_key": LIST_ARTICLE_URL,
-                        "save_at": datetime.now().isoformat(),
-                        "mkt_tp": cat["mkt_tp"]
-                    })
-    except Exception as e:
-        logger.error(f"Error during KoreaInvestment scraping: {e}")
-    finally:
-        driver.quit()
-        
-    logger.info(f"Total articles collected: {len(json_data_list)}")
-    return json_data_list
-
-
 async def Koreainvestment_playwright_checkNewArticle():
-    """Playwright implementation kept alongside Selenium for side-by-side validation."""
+    """Collect Korea Investment reports using the shared Playwright browser when available."""
     firm_id = 13
     json_data_list = []
 
@@ -165,14 +34,14 @@ async def Koreainvestment_playwright_checkNewArticle():
     logger.debug("KoreaInvestment Scraper: Launching Playwright browser...")
     async with async_playwright() as playwright:
         endpoint = os.getenv("PLAYWRIGHT_WS_ENDPOINT")
-        launch_args = ["--no-sandbox", "--disable-dev-shm-usage"]
+        launch_args = ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
         if endpoint:
             try:
                 browser = await playwright.chromium.connect(endpoint)
             except Exception as exc:
                 logger.warning(
-                    "KoreaInvestment: shared Playwright browser unavailable at %s; "
-                    "falling back to local Chromium: %s",
+                    "KoreaInvestment: shared Playwright browser unavailable at {}; "
+                    "falling back to local Chromium: {}",
                     endpoint,
                     exc,
                 )

@@ -146,6 +146,7 @@ LS증권 · 신한투자증권 · NH투자증권 · 하나증권 · KB증권 · 
 | 2024 | 모듈 분리, SQLite, Docker 전환 |
 | 2026.04 | PostgreSQL 전환, 스키마 소문자 정규화, AI 요약 |
 | 2026.05 | Enricher(태그/섹터) 통합, 인프라 고도화 (WARP 프록시 등) |
+| 2026.11 | 한국투자증권 스크래퍼의 Selenium 잔여 구현 제거, 공용 Playwright 브라우저 연결 유지 및 OCI 컨테이너에서 100건 수집 확인 |
 
 - 다음 디버깅 진입점: [docs/DEBUG_ENTRYPOINTS.md](docs/DEBUG_ENTRYPOINTS.md)
 - LLM 작업/위임 규칙: [docs/LLM_GUIDE.md](docs/LLM_GUIDE.md)
