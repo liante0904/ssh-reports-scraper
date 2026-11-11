@@ -19,7 +19,7 @@ DB insert (ON CONFLICT dedup) + 후처리를 담당한다.
 제외/제한:
   - --server-only: 예전 동작처럼 GA 운용 증권사를 제외
   - --skip-ls: LS증권 제외
-  - 한국투자증권 (Koreainvestment_13): Selenium 필요
+  - 한국투자증권 (Koreainvestment_13): Playwright 사용
 
 사용법:
   python3 scripts/standalone_all_scraper.py [--firms LS_0,KBsec_4] [--timeout 120]

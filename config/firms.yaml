@@ -140,7 +140,7 @@ firms:
     enricher: null
     enrichment_skip: false
     special_funcs: null
-    notes: "공용 Playwright 브라우저(PLAYWRIGHT_WS_ENDPOINT) 사용. Selenium 구현은 modules/Koreainvestment_13.py에 롤백/비교용으로 보존. _runner.py 미사용 — 특수 async 함수 직접 호출."
+    notes: "공용 Playwright 브라우저(PLAYWRIGHT_WS_ENDPOINT) 사용. _runner.py 미사용 — 특수 async 함수 직접 호출."
 
   sks:
     display_name: SK증권
