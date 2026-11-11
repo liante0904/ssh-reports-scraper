@@ -26,12 +26,6 @@ dependencies = [
     "questionary>=2.1.1",
 ]
 
-[project.optional-dependencies]
-browser-comparison = [
-    "selenium>=4.41.0",
-    "webdriver-manager>=4.0.2",
-]
-
 [dependency-groups]
 dev = [
     "pytest>=8.0.0",

@@ -33,7 +33,7 @@
 
 증권사마다 HTML 구조, 인증 방식, 페이지네이션이 전부 다르다.  
 공통 인터페이스(`WebScraper`)를 설계하고 증권사별 모듈이 이를 구현하는 구조로 확장성을 확보했다.  
-일부는 Selenium 헤드리스, 일부는 aiohttp 비동기, 일부는 세션 쿠키 유지가 필요하다.
+일부는 Playwright, 일부는 aiohttp 비동기, 일부는 세션 쿠키 유지가 필요하다.
 
 ### 2. 3680줄 단일 파일 → 모듈 시스템
 
@@ -98,7 +98,7 @@ API 키, DB 비밀번호, 수집 대상 URL(경쟁 우위 정보)을 소스코�
 | 영역 | 기술 |
 |---|---|
 | Language | Python 3.12, uv |
-| Scraping | aiohttp, BeautifulSoup4, Selenium (headless) |
+| Scraping | Playwright, aiohttp, BeautifulSoup4 |
 | Scheduler | APScheduler |
 | Database | PostgreSQL (운영 단일 DB) |
 | AI / Data | Gemini API (요약), Enricher (태그/섹터 추출) |
@@ -122,7 +122,7 @@ ssh-reports-scraper/
 │   ├── FirmInfo.py                 # 증권사/게시판 메타 (DB 기반)
 │   ├── SecReportsManager.py        # PostgreSQL CRUD
 │   ├── db_factory.py               # DB_BACKEND 팩토리
-│   └── WebScraper.py               # HTTP/Selenium 공통 추상화
+│   └── WebScraper.py               # 동기/비동기 HTTP 공통 추상화
 ├── docs/
 │   ├── DEBUG_ENTRYPOINTS.md        # 장애 유형별 첫 확인 파일/명령
 │   ├── LLM_GUIDE.md                # LLM 작업/위임 규칙
@@ -146,7 +146,7 @@ LS증권 · 신한투자증권 · NH투자증권 · 하나증권 · KB증권 · 
 | 2024 | 모듈 분리, SQLite, Docker 전환 |
 | 2026.04 | PostgreSQL 전환, 스키마 소문자 정규화, AI 요약 |
 | 2026.05 | Enricher(태그/섹터) 통합, 인프라 고도화 (WARP 프록시 등) |
-| 2026.11 | 한국투자증권 스크래퍼의 Selenium 잔여 구현 제거, 공용 Playwright 브라우저 연결 유지 및 OCI 컨테이너에서 100건 수집 확인 |
+| 2026.11 | 한국투자증권 스크래퍼의 Selenium 비교 코드·전용 의존성 제거, 공용 Playwright 브라우저 OCI 수집 확인 |
 
 - 다음 디버깅 진입점: [docs/DEBUG_ENTRYPOINTS.md](docs/DEBUG_ENTRYPOINTS.md)
 - LLM 작업/위임 규칙: [docs/LLM_GUIDE.md](docs/LLM_GUIDE.md)
