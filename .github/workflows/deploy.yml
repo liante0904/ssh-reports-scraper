@@ -31,6 +31,10 @@ jobs:
               - 'run/keyword_alert.py'
               - 'utils/**'
               - 'models/SecReportsManager.py'
+              - 'models/KeywordAlertDB.py'
+              - 'requirements-keyword-alert.txt'
+              - 'Dockerfile'
+              - 'docker-compose.yml'
               - 'pyproject.toml'
               - 'uv.lock'
 
@@ -105,6 +109,19 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Build and push keyword-alert image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: keyword-alert
+          platforms: linux/arm64
+          push: true
+          tags: ghcr.io/${{ env.IMAGE_NAME }}:keyword-alert-latest
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=keyword-alert
+          cache-to: type=gha,mode=max,scope=keyword-alert
+
   deploy:
     needs: [build-and-push, changes]
     runs-on: ubuntu-latest
@@ -178,6 +195,7 @@ jobs:
 
             # 2) 이미지 강제 pull + 컨테이너 재생성
             docker pull "ghcr.io/$REPO_OWNER/$REPO_NAME:latest"
+            docker pull "ghcr.io/$REPO_OWNER/$REPO_NAME:keyword-alert-latest"
             compose up -d --no-build --force-recreate "main-scraper-$TARGET_COLOR"
 
             # 3) 신규 스케줄러 헬스 체크
@@ -210,6 +228,17 @@ jobs:
 
             # 4) Keyword Alert 서비스도 세트로 배포
             compose up -d --no-build --force-recreate "report-keyword-alert-$TARGET_COLOR"
+            KEYWORD_SHA="$(docker inspect "ssh-reports-scraper-keyword-alert-$TARGET_COLOR" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
+            if [ "$KEYWORD_SHA" != "$EXPECTED_SHA" ]; then
+              echo "keyword-alert-$TARGET_COLOR revision mismatch: expected=$EXPECTED_SHA running=$KEYWORD_SHA"
+              exit 1
+            fi
+            KEYWORD_STATE="$(docker inspect "ssh-reports-scraper-keyword-alert-$TARGET_COLOR" --format '{{.State.Running}}')"
+            if [ "$KEYWORD_STATE" != "true" ]; then
+              echo "keyword-alert-$TARGET_COLOR is not running after deployment"
+              docker logs --tail 100 "ssh-reports-scraper-keyword-alert-$TARGET_COLOR" || true
+              exit 1
+            fi
 
             # 5) Traffic (가동 상태) 스위칭 완료 확인 후 이전 컨테이너 정리
             sleep 5

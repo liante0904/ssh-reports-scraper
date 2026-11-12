@@ -1,37 +1,50 @@
 # syntax=docker/dockerfile:1.7
-# 1. Base Image
-FROM python:3.12-slim
+# Shared base contains Python and the unprivileged runtime account.
+FROM python:3.12-slim AS base
 ENV PYTHONUNBUFFERED=1
-
-# 2. 필수 시스템 패키지 설치
-RUN apt-get update && apt-get install -y \
-    wget \
-    ca-certificates \
-    poppler-utils \
-    rclone \
-    tesseract-ocr \
-    tesseract-ocr-kor \
-    && rm -rf /var/lib/apt/lists/*
-
-# 3. uv 설치
-RUN pip install uv
-
-# 4. Create a non-root user and group
-RUN groupadd --gid 1001 appgroup && useradd --uid 1001 --gid 1001 --shell /bin/bash --create-home appuser
-
-# 5. 작업 디렉토리 설정
 WORKDIR /app
 
-# 6. 의존성 설치 (캐시 활용)
-# 소유권을 appuser로 지정하여 파일 복사
-COPY --chown=appuser:appgroup pyproject.toml uv.lock ./ 
+RUN groupadd --gid 1001 appgroup \
+    && useradd --uid 1001 --gid 1001 --shell /bin/bash --create-home appuser
+
+# Minimal musl-based runtime for PostgreSQL keyword queries and Telegram notifications.
+FROM python:3.12-alpine AS keyword-alert
+ENV PYTHONUNBUFFERED=1
+ENV TZ=Asia/Seoul
+WORKDIR /app
+RUN addgroup -g 1001 appgroup \
+    && adduser -D -u 1001 -G appgroup -s /bin/sh appuser
+RUN apk add --no-cache tzdata
+COPY --chown=appuser:appgroup requirements-keyword-alert.txt ./
+RUN pip install --no-cache-dir uv \
+    && uv venv .venv \
+    && uv pip install --python .venv/bin/python --no-cache -r requirements-keyword-alert.txt \
+    && pip uninstall -y uv \
+    && chown -R appuser:appgroup /app/.venv
+
+COPY --chown=appuser:appgroup scheduler_keyword_alert.py ./
+COPY --chown=appuser:appgroup run/keyword_alert.py ./run/keyword_alert.py
+COPY --chown=appuser:appgroup models/KeywordAlertDB.py ./models/KeywordAlertDB.py
+COPY --chown=appuser:appgroup models/ConfigManager.py ./models/ConfigManager.py
+COPY --chown=appuser:appgroup utils/logger_util.py ./utils/logger_util.py
+COPY --chown=appuser:appgroup utils/telegram_message_builder.py ./utils/telegram_message_builder.py
+COPY --chown=appuser:appgroup utils/telegram_util.py ./utils/telegram_util.py
+RUN mkdir -p /log && chown appuser:appgroup /log /app
+USER appuser
+CMD [".venv/bin/python", "scheduler_keyword_alert.py"]
+
+# Build the main runtime virtualenv separately so uv and its installer layer
+# do not ship in the production image.
+FROM base AS main-deps
+RUN pip install --no-cache-dir uv
+COPY --chown=appuser:appgroup pyproject.toml uv.lock ./
 
 # 6-1. 선택적 private ssh-library 설치
 # GitHub Actions/Compose에서 ssh_library named context를 넘기고
 # INSTALL_SSH_LIBRARY=1일 때만 현재 프로젝트 venv에 설치한다.
 ARG INSTALL_SSH_LIBRARY=0
 RUN --mount=from=ssh_library,target=/tmp/ssh-library \
-    uv sync --frozen --no-cache && \
+    uv sync --frozen --no-cache --no-install-project --no-default-groups --group main-runtime && \
     if [ "$INSTALL_SSH_LIBRARY" = "1" ]; then \
       uv pip install --python .venv/bin/python /tmp/ssh-library; \
     else \
@@ -39,15 +52,23 @@ RUN --mount=from=ssh_library,target=/tmp/ssh-library \
     fi && \
     chown -R appuser:appgroup /app/.venv
 
-# Shared Playwright WS는 네트워크 장애 시 가용성에 영향을 주므로
-# 로컬 Chromium을 대체 경로로 사용할 수 있게 이미지에 함께 설치한다.
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-RUN apt-get update && \
-    .venv/bin/python -m playwright install --with-deps chromium && \
-    chown -R appuser:appgroup "$PLAYWRIGHT_BROWSERS_PATH" && \
-    rm -rf /var/lib/apt/lists/*
+# Main scraper keeps PDF/OCR utilities but uses the shared browser service.
+FROM base AS main-scraper
+ENV TZ=Asia/Seoul
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    ca-certificates \
+    poppler-utils \
+    tzdata \
+    tesseract-ocr \
+    tesseract-ocr-kor \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=main-deps --chown=appuser:appgroup /app/.venv ./.venv
 
-# 7. 필요한 소스 코드 복사
+# Playwright connects to PLAYWRIGHT_WS_ENDPOINT; no local browser is installed.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# Copy main scraper runtime sources.
 COPY --chown=appuser:appgroup run/ ./run/
 COPY --chown=appuser:appgroup models/ ./models/
 COPY --chown=appuser:appgroup utils/ ./utils/
@@ -60,12 +81,9 @@ COPY --chown=appuser:appgroup scripts/backfill_ls_pdf_quality.py ./scripts/backf
 COPY --chown=appuser:appgroup *.py ./
 # COPY .env ./ # .env는 docker-compose의 env_file을 통해 주입됩니다.
 
-# 8. 실행 권한 부여 및 디렉토리 준비
+# Prepare runtime directories and permissions.
 RUN mkdir -p /log && chown appuser:appgroup /log /app
 
-# 9. Switch to the non-root user
 USER appuser
 
-# 10. 기본 실행 명령 (스케줄러 실행)
-# 런타임에서 uv run을 쓰면 appuser 권한으로 .venv 동기화를 시도할 수 있다.
 CMD [".venv/bin/python", "scheduler.py"]

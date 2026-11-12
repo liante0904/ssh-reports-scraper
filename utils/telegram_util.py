@@ -1,7 +1,6 @@
 import asyncio
 import telegram
 import os
-import requests
 from loguru import logger
 from models.ConfigManager import config
 
@@ -57,6 +56,8 @@ def send_admin_alert_sync(message):
         return
     
     url = f"https://api.telegram.org/bot{token}/sendMessage"
+    import requests
+
     payload = {
         "chat_id": admin_id,
         "text": message
