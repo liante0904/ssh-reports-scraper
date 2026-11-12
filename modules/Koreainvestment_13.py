@@ -17,7 +17,7 @@ from models.ConfigManager import config
 
 
 async def Koreainvestment_playwright_checkNewArticle():
-    """Collect Korea Investment reports using the shared Playwright browser when available."""
+    """Collect Korea Investment reports through the shared Playwright browser."""
     firm_id = 13
     json_data_list = []
 
@@ -34,20 +34,9 @@ async def Koreainvestment_playwright_checkNewArticle():
     logger.debug("KoreaInvestment Scraper: Launching Playwright browser...")
     async with async_playwright() as playwright:
         endpoint = os.getenv("PLAYWRIGHT_WS_ENDPOINT")
-        launch_args = ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
-        if endpoint:
-            try:
-                browser = await playwright.chromium.connect(endpoint)
-            except Exception as exc:
-                logger.warning(
-                    "KoreaInvestment: shared Playwright browser unavailable at {}; "
-                    "falling back to local Chromium: {}",
-                    endpoint,
-                    exc,
-                )
-                browser = await playwright.chromium.launch(headless=True, args=launch_args)
-        else:
-            browser = await playwright.chromium.launch(headless=True, args=launch_args)
+        if not endpoint:
+            raise RuntimeError("PLAYWRIGHT_WS_ENDPOINT is required for KoreaInvestment")
+        browser = await playwright.chromium.connect(endpoint)
         try:
             page = await browser.new_page()
             for category in categories:

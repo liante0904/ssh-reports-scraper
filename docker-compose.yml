@@ -5,6 +5,7 @@ services:
     container_name: ssh-reports-scraper-main-scraper-blue
     build:
       context: .
+      target: main-scraper
       args:
         INSTALL_SSH_LIBRARY: ${INSTALL_SSH_LIBRARY:-0}
       additional_contexts:
@@ -45,6 +46,7 @@ services:
     container_name: ssh-reports-scraper-main-scraper-green
     build:
       context: .
+      target: main-scraper
       args:
         INSTALL_SSH_LIBRARY: ${INSTALL_SSH_LIBRARY:-0}
       additional_contexts:
@@ -81,19 +83,15 @@ services:
 
   report-keyword-alert-blue:
     platform: linux/arm64
-    image: ${DOCKER_IMAGE_NAME:-ghcr.io/liante0904/ssh-reports-scraper}:latest
+    image: ${DOCKER_IMAGE_NAME:-ghcr.io/liante0904/ssh-reports-scraper}:keyword-alert-latest
     container_name: ssh-reports-scraper-keyword-alert-blue
     build:
       context: .
-      args:
-        INSTALL_SSH_LIBRARY: ${INSTALL_SSH_LIBRARY:-0}
-      additional_contexts:
-        ssh_library: ../../../../lib/ssh_library
+      target: keyword-alert
     restart: always
     env_file: .env
     volumes:
       - ~/logs:/log
-      - ~/incoming/ga-scrapes:/app/incoming/ga-scrapes:rw
     environment:
       - APP_ENV=${APP_ENV:-production}
       - LOG_BASE_DIR=/log
@@ -111,19 +109,15 @@ services:
 
   report-keyword-alert-green:
     platform: linux/arm64
-    image: ${DOCKER_IMAGE_NAME:-ghcr.io/liante0904/ssh-reports-scraper}:latest
+    image: ${DOCKER_IMAGE_NAME:-ghcr.io/liante0904/ssh-reports-scraper}:keyword-alert-latest
     container_name: ssh-reports-scraper-keyword-alert-green
     build:
       context: .
-      args:
-        INSTALL_SSH_LIBRARY: ${INSTALL_SSH_LIBRARY:-0}
-      additional_contexts:
-        ssh_library: ../../../../lib/ssh_library
+      target: keyword-alert
     restart: always
     env_file: .env
     volumes:
       - ~/logs:/log
-      - ~/incoming/ga-scrapes:/app/incoming/ga-scrapes:rw
     environment:
       - APP_ENV=${APP_ENV:-production}
       - LOG_BASE_DIR=/log

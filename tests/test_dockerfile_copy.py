@@ -24,3 +24,16 @@ def test_dockerfile_copies_all_runtime_source_directories():
     for dirname in ("run", "models", "utils", "modules", "scrapers", "config"):
         assert (ROOT / dirname).is_dir(), f"{dirname}/ must exist in repo"
         assert f"COPY --chown=appuser:appgroup {dirname}/ ./{dirname}/" in text
+
+
+def test_dockerfile_separates_light_keyword_alert_target():
+    text = _dockerfile_text()
+    keyword_target = text.split("FROM python:3.12-alpine AS keyword-alert", 1)[1].split(
+        "FROM base AS main-deps", 1
+    )[0]
+
+    assert "requirements-keyword-alert.txt" in keyword_target
+    assert "models/KeywordAlertDB.py" in keyword_target
+    assert "playwright install" not in text
+    assert "tesseract" not in keyword_target
+    assert "poppler" not in keyword_target

@@ -13,13 +13,13 @@ setup_logger("send_report_by_keyword_to_user")
 
 from utils.telegram_message_builder import build_telegram_messages
 from utils.telegram_util import sendMarkDownText
-from models.db_factory import get_db
+from models.KeywordAlertDB import KeywordAlertDB
 
 load_dotenv()
 TOKEN = os.getenv('TELEGRAM_BOT_TOKEN_REPORT_ALARM_SECRET')
 INTERVAL = int(os.getenv('INTERVAL', '1800'))
 
-pg_manager = get_db()
+pg_manager = KeywordAlertDB()
 
 def _validate_config():
     """서비스 시작 전 필수 환경변수 검증"""
