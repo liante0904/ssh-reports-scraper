@@ -1788,6 +1788,7 @@ full-runtime = [
     { name = "python-dotenv" },
     { name = "python-telegram-bot" },
     { name = "pytz" },
+    { name = "pyyaml" },
     { name = "questionary" },
     { name = "requests", extra = ["socks"] },
     { name = "wget" },
@@ -1806,6 +1807,7 @@ main-runtime = [
     { name = "python-dotenv" },
     { name = "python-telegram-bot" },
     { name = "pytz" },
+    { name = "pyyaml" },
     { name = "requests", extra = ["socks"] },
     { name = "wget" },
 ]
@@ -1858,6 +1860,7 @@ full-runtime = [
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "python-telegram-bot", specifier = ">=22.6" },
     { name = "pytz", specifier = ">=2026.1.post1" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "questionary", specifier = ">=2.1.1" },
     { name = "requests", extras = ["socks"], specifier = ">=2.32.5" },
     { name = "wget", specifier = ">=3.2" },
@@ -1876,6 +1879,7 @@ main-runtime = [
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "python-telegram-bot", specifier = ">=22.6" },
     { name = "pytz", specifier = ">=2026.1.post1" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "requests", extras = ["socks"], specifier = ">=2.32.5" },
     { name = "wget", specifier = ">=3.2" },
 ]
